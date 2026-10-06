@@ -1,0 +1,30 @@
+@import 'tailwindcss';
+
+@plugin 'daisyui' {
+  themes: emerald --default, dark --prefersdark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: oklch(var(--b1));
+  color: oklch(var(--bc));
+}
+
+/* Cancha: franjas de césped */
+.pitch-stripes {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    color-mix(in oklab, oklch(0.72 0.19 142) 88%, transparent) 0 40px,
+    color-mix(in oklab, oklch(0.62 0.17 142) 88%, transparent) 40px 80px
+  );
+}
+
+/* Scrollbar sutil en tablas largas */
+.scroll-slim {
+  scrollbar-width: thin;
+}

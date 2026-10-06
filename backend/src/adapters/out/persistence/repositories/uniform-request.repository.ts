@@ -1,0 +1,76 @@
+import type { Database } from 'better-sqlite3';
+import type {
+  CreateUniformRequestInput,
+  UniformRequestRepository,
+  UpdateUniformRequestInput,
+} from '../../../../application/ports/out/uniform-request.repository';
+import type { UniformRequest, UniformRequestStatus } from '../../../../domain/entities';
+import { mapUniformRequest, type UniformRequestRow } from '../mappers';
+
+const SELECT_REQUEST = `
+  SELECT r.*, u.full_name AS player_name, f.name AS uniform_name
+  FROM uniform_requests r
+  JOIN players p ON p.id = r.player_id
+  JOIN users u ON u.id = p.user_id
+  JOIN uniforms f ON f.id = r.uniform_id
+`;
+
+export class SqliteUniformRequestRepository implements UniformRequestRepository {
+  constructor(private readonly db: Database) {}
+
+  list(status?: UniformRequestStatus, playerId?: number): UniformRequest[] {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    if (status) {
+      conditions.push('r.status = ?');
+      params.push(status);
+    }
+    if (playerId !== undefined) {
+      conditions.push('r.player_id = ?');
+      params.push(playerId);
+    }
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const rows = this.db
+      .prepare(`${SELECT_REQUEST} ${where} ORDER BY r.created_at DESC, r.id DESC`)
+      .all(...params) as UniformRequestRow[];
+    return rows.map(mapUniformRequest);
+  }
+
+  findById(id: number): UniformRequest | null {
+    const row = this.db.prepare(`${SELECT_REQUEST} WHERE r.id = ?`).get(id) as
+      | UniformRequestRow
+      | undefined;
+    return row ? mapUniformRequest(row) : null;
+  }
+
+  create(input: CreateUniformRequestInput): UniformRequest {
+    const result = this.db
+      .prepare(
+        `INSERT INTO uniform_requests (player_id, uniform_id, size, reason)
+         VALUES (@playerId, @uniformId, @size, @reason)`,
+      )
+      .run({
+        playerId: input.playerId,
+        uniformId: input.uniformId,
+        size: input.size,
+        reason: input.reason ?? null,
+      });
+    return this.findById(Number(result.lastInsertRowid)) as UniformRequest;
+  }
+
+  update(id: number, input: UpdateUniformRequestInput): UniformRequest {
+    const fields: string[] = [];
+    const params: Record<string, unknown> = { id };
+    const set = (column: string, key: string, value: unknown) => {
+      fields.push(`${column} = @${key}`);
+      params[key] = value;
+    };
+    if (input.status !== undefined) set('status', 'status', input.status);
+    if (input.reviewNotes !== undefined) set('review_notes', 'reviewNotes', input.reviewNotes);
+    if (input.reviewedAt !== undefined) set('reviewed_at', 'reviewedAt', input.reviewedAt);
+    if (fields.length > 0) {
+      this.db.prepare(`UPDATE uniform_requests SET ${fields.join(', ')} WHERE id = @id`).run(params);
+    }
+    return this.findById(id) as UniformRequest;
+  }
+}
