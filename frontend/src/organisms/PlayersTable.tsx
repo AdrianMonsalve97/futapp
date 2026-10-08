@@ -20,6 +20,8 @@ export interface PlayersTableProps {
   detailBase?: string;
   onEdit?: (item: PlayerListItem) => void;
   onToggleActive?: (item: PlayerListItem) => void;
+  onReactivate?: (item: PlayerListItem) => void;
+  reactivatingId?: number | null;
   isLoading?: boolean;
   error?: string | null;
   emptyTitle?: string;
@@ -32,6 +34,8 @@ export function PlayersTable({
   detailBase = '/admin/jugadores',
   onEdit,
   onToggleActive,
+  onReactivate,
+  reactivatingId = null,
   isLoading = false,
   error = null,
   emptyTitle = 'Sin jugadores',
@@ -83,7 +87,7 @@ export function PlayersTable({
                       <span className="block font-medium leading-tight truncate">{item.user.fullName}</span>
                       <span className="block text-xs text-base-content/50 truncate">{item.user.email}</span>
                     </span>
-                    {item.user.active ? null : <Badge tone="neutral" size="xs">Baja</Badge>}
+                    {item.user.active ? null : <Badge tone="neutral" size="xs">Inactivo</Badge>}
                   </Link>
                 </td>
                 <td>
@@ -140,6 +144,9 @@ export function PlayersTable({
                       <Button size="xs" variant="ghost" title="Editar" onClick={() => onEdit(item)}>
                         <Icon name="edit" size={15} />
                       </Button>
+                    ) : null}
+                    {onReactivate && !item.user.active && !item.pendingApproval ? (
+                      <Button size="sm" variant="outline" title="Reactivar esta cuenta conservando sus datos" loading={reactivatingId===item.player.id} disabled={reactivatingId!==null} onClick={()=>onReactivate(item)}>Reactivar</Button>
                     ) : null}
                     {onToggleActive ? (
                       <ConfirmAction

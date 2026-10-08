@@ -21,6 +21,7 @@ export function PlayersPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<number | null>(null);
+  const [reactivatingId,setReactivatingId] = useState<number|null>(null);
   const pending = (data ?? []).filter(item => item.pendingApproval);
 
   const filtered = useMemo(() => {
@@ -52,6 +53,16 @@ export function PlayersPage() {
     } catch (err) {
       setActionError(errorMessage(err));
     }
+  };
+
+  const reactivate = async (item: PlayerListItem) => {
+    if(item.user.active||item.pendingApproval||reactivatingId!==null)return;
+    setReactivatingId(item.player.id);setActionError(null);setActionNotice(null);
+    try {
+      await api(`/api/players/${item.player.id}`,{method:'PUT',json:{active:true}});
+      setActionNotice('Jugador reactivado. Conserva sus datos y puede volver a iniciar sesión con su contraseña.');
+      reload();
+    } catch(err) {setActionError(errorMessage(err));} finally {setReactivatingId(null);}
   };
 
   const approve = async (item: PlayerListItem) => {
@@ -113,6 +124,8 @@ export function PlayersPage() {
           setModalOpen(true);
         }}
         onToggleActive={(item) => void toggleActive(item)}
+        onReactivate={(item) => void reactivate(item)}
+        reactivatingId={reactivatingId}
         emptyTitle={query ? 'Sin resultados' : 'Plantel vacío'}
         emptyMessage={
           query

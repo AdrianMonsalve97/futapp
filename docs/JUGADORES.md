@@ -12,6 +12,8 @@ Los cobros futuros de arbitraje se recalculan con los asistentes que permanecen,
 
 ## Registro y aval
 
+Si una cuenta antigua todavía existe con estado **Inactivo**, el administrador puede usar **Jugadores → Reactivar**. Recupera acceso con su contraseña existente y conserva su ficha, inscripciones e historial. El botón solo aparece en cuentas inactivas sin solicitud pendiente; una solicitud nueva requiere **Dar aval**. No permite recuperar una cuenta eliminada mediante la baja definitiva.
+
 Todo registro por invitación crea una **solicitud pendiente**. No inicia sesión ni entrega una cookie o token. El administrador encuentra las solicitudes en **Jugadores**, puede **Dar aval** o **Rechazar y eliminar**. Solo después del aval puede iniciar sesión el jugador.
 
 Un jugador dado de baja puede volver a registrar su correo y un dorsal libre, pero necesita nuevamente el aval. El nuevo ingreso empieza sin historial, pagos ni saldo anteriores. Las cuentas existentes conservan su estado; no se aplica una baja automática al desplegar esta versión. Crear una cuenta desde el formulario administrativo constituye el alta autorizada por el administrador.

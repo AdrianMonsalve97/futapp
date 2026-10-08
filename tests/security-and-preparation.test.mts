@@ -48,7 +48,10 @@ test('logout and password changes invalidate replayed credentials and unrelated 
   assert.equal((await request('GET','/auth/me',undefined,second)).status,401);
   assert.equal((await request('GET','/auth/me',undefined,keeper)).status,200);
   const inactive=(await c.authService.login({email:players[2].user.email,password})).token;
-  (await users.update(players[2].user.id,{active:false}));(await users.update(players[2].user.id,{active:true}));
+  (await users.update(players[2].user.id,{active:false}));
+  assert.equal((await request('PUT','/players/'+players[2].player.id,{active:true},keeper)).status,403);
+  assert.equal((await request('PUT','/players/'+players[2].player.id,{active:true})).status,200);
+  assert.equal((await c.authService.login({email:players[2].user.email,password})).user.active,true);
   assert.equal((await request('GET','/auth/me',undefined,inactive)).status,401);
 });
 

@@ -78,6 +78,19 @@ for(const dialect of ['sqlite','postgres'] as const) test(`${dialect}: complete 
   const departingFiles=(await db.prepare('SELECT stored_name FROM media_assets WHERE owner_id=?').all(departing.user.id)).map(row=>row.stored_name);
 
   try {
+    await t.test('legacy inactive accounts can be reactivated without losing their profile, enrollment or password',async()=>{
+      const repository=new SqliteUserRepository(db);
+      const before=await db.prepare('SELECT * FROM players WHERE id=?').get(other.player.id);
+      const hash=(await db.prepare('SELECT password_hash FROM users WHERE id=?').get(other.user.id)).password_hash;
+      await repository.update(other.user.id,{active:false});
+      await assert.rejects(()=>c.authService.login({email:other.user.email,password}));
+      const updated=await c.playerService.update(other.player.id,{active:true});
+      assert.equal(updated.user.active,true);
+      assert.deepEqual(await db.prepare('SELECT * FROM players WHERE id=?').get(other.player.id),before);
+      assert.equal((await db.prepare('SELECT password_hash FROM users WHERE id=?').get(other.user.id)).password_hash,hash);
+      assert(await c.tournamentService.roster(tournament.id,true,adminId).then(roster=>roster.players.some(player=>player.playerId===other.player.id)));
+      assert.equal((await c.authService.login({email:other.user.email,password})).user.active,true);
+    });
     await t.test('published maps include all eight companions and authenticated photos; receipts remain private',async()=>{
       const lineup=(await c.matchService.get(match.id,true)).lineup;
       assert.equal(lineup.length,8);assert(lineup.every(slot=>slot.playerId));
