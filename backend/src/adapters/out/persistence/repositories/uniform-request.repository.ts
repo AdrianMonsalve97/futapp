@@ -46,8 +46,8 @@ export class SqliteUniformRequestRepository implements UniformRequestRepository 
   create(input: CreateUniformRequestInput): UniformRequest {
     const result = this.db
       .prepare(
-        `INSERT INTO uniform_requests (player_id, uniform_id, size, reason)
-         VALUES (@playerId, @uniformId, @size, @reason)`,
+        `INSERT INTO uniform_requests (player_id, uniform_id, size, reason, quoted_price)
+         VALUES (@playerId, @uniformId, @size, @reason, (SELECT price FROM uniforms WHERE id=@uniformId))`,
       )
       .run({
         playerId: input.playerId,
@@ -66,6 +66,7 @@ export class SqliteUniformRequestRepository implements UniformRequestRepository 
       params[key] = value;
     };
     if (input.status !== undefined) set('status', 'status', input.status);
+    if (input.issueId !== undefined) set('issue_id', 'issueId', input.issueId);
     if (input.reviewNotes !== undefined) set('review_notes', 'reviewNotes', input.reviewNotes);
     if (input.reviewedAt !== undefined) set('reviewed_at', 'reviewedAt', input.reviewedAt);
     if (fields.length > 0) {

@@ -40,6 +40,9 @@ export interface TrainContext {
 }
 
 export interface ModelArtifact {
+  version?: number;
+  dataSignature?: string;
+  validation?: { samples: number; mae: number; rmse: number; r2: number; method: string };
   weights: number[]; // w0 + w1..w10 (11 valores)
   mean: number[];    // media de cada feature (10)
   std: number[];     // desviación estándar de cada feature (10)
@@ -177,6 +180,7 @@ export function trainModel(X: number[][], y: number[], context: TrainContext = {
 /* ------------------------------------------------------------------ */
 
 export interface XiCandidate {
+  secondaryPosition?: Position | null;
   playerId: number;
   playerName: string;
   shirtNumber: number | null;
@@ -204,7 +208,8 @@ export function fitValue(slotRole: FormationRole, playerPos: Position): number {
 }
 
 export function slotScore(slot: FormationSlot, candidate: XiCandidate): number {
-  const fit = fitValue(slot.role, candidate.position);
+  if (slot.role === 'POR' && candidate.position !== 'POR' && candidate.secondaryPosition !== 'POR') return -Infinity;
+  const fit = Math.max(fitValue(slot.role, candidate.position), candidate.secondaryPosition === slot.role ? 0.85 : 0);
   const ratingTerm = fit === 1 ? candidate.avgRating : candidate.avgRating - 1;
   return fit * candidate.predictedRating + 0.15 * ratingTerm;
 }
@@ -408,11 +413,14 @@ export function buildStrengthsWeaknesses(
   playerAvg: number[],
   squadMean: number[],
   squadStd: number[],
+  options: { goalkeeper?: boolean; comparison?: string } = {},
 ): { strengths: InsightItem[]; weaknesses: InsightItem[] } {
   const strengths: { item: InsightItem; absZ: number }[] = [];
   const weaknesses: { item: InsightItem; absZ: number }[] = [];
 
   for (let i = 0; i < FEATURE_COUNT; i++) {
+    // No evalúes al arquero por goles, tiros, regates o recuperaciones de jugadores de campo.
+    if (options.goalkeeper && ![3, 6, 7, 8, 9].includes(i)) continue;
     const value = playerAvg[i] ?? 0;
     const mean = squadMean[i] ?? 0;
     const std = squadStd[i] ?? 0;
@@ -422,7 +430,7 @@ export function buildStrengthsWeaknesses(
     const isGood = copy.negative ? z < 0 : z > 0;
     const item: InsightItem = {
       label: isGood ? copy.strong : copy.weak,
-      detail: `${copy.format(value)} (promedio del plantel: ${copy.format(mean)})`,
+      detail: `${copy.format(value)} (${options.comparison ?? 'promedio del plantel'}: ${copy.format(mean)})`,
     };
     if (isGood) strengths.push({ item, absZ: Math.abs(z) });
     else weaknesses.push({ item, absZ: Math.abs(z) });

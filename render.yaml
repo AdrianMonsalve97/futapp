@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: futapp
+    runtime: node
+    plan: 0.5c-512mb
+    numInstances: 1
+    autoDeployTrigger: off
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.19.0
+      - key: NODE_ENV
+        value: production
+      - key: TZ
+        value: America/Bogota
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      - key: JWT_SECRET
+        generateValue: true
+      - key: BOOTSTRAP_ADMIN
+        value: '1'
+      - key: ADMIN_EMAIL
+        value: admin@futapp.local
+      - key: ADMIN_NAME
+        value: Administrador de migración
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: DB_PATH
+        value: /var/data/portal.db
+    disk:
+      name: futapp-data
+      mountPath: /var/data
+      sizeGB: 1

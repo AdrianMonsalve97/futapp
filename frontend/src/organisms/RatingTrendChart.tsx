@@ -57,6 +57,7 @@ export function RatingTrendChart({
   return (
     <div className={className}>
       {title ? <h3 className="font-semibold text-sm mb-2">{title}</h3> : null}
+      <div className="chart-scroll overflow-x-auto" tabIndex={0} role="region" aria-label={`${title ?? 'Evolución de calificaciones'}: desliza para ver completo`}>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={title ?? 'Evolución de calificaciones'}>
         {ticks.map((tick) => (
           <g key={tick}>
@@ -133,6 +134,7 @@ export function RatingTrendChart({
           </g>
         ) : null}
       </svg>
+      </div>
     </div>
   );
 }

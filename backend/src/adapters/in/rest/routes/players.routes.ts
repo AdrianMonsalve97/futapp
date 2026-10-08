@@ -37,6 +37,8 @@ export function playerRoutes(players: PlayerPort): Router {
         weightKg: body.weightKg ?? null,
         foot: body.foot ?? null,
         emergencyContact: body.emergencyContact ?? null,
+        eps: body.eps ?? null,
+        prepaidHealth: body.prepaidHealth ?? null,
       }),
     );
   });

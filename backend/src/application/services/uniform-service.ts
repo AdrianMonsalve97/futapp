@@ -1,3 +1,4 @@
+import type { UnitOfWork } from '../ports/out/unit-of-work';
 import type {
   CreateIssueInput,
   CreateUniformInput,
@@ -33,6 +34,7 @@ export class UniformService implements UniformPort {
     private readonly issues: UniformIssueRepository,
     private readonly requests: UniformRequestRepository,
     private readonly players: PlayerRepository,
+    private readonly uow: UnitOfWork,
   ) {}
 
   listUniforms(): Uniform[] {
@@ -76,38 +78,43 @@ export class UniformService implements UniformPort {
   }
 
   createIssue(input: CreateIssueInput): UniformIssue {
-    const player = this.players.findById(input.playerId);
-    if (!player) throw new NotFoundError('Jugador no encontrado');
-    const uniform = this.uniforms.findById(input.uniformId);
-    if (!uniform) throw new NotFoundError('Uniforme no encontrado');
-    if (!uniform.active) throw new ValidationError('El uniforme está inactivo');
-    if (uniform.stock <= 0) {
-      throw new ValidationError(`Sin stock disponible de "${uniform.name}"`);
-    }
-    if (input.condition && !CONDITIONS.includes(input.condition)) {
-      throw new ValidationError(`Condición inválida. Opciones: ${CONDITIONS.join(', ')}`);
-    }
-    const issue = this.issues.create({
-      ...input,
-      cost: input.cost ?? uniform.price,
+    return this.uow.run(() => {
+      const player = this.players.findById(input.playerId);
+      if (!player) throw new NotFoundError('Jugador no encontrado');
+      const uniform = this.uniforms.findById(input.uniformId);
+      if (!uniform) throw new NotFoundError('Uniforme no encontrado');
+      if (!uniform.active) throw new ValidationError('El uniforme está inactivo');
+      if (uniform.stock <= 0) {
+        throw new ValidationError(`Sin stock disponible de "${uniform.name}"`);
+      }
+      if (input.condition && !CONDITIONS.includes(input.condition)) {
+        throw new ValidationError(`Condición inválida. Opciones: ${CONDITIONS.join(', ')}`);
+      }
+      const issue = this.issues.create({
+        ...input,
+        cost: input.cost ?? uniform.price,
+      });
+      this.uniforms.update(uniform.id, { stock: uniform.stock - 1 });
+      return issue;
     });
-    this.uniforms.update(uniform.id, { stock: uniform.stock - 1 });
-    return issue;
   }
 
   updateIssue(id: number, input: UpdateIssueInput): UniformIssue {
-    const current = this.issues.findById(id);
-    if (!current) throw new NotFoundError('Entrega no encontrada');
-    if (input.condition && !CONDITIONS.includes(input.condition)) {
-      throw new ValidationError(`Condición inválida. Opciones: ${CONDITIONS.join(', ')}`);
-    }
-    const updated = this.issues.update(id, input);
-    // Al marcar la devolución se repone el stock una sola vez.
-    if (input.returned === true && !current.returned) {
-      const uniform = this.uniforms.findById(current.uniformId);
-      if (uniform) this.uniforms.update(uniform.id, { stock: uniform.stock + 1 });
-    }
-    return updated;
+    return this.uow.run(() => {
+      const current = this.issues.findById(id);
+      if (!current) throw new NotFoundError('Entrega no encontrada');
+      if (input.condition && !CONDITIONS.includes(input.condition)) {
+        throw new ValidationError(`Condición inválida. Opciones: ${CONDITIONS.join(', ')}`);
+      }
+      if (current.returned && input.returned === false) throw new ValidationError('Una devolución registrada no se puede deshacer');
+      const updated = this.issues.update(id, input);
+      // Al marcar la devolución se repone el stock una sola vez.
+      if (input.returned === true && !current.returned) {
+        const uniform = this.uniforms.findById(current.uniformId);
+        if (uniform) this.uniforms.update(uniform.id, { stock: uniform.stock + 1 });
+      }
+      return updated;
+    });
   }
 
   listRequests(status?: UniformRequestStatus): UniformRequest[] {
@@ -115,34 +122,39 @@ export class UniformService implements UniformPort {
   }
 
   updateRequest(id: number, input: UpdateRequestInput): UniformRequest {
-    const current = this.requests.findById(id);
-    if (!current) throw new NotFoundError('Solicitud no encontrada');
-    if (!REQUEST_STATUSES.includes(input.status)) {
-      throw new ValidationError(`Estado inválido. Opciones: ${REQUEST_STATUSES.join(', ')}`);
-    }
-
-    if (input.status === 'entregada' && current.status !== 'entregada') {
-      const uniform = this.uniforms.findById(current.uniformId);
-      if (!uniform) throw new NotFoundError('Uniforme no encontrado');
-      if (uniform.stock <= 0) {
-        throw new ValidationError(`Sin stock disponible de "${uniform.name}"`);
+    return this.uow.run(() => {
+      const current = this.requests.findById(id);
+      if (!current) throw new NotFoundError('Solicitud no encontrada');
+      if (!REQUEST_STATUSES.includes(input.status)) {
+        throw new ValidationError(`Estado inválido. Opciones: ${REQUEST_STATUSES.join(', ')}`);
       }
-      this.issues.create({
-        playerId: current.playerId,
-        uniformId: current.uniformId,
-        size: current.size,
-        cost: uniform.price,
-        condition: 'nuevo',
-        notes: current.reason,
-      });
-      this.uniforms.update(uniform.id, { stock: uniform.stock - 1 });
-    }
 
-    const reviewedAt = input.status === 'pendiente' ? current.reviewedAt : nowIso();
-    return this.requests.update(id, {
-      status: input.status,
-      reviewNotes: input.reviewNotes ?? current.reviewNotes,
-      reviewedAt,
+      if (current.status === 'entregada' && input.status !== 'entregada') throw new ValidationError('Una solicitud entregada no puede cambiar de estado');
+      if (input.status === 'entregada' && current.status !== 'entregada') {
+        const uniform = this.uniforms.findById(current.uniformId);
+        if (!uniform) throw new NotFoundError('Uniforme no encontrado');
+        if (!uniform.active) throw new ValidationError('El uniforme está inactivo');
+        if (uniform.stock <= 0) {
+          throw new ValidationError(`Sin stock disponible de "${uniform.name}"`);
+        }
+        const issue = this.issues.create({
+          playerId: current.playerId,
+          uniformId: current.uniformId,
+          size: current.size,
+          cost: current.quotedPrice ?? uniform.price,
+          condition: 'nuevo',
+          notes: current.reason,
+        });
+        this.requests.update(id, { issueId: issue.id });
+        this.uniforms.update(uniform.id, { stock: uniform.stock - 1 });
+      }
+
+      const reviewedAt = input.status === 'pendiente' ? current.reviewedAt : nowIso();
+      return this.requests.update(id, {
+        status: input.status,
+        reviewNotes: input.reviewNotes ?? current.reviewNotes,
+        reviewedAt,
+      });
     });
   }
 

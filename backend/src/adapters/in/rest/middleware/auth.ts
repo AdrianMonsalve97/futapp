@@ -1,13 +1,37 @@
 import type { NextFunction, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
-import { env } from '../../../../config/env';
 import type { Role } from '../../../../domain/entities';
 import { ForbiddenError, UnauthorizedError } from '../../../../domain/errors';
+import type { AuthPort } from '../../../../application/ports/in/auth.port';
 
 export interface AuthContext {
   userId: number;
   role: Role;
   email: string;
+}
+export const SESSION_COOKIE='futapp_session';
+export function requestToken(req:Request):string|null {
+  const header=req.headers.authorization;
+  if(header)return header.startsWith('Bearer ')?header.slice(7).trim():null;
+  const value=req.headers.cookie?.split(';').map(item=>item.trim()).find(item=>item.startsWith(SESSION_COOKIE+'='));
+  if(!value)return null;try{return decodeURIComponent(value.slice(SESSION_COOKIE.length+1));}catch{return null;}
+}
+
+/** Resolve identity against the database on every authenticated request. */
+export function sessionMiddleware(authService: AuthPort) {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    const token=requestToken(req);
+    if (req.path === '/auth/login' || req.path === '/auth/register' || !token) {
+      next();
+      return;
+    }
+    try {
+      const {user}=authService.verifySession(token);
+      (req as Request & { auth?: AuthContext }).auth = { userId:user.id, role: user.role, email: user.email };
+      next();
+    } catch {
+      next(new UnauthorizedError('Sesión inválida, expirada o cuenta inactiva'));
+    }
+  };
 }
 
 /** Devuelve el contexto de autenticación fijado por `requireAuth`. */
@@ -19,28 +43,8 @@ export function getAuth(req: Request): AuthContext {
 
 /** Valida `Authorization: Bearer <token>` y adjunta `req.auth`. */
 export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
-  const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
-    next(new UnauthorizedError('Token de autenticación ausente'));
-    return;
-  }
-  try {
-    const payload = jwt.verify(header.slice(7).trim(), env.jwtSecret) as jwt.JwtPayload;
-    const userId = Number(payload.sub);
-    if (!Number.isInteger(userId) || userId <= 0) {
-      next(new UnauthorizedError('Token inválido'));
-      return;
-    }
-    const ctx: AuthContext = {
-      userId,
-      role: (payload.role === 'admin' ? 'admin' : 'player') as Role,
-      email: String(payload.email ?? ''),
-    };
-    (req as Request & { auth?: AuthContext }).auth = ctx;
-    next();
-  } catch {
-    next(new UnauthorizedError('Token inválido o expirado'));
-  }
+  if ((req as Request & { auth?: AuthContext }).auth) { next(); return; }
+  next(new UnauthorizedError('Token de autenticación ausente o inválido'));
 }
 
 /** Restringe una ruta a un rol concreto (usar después de `requireAuth`). */

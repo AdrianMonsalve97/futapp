@@ -6,6 +6,7 @@ import type {
   UpdatePlayerInput,
 } from '../../../../application/ports/out/player.repository';
 import type { Player } from '../../../../domain/entities';
+import { ValidationError } from '../../../../domain/errors';
 import { mapPlayer, mapUser, type PlayerRow, type UserRow } from '../mappers';
 
 const SELECT_WITH_USER = `
@@ -75,12 +76,13 @@ export class SqlitePlayerRepository implements PlayerRepository {
   }
 
   create(input: CreatePlayerInput): Player {
-    const result = this.db
+    this.validateShirtNumber(input.shirtNumber ?? null);
+    const result = this.write(() => this.db
       .prepare(
         `INSERT INTO players (user_id, dni, birth_date, position, secondary_position, shirt_number,
-                              height_cm, weight_kg, foot, emergency_contact)
+                              height_cm, weight_kg, foot, emergency_contact, eps, prepaid_health)
          VALUES (@userId, @dni, @birthDate, @position, @secondaryPosition, @shirtNumber,
-                 @heightCm, @weightKg, @foot, @emergencyContact)`,
+                 @heightCm, @weightKg, @foot, @emergencyContact, @eps, @prepaidHealth)`,
       )
       .run({
         userId: input.userId,
@@ -93,11 +95,14 @@ export class SqlitePlayerRepository implements PlayerRepository {
         weightKg: input.weightKg ?? null,
         foot: input.foot ?? null,
         emergencyContact: input.emergencyContact ?? null,
-      });
+        eps: input.eps?.trim() || null,
+        prepaidHealth: input.prepaidHealth?.trim() || null,
+      }), input.shirtNumber);
     return this.findById(Number(result.lastInsertRowid)) as Player;
   }
 
   update(id: number, input: UpdatePlayerInput): Player {
+    if (input.shirtNumber !== undefined) this.validateShirtNumber(input.shirtNumber, id);
     const fields: string[] = [];
     const params: Record<string, unknown> = { id };
     const set = (column: string, key: string, value: unknown) => {
@@ -114,12 +119,37 @@ export class SqlitePlayerRepository implements PlayerRepository {
     if (input.heightCm !== undefined) set('height_cm', 'heightCm', input.heightCm);
     if (input.weightKg !== undefined) set('weight_kg', 'weightKg', input.weightKg);
     if (input.foot !== undefined) set('foot', 'foot', input.foot);
+    if (input.eps !== undefined) set('eps', 'eps', input.eps?.trim() || null);
+    if (input.prepaidHealth !== undefined) set('prepaid_health', 'prepaidHealth', input.prepaidHealth?.trim() || null);
     if (input.emergencyContact !== undefined) {
       set('emergency_contact', 'emergencyContact', input.emergencyContact);
     }
     if (fields.length > 0) {
-      this.db.prepare(`UPDATE players SET ${fields.join(', ')} WHERE id = @id`).run(params);
+      this.write(() => this.db.prepare(`UPDATE players SET ${fields.join(', ')} WHERE id = @id`).run(params), input.shirtNumber);
     }
     return this.findById(id) as Player;
+  }
+
+  private validateShirtNumber(number: number | null, exceptId = -1): void {
+    if (number === null) return;
+    if (!Number.isInteger(number) || number < 0 || number > 999) {
+      throw new ValidationError('El dorsal debe ser un número entero entre 0 y 999.');
+    }
+    if (this.db.prepare('SELECT id FROM players WHERE shirt_number = ? AND id <> ?').get(number, exceptId)) {
+      throw this.occupiedNumber(number);
+    }
+  }
+
+  private occupiedNumber(number: number | null | undefined): ValidationError {
+    return new ValidationError(`El dorsal ${number} ya está asignado. Elige otro número o déjalo sin asignar.`, 'SHIRT_NUMBER_TAKEN');
+  }
+
+  private write<T>(action: () => T, number: number | null | undefined): T {
+    try { return action(); }
+    catch (error) {
+      // The unique index also protects concurrent writes from another process.
+      if (error instanceof Error && error.message.includes('UNIQUE constraint failed: players.shirt_number')) throw this.occupiedNumber(number);
+      throw error;
+    }
   }
 }

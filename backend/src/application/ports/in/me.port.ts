@@ -38,6 +38,8 @@ export interface ProfileInput {
   weightKg?: number | null;
   foot?: Foot | null;
   emergencyContact?: string | null;
+  eps?: string | null;
+  prepaidHealth?: string | null;
 }
 
 /** Match con la vista propia del jugador (§7.2). */
@@ -64,5 +66,5 @@ export interface MePort {
   ): { request: UniformRequest };
   getMatches(userId: number): { upcoming: MatchView[]; finished: MatchView[] };
   getStats(userId: number): { summary: StatsSummary; matches: MatchStat[] };
-  getAi(userId: number): AiPlayerInsight;
+  getAi(userId: number,matchId?:number): AiPlayerInsight;
 }

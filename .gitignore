@@ -13,11 +13,16 @@ backend/data/*.db-shm
 
 # Modelo entrenado
 backend/data/model.json
+backend/data/model.json.tmp
+backend/data/backups/
+backend/data/uploads/
 
 # Entorno
+.local/
 .env
 .env.local
 .env.*.local
+*.futapp
 
 # Editors / OS
 .DS_Store

@@ -55,6 +55,7 @@ export class SqliteUniformRepository implements UniformRepository {
       fields.push(`${column} = @${key}`);
       params[key] = value;
     };
+    if (input.imageUrl !== undefined) set('image_url', 'imageUrl', input.imageUrl);
     if (input.name !== undefined) set('name', 'name', input.name.trim());
     if (input.kind !== undefined) set('kind', 'kind', input.kind);
     if (input.variant !== undefined) set('variant', 'variant', input.variant);

@@ -82,7 +82,7 @@ export function MatchList({
                       {match.isHome ? 'vs.' : 'vs.'} {match.opponent}
                     </p>
                     <StatusBadge status={match.status} />
-                    {mode === 'player' && inXl ? <Badge tone="success" size="xs">En el XI</Badge> : null}
+                    {mode === 'player' && inXl ? <Badge tone="success" size="xs">En el {profile.playersOnPitch} inicial</Badge> : null}
                   </div>
                   <p className="text-xs text-base-content/60 mt-0.5 capitalize">{match.competition}</p>
                   <p className="text-xs text-base-content/50">
@@ -100,14 +100,14 @@ export function MatchList({
                     ) : null}
                     {mode === 'admin' && match.lineupFilled !== undefined ? (
                       <span className="text-[11px] text-base-content/50">
-                        XI {match.lineupFilled}/{profile.playersOnPitch}
+                        Inicial {match.lineupFilled}/{profile.playersOnPitch}
                       </span>
                     ) : null}
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 sm:justify-end shrink-0">
+              <div className="flex max-w-full flex-wrap items-center gap-3 sm:justify-end">
                 {played && match.goalsFor !== null && match.goalsAgainst !== null ? (
                   <div className="rounded-lg bg-base-200 px-3 py-1.5 text-center">
                     <p className="text-xl font-bold tabular-nums leading-none">
@@ -118,7 +118,7 @@ export function MatchList({
                 ) : null}
 
                 {mode === 'admin' ? (
-                  <div className="flex items-center gap-1">
+                  <div className="flex max-w-full flex-wrap items-center gap-2">
                     {detailHref ? (
                       <Link to={detailHref(match)} className="btn btn-outline btn-sm">
                         Gestionar

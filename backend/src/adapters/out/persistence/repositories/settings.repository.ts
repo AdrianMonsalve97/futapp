@@ -12,8 +12,8 @@ export class SqliteSettingsRepository implements SettingsRepository {
 
   get(): TeamSettingsData {
     const row = this.db
-      .prepare(`SELECT team_name, format, season FROM team_settings WHERE id = 1`)
-      .get() as { team_name: string; format: number; season: string } | undefined;
+      .prepare(`SELECT team_name, format, season, logo_url, brand_color, default_tournament_id FROM team_settings WHERE id = 1`)
+      .get() as { team_name: string; format: number; season: string; logo_url: string | null; brand_color: string; default_tournament_id: number | null } | undefined;
     if (!row) {
       // Fila ausente: la crea con los defaults del SPEC (formato 8, §12.6).
       this.db
@@ -21,9 +21,10 @@ export class SqliteSettingsRepository implements SettingsRepository {
           `INSERT OR IGNORE INTO team_settings (id, team_name, format, season) VALUES (1, 'Club Portal', 8, '2026')`,
         )
         .run();
-      return { teamName: 'Club Portal', format: 8, season: '2026' };
+      return this.get();
     }
     return {
+      logoUrl: row.logo_url, brandColor: row.brand_color, defaultTournamentId: row.default_tournament_id,
       teamName: row.team_name,
       format: isTeamFormat(row.format) ? row.format : 11,
       season: row.season,
@@ -33,6 +34,9 @@ export class SqliteSettingsRepository implements SettingsRepository {
   update(patch: Partial<TeamSettingsData>): TeamSettingsData {
     const current = this.get();
     const next: TeamSettingsData = {
+      logoUrl: patch.logoUrl !== undefined ? patch.logoUrl : current.logoUrl,
+      brandColor: patch.brandColor ?? current.brandColor,
+      defaultTournamentId: patch.defaultTournamentId !== undefined ? patch.defaultTournamentId : current.defaultTournamentId,
       teamName: patch.teamName ?? current.teamName,
       format: patch.format ?? current.format,
       season: patch.season ?? current.season,
@@ -40,11 +44,11 @@ export class SqliteSettingsRepository implements SettingsRepository {
     this.db
       .prepare(
         `UPDATE team_settings
-            SET team_name = @teamName, format = @format, season = @season,
+            SET logo_url = @logoUrl, brand_color = @brandColor, default_tournament_id = @defaultTournamentId, team_name = @teamName, format = @format, season = @season,
                 updated_at = datetime('now')
           WHERE id = 1`,
       )
-      .run({ teamName: next.teamName, format: next.format, season: next.season });
+      .run(next);
     return next;
   }
 }

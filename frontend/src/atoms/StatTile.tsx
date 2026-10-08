@@ -33,18 +33,18 @@ export interface StatTileProps {
 /** Tarjeta de indicador (`stat` de DaisyUI) usada en dashboards y resúmenes. */
 export function StatTile({ label, value, icon, hint, tone = 'primary', className = '' }: StatTileProps) {
   return (
-    <div className={`card bg-base-100 shadow-sm border border-base-200 ${className}`.trim()}>
-      <div className="card-body p-4 gap-1 flex-row items-center justify-between">
-        <div className="min-w-0">
+    <div className={`card stat-tile bg-base-100 shadow-sm border border-base-200 ${className}`.trim()}>
+      <div className="card-body p-5 gap-3">
+        <div className="flex justify-between items-start gap-3">
           <p className="text-xs uppercase tracking-wide text-base-content/60">{label}</p>
-          <p className={`text-2xl font-bold leading-tight ${VALUE_TONE_CLASS[tone]}`}>{value}</p>
-          {hint ? <p className="text-xs text-base-content/60 mt-1">{hint}</p> : null}
-        </div>
         {icon ? (
-          <div className={`w-11 h-11 shrink-0 rounded-xl grid place-items-center ${ICON_TONE_CLASS[tone]}`}>
-            <Icon name={icon} size={22} />
+          <div className={`w-8 h-8 shrink-0 rounded-lg grid place-items-center ${ICON_TONE_CLASS[tone]}`}>
+            <Icon name={icon} size={17} />
           </div>
         ) : null}
+        </div>
+        <p className={`stat-tile-value font-bold leading-tight ${VALUE_TONE_CLASS[tone]}`}>{value}</p>
+        {hint ? <p className="text-xs text-base-content/60">{hint}</p> : null}
       </div>
     </div>
   );

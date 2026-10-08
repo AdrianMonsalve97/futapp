@@ -1,6 +1,6 @@
 /**
  * Seed de datos demo (§9 del SPEC).
- * Ejecución: `npm run seed -w backend` (acepta `--reset`, mismo comportamiento).
+ * Ejecución: `npm run seed -w backend`; `--reset` permite recrear explícitamente la demo.
  * Borra y recrea `backend/data/portal.db` e imprime un resumen con credenciales.
  */
 import 'dotenv/config';
@@ -9,15 +9,16 @@ import path from 'node:path';
 import * as bcrypt from 'bcryptjs';
 import type { Foot, Position, StrategyKind } from '../../../domain/entities';
 import { getFormation } from '../../../domain/formations';
+import { getFormat } from '../../../domain/formats';
 import { env } from '../../../config/env';
 import { closeDb, getDb } from './database';
 import { migrate } from './migrate';
 
 /* ------------------------------------------------------------------ */
-/* §12.6 · La demo arranca en fútbol 8: 8 en cancha, 60' por partido  */
+/* §12.6 · La demo arranca en fútbol 8: 8 en cancha, 50' por partido  */
 /* ------------------------------------------------------------------ */
 const SEED_FORMAT = 8;
-const MATCH_MINUTES = 60;
+const MATCH_MINUTES = getFormat(SEED_FORMAT).matchMinutes;
 
 /* ------------------------------------------------------------------ */
 /* RNG determinista (misma data en cada ejecución)                    */
@@ -281,10 +282,12 @@ function computeRating(row: StatRow): number {
 /* Seed                                                                */
 /* ------------------------------------------------------------------ */
 function main(): void {
+  if (env.production) throw new Error('El seed de demostración está deshabilitado en producción');
   const reset = process.argv.includes('--reset');
   const dbPath = path.isAbsolute(env.dbPath) ? env.dbPath : path.resolve(process.cwd(), env.dbPath);
+  if (fs.existsSync(dbPath) && !reset) throw new Error('La base ya existe. Usa npm run reset -w backend para recrear explícitamente los datos de demostración.');
 
-  // Borra la BD (y sus archivos WAL) + modelo previo: `seed` siempre recrea.
+  // Solo --reset puede sustituir una base existente; nunca se ejecuta en producción.
   for (const suffix of ['', '-wal', '-shm']) {
     const file = `${dbPath}${suffix}`;
     if (fs.existsSync(file)) fs.unlinkSync(file);
@@ -490,7 +493,7 @@ function main(): void {
     );
 
     /* 5) 6 partidos jugados con stats realistas -------------------- */
-    // §12.6: los 6 jugados también en fútbol 8 (1-3-3-1, 60').
+    // §12.6: los 6 jugados también en fútbol 8 (1-3-3-1, 50').
     const playedDefs: PlayedDef[] = [
       { opponent: 'Deportivo Norte', competition: 'Liga Amateur', venue: 'Estadio Municipal', isHome: true, goalsFor: 3, goalsAgainst: 1, formation: '1-3-3-1', kickOff: localDate(daysAgo(42), '18:00'), notes: 'Buen arranque de temporada.' },
       { opponent: 'Atlético Sur', competition: 'Liga Amateur', venue: 'Campo del Sur', isHome: false, goalsFor: 1, goalsAgainst: 1, formation: '1-3-3-1', kickOff: localDate(daysAgo(35), '16:00'), notes: null },
@@ -526,10 +529,10 @@ function main(): void {
         if (at >= 0) subs.splice(at, 1, forcedIdx);
       }
 
-      // §12.6: 12 filas por partido (≥ 8 c/u → 72 ≥ 60 en total); minutos nunca > 60'.
+      // §12.6: 12 filas por partido; los minutos respetan la duración del formato.
       const rows: StatRow[] = [];
       rows.push(buildBaseRow(gk, MATCH_MINUTES, skillOf(gk)));
-      for (const idx of starters) rows.push(buildBaseRow(idx, randInt(45, 60), skillOf(idx)));
+      for (const idx of starters) rows.push(buildBaseRow(idx, randInt(Math.ceil(MATCH_MINUTES * .75), MATCH_MINUTES), skillOf(idx)));
       for (const idx of subs) rows.push(buildBaseRow(idx, randInt(10, 35), skillOf(idx)));
 
       assignGoalsAndAssists(rows, def.goalsFor);
@@ -741,6 +744,9 @@ function main(): void {
                                      updated_at = datetime('now')`,
     ).run(SEED_FORMAT);
 
+    db.exec(`INSERT INTO published_lineups SELECT match_id, slot_index, player_id, x, y, role, label FROM lineups;
+      UPDATE matches SET lineup_published_at = datetime('now'), published_formation = formation
+      WHERE id IN (SELECT DISTINCT match_id FROM published_lineups);`);
     return { adminId, players, matchIds, nextMatchIds };
   });
 

@@ -6,6 +6,7 @@ import { Modal } from '../atoms/Modal';
 import { Input } from '../atoms/Input';
 import { Select } from '../atoms/Select';
 import { FormField } from '../molecules/FormField';
+import { HealthFields } from '../molecules/HealthFields';
 import type { Foot, PlayerListItem, Position, Role, UserPlayerResponse } from '../types/api';
 
 export interface PlayerFormModalProps {
@@ -30,6 +31,8 @@ interface FormState {
   weightKg: string;
   foot: string;
   emergencyContact: string;
+  eps: string;
+  prepaidHealth: string;
   role: Role;
   active: boolean;
 }
@@ -48,6 +51,8 @@ const EMPTY: FormState = {
   weightKg: '',
   foot: '',
   emergencyContact: '',
+  eps: '',
+  prepaidHealth: '',
   role: 'player',
   active: true,
 };
@@ -69,6 +74,8 @@ function fromItem(item: PlayerListItem | null): FormState {
     weightKg: player.weightKg !== null ? String(player.weightKg) : '',
     foot: player.foot ?? '',
     emergencyContact: player.emergencyContact ?? '',
+    eps: player.eps ?? '',
+    prepaidHealth: player.prepaidHealth ?? '',
     role: user.role,
     active: user.active,
   };
@@ -105,8 +112,8 @@ export function PlayerFormModal({ open, onClose, player, onSaved }: PlayerFormMo
       setError('El email es obligatorio para crear el usuario.');
       return;
     }
-    if (!player && form.password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
+    if (!player && form.password.length < 15) {
+      setError('La contraseña debe tener al menos 15 caracteres.');
       return;
     }
 
@@ -125,12 +132,14 @@ export function PlayerFormModal({ open, onClose, player, onSaved }: PlayerFormMo
         weightKg: toNumber(form.weightKg),
         foot: form.foot ? (form.foot as Foot) : null,
         emergencyContact: form.emergencyContact.trim() || null,
+        eps: form.eps.trim() || null,
+        prepaidHealth: form.prepaidHealth.trim() || null,
       };
 
       if (player) {
         await api<UserPlayerResponse>(`/api/players/${player.player.id}`, {
           method: 'PUT',
-          json: { ...common, email: form.email, role: form.role, active: form.active },
+          json: { ...common, role: form.role, active: form.active },
         });
       } else {
         await api<UserPlayerResponse>('/api/players', {
@@ -139,7 +148,6 @@ export function PlayerFormModal({ open, onClose, player, onSaved }: PlayerFormMo
             ...common,
             email: form.email.trim(),
             password: form.password,
-            role: form.role,
           },
         });
       }
@@ -196,7 +204,7 @@ export function PlayerFormModal({ open, onClose, player, onSaved }: PlayerFormMo
           <FormField
             label="Contraseña"
             required={!player}
-            hint={player ? 'Dejar vacío para no modificar.' : 'Mínimo 6 caracteres.'}
+            hint={player ? 'Dejar vacío para no modificar.' : 'Mínimo 15 caracteres.'}
           >
             <Input
               type="password"
@@ -232,7 +240,7 @@ export function PlayerFormModal({ open, onClose, player, onSaved }: PlayerFormMo
               <option value="DEL">DEL · Delantero</option>
             </Select>
           </FormField>
-          <FormField label="Dorsal">
+          <FormField label="Dorsal" hint="Cada número pertenece a un solo integrante. Vacío = sin asignar.">
             <Input
               type="number"
               min={0}
@@ -270,15 +278,8 @@ export function PlayerFormModal({ open, onClose, player, onSaved }: PlayerFormMo
               placeholder="74"
             />
           </FormField>
-          <FormField label="Contacto de emergencia" className="sm:col-span-2">
-            <Input
-              value={form.emergencyContact}
-              onChange={(event) => set('emergencyContact', event.target.value)}
-              placeholder="María Martínez · 300 000 0000"
-            />
-          </FormField>
           <FormField label="Rol">
-            <Select value={form.role} onChange={(event) => set('role', event.target.value as Role)}>
+            <Select value={form.role} disabled={!player} onChange={(event) => set('role', event.target.value as Role)}>
               <option value="player">Jugador</option>
               <option value="admin">Administrador</option>
             </Select>
@@ -293,6 +294,10 @@ export function PlayerFormModal({ open, onClose, player, onSaved }: PlayerFormMo
             </Select>
           </FormField>
         </div>
+        <section className="space-y-3 border-t border-base-200 pt-4">
+          <h3 className="font-semibold">Salud</h3>
+          <HealthFields value={form} onChange={set} />
+        </section>
       </div>
     </Modal>
   );

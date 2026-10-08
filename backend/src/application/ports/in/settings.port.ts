@@ -3,6 +3,8 @@ import type { FormatProfile, TeamFormat } from '../../../domain/formats';
 import type { FormationDef } from '../../../domain/formations';
 
 export interface SettingsUpdateInput {
+  brandColor?: string;
+  defaultTournamentId?: number | null;
   teamName?: string;
   format?: number;
   season?: string;

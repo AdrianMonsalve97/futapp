@@ -56,7 +56,10 @@ export class SqliteUserRepository implements UserRepository {
     if (input.active !== undefined) set('active', 'active', input.active ? 1 : 0);
     if (input.passwordHash !== undefined) set('password_hash', 'passwordHash', input.passwordHash);
     if (fields.length > 0) {
-      this.db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = @id`).run(params);
+      this.db.transaction(()=>{
+        this.db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = @id`).run(params);
+        if(input.passwordHash!==undefined||input.role!==undefined||input.active!==undefined)this.db.prepare('DELETE FROM auth_sessions WHERE user_id=?').run(id);
+      })();
     }
     return this.findById(id) as User;
   }

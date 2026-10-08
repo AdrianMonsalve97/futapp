@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { ImageUpload } from '../../molecules/ImageUpload';
 import { useFetch } from '../../hooks/useFetch';
-import { api, errorMessage } from '../../services/api';
+import { api, errorMessage, uploadFile } from '../../services/api';
 import { PageHeader } from '../../templates/PageHeader';
 import { Alert } from '../../atoms/Alert';
 import { Button } from '../../atoms/Button';
@@ -56,6 +57,8 @@ function UniformFormModal({
   uniform: Uniform | null;
   onSaved: () => void;
 }) {
+  const [newImage, setNewImage] = useState<File | null>(null);
+  const [createdId, setCreatedId] = useState<number | null>(null);
   const [form, setForm] = useState<UniformForm>({ ...EMPTY_UNIFORM });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +66,7 @@ function UniformFormModal({
   useEffect(() => {
     if (!open) return;
     setError(null);
+    setNewImage(null); setCreatedId(null);
     setForm(
       uniform
         ? {
@@ -78,6 +82,7 @@ function UniformFormModal({
   }, [open, uniform]);
 
   const submit = async () => {
+    if (newImage && newImage.size > 8 * 1024 * 1024) { setError('La imagen debe pesar hasta 8 MB'); return; }
     if (!form.name.trim()) {
       setError('Ingresá el nombre de la prenda.');
       return;
@@ -93,10 +98,12 @@ function UniformFormModal({
         stock: Number(form.stock) || 0,
         minStock: Number(form.minStock) || 0,
       };
-      if (uniform) {
-        await api(`/api/uniforms/${uniform.id}`, { method: 'PUT', json: payload });
-      } else {
-        await api('/api/uniforms', { method: 'POST', json: payload });
+      let id = uniform?.id ?? createdId;
+      if (id) await api(`/api/uniforms/${id}`, { method: 'PUT', json: payload });
+      else { const response = await api<{ uniform: Uniform }>('/api/uniforms', { method: 'POST', json: payload }); id = response.uniform.id; setCreatedId(id); }
+      if (newImage) {
+        try { await uploadFile(`/api/uniforms/${id}/image`, newImage); }
+        catch (err) { onSaved(); throw new Error(`La prenda quedó guardada. Imagen: ${errorMessage(err)}. Selecciona otra imagen y vuelve a guardar.`); }
       }
       onSaved();
       onClose();
@@ -126,6 +133,7 @@ function UniformFormModal({
     >
       <div className="space-y-3">
         {error ? <Alert tone="error">{error}</Alert> : null}
+        {uniform ? <ImageUpload endpoint={`/api/uniforms/${uniform.id}/image`} currentUrl={uniform.imageUrl} label="Imagen de referencia del uniforme" onSaved={onSaved} /> : <label className="block text-sm font-semibold">Imagen de referencia del uniforme<input type="file" accept="image/jpeg,image/png,image/webp" className="file-input file-input-bordered file-input-sm w-full mt-2" onChange={e => { setNewImage(e.target.files?.[0] ?? null); }} /><span className="block text-xs font-normal text-base-content/55 mt-1">Opcional · JPG, PNG o WEBP · hasta 8 MB. Se guarda al crear la prenda.</span></label>}
         <FormField label="Nombre" required>
           <Input
             value={form.name}

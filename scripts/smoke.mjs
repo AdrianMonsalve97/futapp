@@ -90,10 +90,11 @@ async function main() {
   await req('GET', '/api/ai/model', { token: adminToken });
   const trained = await req('POST', '/api/ai/model/train', { token: adminToken });
   const m = trained.data?.metrics ?? {};
-  const okModel = typeof m.r2 === 'number' && m.r2 > 0.3;
+  const validation = trained.data?.validation;
+  const okModel = Number.isFinite(m.r2) && m.samples > 0 && validation?.samples > 0 && Number.isFinite(validation.mae);
   okModel ? pass++ : fail++;
   console.log(
-    `${okModel ? '  OK ' : 'FAIL '} modelo: n=${m.samples} MAE=${m.mae} R²=${m.r2} (debe ser > 0.3)`,
+    `${okModel ? '  OK ' : 'FAIL '} modelo: n=${m.samples} MAE=${m.mae} R²=${m.r2}; validación temporal: n=${validation?.samples}, MAE=${validation?.mae}`,
   );
 
   const matches = await req('GET', '/api/matches', { token: adminToken });

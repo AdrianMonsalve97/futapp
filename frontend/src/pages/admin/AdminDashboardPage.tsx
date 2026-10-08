@@ -4,20 +4,20 @@ import { useFetch } from '../../hooks/useFetch';
 import { api, errorMessage } from '../../services/api';
 import { PageHeader } from '../../templates/PageHeader';
 import { Alert } from '../../atoms/Alert';
-import { Badge } from '../../atoms/Badge';
+import { StatusBadge } from '../../molecules/StatusBadge';
 import { Card, CardBody, CardTitle } from '../../atoms/Card';
 import { EmptyState } from '../../atoms/EmptyState';
 import { Icon } from '../../atoms/Icon';
 import { Spinner } from '../../atoms/Spinner';
 import { StatCardsRow } from '../../organisms/StatCardsRow';
 import { PaymentModal } from '../../organisms/PaymentModal';
-import { MatchMeta } from '../../molecules/MatchMeta';
+import { MatchDayHero } from '../../organisms/MatchDayHero';
+import { ClubPulse } from '../../organisms/ClubPulse';
 import { Money } from '../../molecules/Money';
 import { RatingBadge } from '../../molecules/RatingBadge';
 import { SanctionChip } from '../../molecules/SanctionChip';
 import { DateLabel } from '../../molecules/DateLabel';
-import { StatusBadge } from '../../molecules/StatusBadge';
-import { formatMoney, formatWeekdayShort, pendingAmount } from '../../utils/format';
+import { formatMoney, pendingAmount } from '../../utils/format';
 import type { DashboardAdmin, Inscription } from '../../types/api';
 
 /** Dashboard admin (SPEC §10.4): indicadores, próximo partido, cobros y alertas. */
@@ -51,7 +51,7 @@ export function AdminDashboardPage() {
   if (error) {
     return (
       <>
-        <PageHeader title="Inicio" subtitle="Panel de administración del club" />
+        <PageHeader title="Centro de juego" subtitle="Panel de administración del club" />
         <Alert tone="error" title="No se pudo cargar el panel" onClose={reload}>
           {error}
         </Alert>
@@ -61,7 +61,7 @@ export function AdminDashboardPage() {
   if (!data) {
     return (
       <>
-        <PageHeader title="Inicio" subtitle="Panel de administración del club" />
+        <PageHeader title="Centro de juego" subtitle="Panel de administración del club" />
         <EmptyState title="Sin datos" message="No hay información disponible." />
       </>
     );
@@ -73,7 +73,7 @@ export function AdminDashboardPage() {
   return (
     <>
       <PageHeader
-        title="Inicio"
+        title="Centro de juego"
         subtitle={`Temporada ${inscriptions.season} · vista general del club`}
         actions={
           <Link to="/admin/partidos" className="btn btn-outline btn-sm">
@@ -88,6 +88,8 @@ export function AdminDashboardPage() {
           {actionError}
         </Alert>
       ) : null}
+
+      <MatchDayHero match={nextMatch} />
 
       <StatCardsRow
         columns={5}
@@ -131,30 +133,7 @@ export function AdminDashboardPage() {
       />
 
       <div className="grid gap-4 mt-4 lg:grid-cols-3">
-        {/* Próximo partido */}
-        <Card>
-          <CardBody className="gap-3">
-            <CardTitle className="text-base">Próximo partido</CardTitle>
-            {nextMatch ? (
-              <>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-bold">{nextMatch.opponent}</p>
-                  <Badge tone="primary" size="sm">
-                    {nextMatch.formation}
-                  </Badge>
-                </div>
-                <p className="text-sm text-base-content/60 capitalize">{formatWeekdayShort(nextMatch.kickOff)}</p>
-                <MatchMeta match={nextMatch} compact />
-                <Link to={`/admin/partidos/${nextMatch.id}`} className="btn btn-outline btn-sm self-start">
-                  Preparar alineación
-                  <Icon name="arrowRight" size={14} />
-                </Link>
-              </>
-            ) : (
-              <EmptyState title="Sin próximo partido" message="No hay encuentros programados." icon="futbol" />
-            )}
-          </CardBody>
-        </Card>
+        <ClubPulse total={inscriptions.total} collected={inscriptions.collected} paidCount={inscriptions.paidCount} pendingCount={inscriptions.pendingCount} />
 
         {/* Inscripciones pendientes */}
         <Card className="lg:col-span-2">

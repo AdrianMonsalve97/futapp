@@ -15,11 +15,10 @@ import {
   api,
   clearToken,
   errorMessage,
-  getToken,
-  setToken,
 } from '../services/api';
 
 export interface RegisterInput {
+  invitationCode?:string;
   email: string;
   password: string;
   fullName: string;
@@ -42,14 +41,14 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setTokenState] = useState<string | null>(() => getToken());
+  const [token, setTokenState] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
-  const [loading, setLoading] = useState<boolean>(() => getToken() !== null);
+  const [loading, setLoading] = useState(true);
 
   const applySession = useCallback((payload: AuthPayload) => {
-    setToken(payload.token);
-    setTokenState(payload.token);
+    clearToken();
+    setTokenState('cookie-session');
     setUser(payload.user);
     setPlayer(payload.player);
   }, []);
@@ -62,18 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(async () => {
-    const current = getToken();
-    if (!current) {
-      clearSession();
-      setLoading(false);
-      return;
-    }
+    clearToken();
     setLoading(true);
     try {
       const res = await api<{ user: User; player: Player | null }>('/api/auth/me');
       setUser(res.user);
       setPlayer(res.player);
-      setTokenState(current);
+      setTokenState('cookie-session');
     } catch {
       clearSession();
     } finally {
@@ -81,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [clearSession]);
 
-  // Al montar: si hay token, valida la sesión contra el backend.
+  // Al montar, valida la cookie de sesión contra el backend.
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -126,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    clearSession();
+    void api('/api/auth/logout',{method:'POST',json:{}}).catch(() => undefined).finally(clearSession);
   }, [clearSession]);
 
   const value = useMemo<AuthContextValue>(

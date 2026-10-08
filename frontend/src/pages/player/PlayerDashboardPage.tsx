@@ -1,3 +1,5 @@
+import { MatchDayHero } from '../../organisms/MatchDayHero';
+import { AttendancePanel } from '../../organisms/AttendancePanel';
 import { Link } from 'react-router-dom';
 import { useFetch } from '../../hooks/useFetch';
 import { useTeamFormat } from '../../context/SettingsContext';
@@ -15,7 +17,7 @@ import { MatchMeta } from '../../molecules/MatchMeta';
 import { StatusBadge } from '../../molecules/StatusBadge';
 import { Money } from '../../molecules/Money';
 import { formatBadge } from '../../data/formations';
-import { formatDateTime, formatRating, formatWeekdayShort, pendingAmount } from '../../utils/format';
+import { formatRating, formatWeekdayShort, pendingAmount } from '../../utils/format';
 import type { DashboardPlayer, MeMatchesResponse } from '../../types/api';
 
 /** Dashboard del jugador (SPEC §10.4). */
@@ -35,7 +37,7 @@ export function PlayerDashboardPage() {
   if (error) {
     return (
       <>
-        <PageHeader title="Mi inicio" subtitle="Resumen de tu estado en el equipo" />
+        <PageHeader title="Mi centro de juego" subtitle="Resumen de tu estado en el equipo" />
         <Alert tone="error" title="No se pudo cargar tu panel" onClose={reload}>
           {error}
         </Alert>
@@ -45,7 +47,7 @@ export function PlayerDashboardPage() {
   if (!data) {
     return (
       <>
-        <PageHeader title="Mi inicio" subtitle="Resumen de tu estado en el equipo" />
+        <PageHeader title="Mi centro de juego" subtitle="Resumen de tu estado en el equipo" />
         <EmptyState title="Sin información" message="No hay datos disponibles por el momento." />
       </>
     );
@@ -76,7 +78,7 @@ export function PlayerDashboardPage() {
   return (
     <>
       <PageHeader
-        title="Mi inicio"
+        title="Mi centro de juego"
         subtitle="Resumen de tu estado en el equipo"
         actions={
           <Link to="/jugador/uniformes" className="btn btn-outline btn-sm">
@@ -85,6 +87,9 @@ export function PlayerDashboardPage() {
           </Link>
         }
       />
+
+      <MatchDayHero match={upcomingMatch} />
+      {upcomingMatch && <AttendancePanel matchId={upcomingMatch.id} tournamentId={upcomingMatch.tournamentId} onChanged={reload} />}
 
       <StatCardsRow
         tiles={[
@@ -108,7 +113,7 @@ export function PlayerDashboardPage() {
             icon: 'calendar',
             tone: 'info',
             hint: upcomingMatch
-              ? `${formatDateTime(upcomingMatch.kickOff)} · ${upcomingMatch.opponent}`
+              ? upcomingMatch.opponent
               : 'A la espera del próximo fixture',
           },
           {
@@ -154,13 +159,13 @@ export function PlayerDashboardPage() {
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   {mySlot ? (
                     <>
-                      <Badge tone="success" size="sm">Estás en el XI</Badge>
+                      <Badge tone="success" size="sm">Estás en el {profile.playersOnPitch} inicial</Badge>
                       <span className="text-base-content/60">
                         Jugás de <span className="font-semibold">{mySlot.label}</span>
                       </span>
                     </>
                   ) : (
-                    <Badge tone="neutral" size="sm">Todavía no entrás en el XI</Badge>
+                    <Badge tone="neutral" size="sm">Todavía no estás en el {profile.playersOnPitch} inicial</Badge>
                   )}
                 </div>
                 <div className={pitchSizeClass(profile.format)}>

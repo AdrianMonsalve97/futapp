@@ -32,9 +32,11 @@ export type IconName =
   | 'whistle'
   | 'refresh'
   | 'eye'
+  | 'video'
   | 'settings';
 
 const PATHS: Record<IconName, ReactNode> = {
+  video: <><rect x="3" y="5" width="13" height="14" rx="2" /><path d="m16 9 5-3v12l-5-3zM8 9l4 3-4 3z" /></>,
   futbol: (
     <>
       <circle cx="12" cy="12" r="9" />

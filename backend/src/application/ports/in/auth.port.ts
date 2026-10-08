@@ -6,6 +6,7 @@ export interface LoginInput {
 }
 
 export interface RegisterInput {
+  invitationCode?: string;
   email: string;
   password: string;
   fullName: string;
@@ -21,6 +22,9 @@ export interface AuthUserView {
 
 /** Casos de uso de autenticación (§7.1). */
 export interface AuthPort {
+  verifySession(token:string):AuthUserView;
+  logout(token:string):void;
+  createInvitation():{code:string;expiresAt:string};
   login(input: LoginInput): AuthPayload;
   register(input: RegisterInput): AuthPayload;
   me(userId: number): AuthUserView;

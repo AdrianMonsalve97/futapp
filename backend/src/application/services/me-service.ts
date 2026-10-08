@@ -1,3 +1,4 @@
+import type { UnitOfWork } from '../ports/out/unit-of-work';
 import * as bcrypt from 'bcryptjs';
 import type {
   MePort,
@@ -25,7 +26,7 @@ import type {
 import { NotFoundError, ValidationError } from '../../domain/errors';
 import { deriveInscriptionStatus, emptyStatsSummary, summarizeStats } from './shared';
 
-const MIN_PASSWORD = 6;
+import { validatePassword } from '../../domain/password-policy';
 const UPCOMING = new Set(['programado', 'pospuesto']);
 
 export class MeService implements MePort {
@@ -40,6 +41,7 @@ export class MeService implements MePort {
     private readonly stats: StatsRepository,
     private readonly matches: MatchRepository,
     private readonly ai: AiPort,
+    private readonly uow: UnitOfWork,
   ) {}
 
   getMe(userId: number): MeResponse {
@@ -61,26 +63,30 @@ export class MeService implements MePort {
   }
 
   updateProfile(userId: number, input: ProfileInput): { user: User; player: Player } {
-    const { user, player } = this.requireUser(userId);
-    if (!player) {
-      throw new ValidationError('Este usuario no tiene ficha de jugador');
-    }
-    const phone = input.phone !== undefined ? input.phone : user.phone;
-    const updatedUser = this.users.update(userId, { phone });
+    return this.uow.run(() => {
+      const { user, player } = this.requireUser(userId);
+      if (!player) {
+        throw new ValidationError('Este usuario no tiene ficha de jugador');
+      }
+      const phone = input.phone !== undefined ? input.phone : user.phone;
+      const updatedUser = this.users.update(userId, { phone });
 
-    const update: Parameters<PlayerRepository['update']>[1] = {};
-    if (input.dni !== undefined) update.dni = input.dni;
-    if (input.birthDate !== undefined) update.birthDate = input.birthDate;
-    if (input.position !== undefined) update.position = input.position;
-    if (input.secondaryPosition !== undefined) update.secondaryPosition = input.secondaryPosition;
-    if (input.shirtNumber !== undefined) update.shirtNumber = input.shirtNumber;
-    if (input.heightCm !== undefined) update.heightCm = input.heightCm;
-    if (input.weightKg !== undefined) update.weightKg = input.weightKg;
-    if (input.foot !== undefined) update.foot = input.foot;
-    if (input.emergencyContact !== undefined) update.emergencyContact = input.emergencyContact;
-    const updatedPlayer = Object.keys(update).length > 0 ? this.players.update(player.id, update) : player;
+      const update: Parameters<PlayerRepository['update']>[1] = {};
+      if (input.dni !== undefined) update.dni = input.dni;
+      if (input.birthDate !== undefined) update.birthDate = input.birthDate;
+      if (input.position !== undefined) update.position = input.position;
+      if (input.secondaryPosition !== undefined) update.secondaryPosition = input.secondaryPosition;
+      if (input.shirtNumber !== undefined) update.shirtNumber = input.shirtNumber;
+      if (input.heightCm !== undefined) update.heightCm = input.heightCm;
+      if (input.weightKg !== undefined) update.weightKg = input.weightKg;
+      if (input.foot !== undefined) update.foot = input.foot;
+      if (input.emergencyContact !== undefined) update.emergencyContact = input.emergencyContact;
+      if (input.eps !== undefined) update.eps = input.eps;
+      if (input.prepaidHealth !== undefined) update.prepaidHealth = input.prepaidHealth;
+      const updatedPlayer = Object.keys(update).length > 0 ? this.players.update(player.id, update) : player;
 
-    return { user: updatedUser, player: updatedPlayer };
+      return { user: updatedUser, player: updatedPlayer };
+    });
   }
 
   changePassword(userId: number, currentPassword: string, newPassword: string): { ok: true } {
@@ -89,9 +95,7 @@ export class MeService implements MePort {
     if (!currentPassword || !bcrypt.compareSync(currentPassword, stored.passwordHash)) {
       throw new ValidationError('La contraseña actual no es correcta');
     }
-    if (!newPassword || newPassword.length < MIN_PASSWORD) {
-      throw new ValidationError(`La nueva contraseña debe tener al menos ${MIN_PASSWORD} caracteres`);
-    }
+    validatePassword(newPassword);
     this.users.update(userId, { passwordHash: bcrypt.hashSync(newPassword, 10) });
     return { ok: true };
   }
@@ -164,16 +168,17 @@ export class MeService implements MePort {
     return { summary: summarizeStats(matches), matches };
   }
 
-  getAi(userId: number) {
+  getAi(userId: number,matchId?:number) {
     const player = this.requirePlayer(userId);
-    return this.ai.playerInsight(player.id);
+    return this.ai.playerInsight(player.id,matchId);
   }
 
   private toMatchView(match: Match, playerId: number): MatchView {
-    const lineup = this.matches.getLineup(match.id);
+    const lineup = this.matches.getPublishedLineup(match.id);
     const mySlot: LineupSlot | null = lineup.find((slot) => slot.playerId === playerId) ?? null;
     return {
       ...match,
+      formation: match.publishedFormation ?? match.formation,
       mySlot,
       strategiesCount: this.matches.listStrategies(match.id).length,
       lineupFilled: lineup.filter((slot) => slot.playerId !== null).length,

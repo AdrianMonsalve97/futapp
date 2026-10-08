@@ -9,6 +9,7 @@ import type { Foot, Player, Position, UserPlayerResponse } from '../types/api';
 
 export interface ProfileFormProps {
   player: Player | null;
+  phone: string | null;
   /** Se invoca tras guardar (para recargar sesión/datos). */
   onSaved: () => void;
 }
@@ -23,7 +24,6 @@ interface FormState {
   heightCm: string;
   weightKg: string;
   foot: string;
-  emergencyContact: string;
 }
 
 function fromPlayer(player: Player | null, phone: string): FormState {
@@ -37,23 +37,21 @@ function fromPlayer(player: Player | null, phone: string): FormState {
     heightCm: player?.heightCm !== null && player?.heightCm !== undefined ? String(player.heightCm) : '',
     weightKg: player?.weightKg !== null && player?.weightKg !== undefined ? String(player.weightKg) : '',
     foot: player?.foot ?? '',
-    emergencyContact: player?.emergencyContact ?? '',
   };
 }
 
 const toNumber = (value: string): number | null => (value.trim() === '' ? null : Number(value));
 
 /** Formulario de ficha del jugador → `PUT /api/me/profile`. */
-export function ProfileForm({ player, onSaved }: ProfileFormProps) {
-  const [form, setForm] = useState<FormState>(() => fromPlayer(player, ''));
+export function ProfileForm({ player, phone, onSaved }: ProfileFormProps) {
+  const [form, setForm] = useState<FormState>(() => fromPlayer(player, phone ?? ''));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setForm(fromPlayer(player, form.phone));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [player]);
+    setForm(fromPlayer(player, phone ?? ''));
+  }, [player, phone]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => {
@@ -79,7 +77,6 @@ export function ProfileForm({ player, onSaved }: ProfileFormProps) {
           heightCm: toNumber(form.heightCm),
           weightKg: toNumber(form.weightKg),
           foot: form.foot ? (form.foot as Foot) : null,
-          emergencyContact: form.emergencyContact.trim() || null,
         },
       });
       setSaved(true);
@@ -106,7 +103,7 @@ export function ProfileForm({ player, onSaved }: ProfileFormProps) {
         <FormField label="Fecha de nacimiento">
           <Input type="date" value={form.birthDate} onChange={(event) => set('birthDate', event.target.value)} />
         </FormField>
-        <FormField label="Dorsal">
+        <FormField label="Dorsal" hint="Debe ser único en el equipo. Déjalo vacío si aún no tienes número.">
           <Input
             type="number"
             min={0}
@@ -157,13 +154,6 @@ export function ProfileForm({ player, onSaved }: ProfileFormProps) {
             <option value="der">Derecho</option>
             <option value="ambos">Ambos</option>
           </Select>
-        </FormField>
-        <FormField label="Contacto de emergencia">
-          <Input
-            value={form.emergencyContact}
-            onChange={(event) => set('emergencyContact', event.target.value)}
-            placeholder="Nombre · teléfono"
-          />
         </FormField>
       </div>
 

@@ -3,6 +3,10 @@
  * (repositorios → servicios → rutas vía `createHttpServer`).
  */
 import { FileModelStore } from './adapters/out/persistence/model-store';
+import path from 'node:path';
+import { env } from './config/env';
+import { FileMigrationStore } from './adapters/out/persistence/migration-store';
+import { SqliteUnitOfWork } from './adapters/out/persistence/unit-of-work';
 import { getDb } from './adapters/out/persistence/database';
 import { SqliteInscriptionRepository } from './adapters/out/persistence/repositories/inscription.repository';
 import { SqliteMatchRepository } from './adapters/out/persistence/repositories/match.repository';
@@ -26,7 +30,22 @@ import { SettingsService } from './application/services/settings-service';
 import { StatsService } from './application/services/stats-service';
 import { UniformService } from './application/services/uniform-service';
 
+import { FileMediaStorage } from './adapters/out/persistence/media-storage';
+import { SqliteTournamentRepository } from './adapters/out/persistence/repositories/tournament.repository';
+import { TournamentService } from './application/services/tournament-service';
+import { MediaService } from './application/services/media-service';
+import { QrPaymentService } from './application/services/qr-payment-service';
+import { SqliteQrPaymentRepository } from './adapters/out/persistence/repositories/qr-payment.repository';
+import { SqliteNotificationRepository } from './adapters/out/persistence/repositories/notification.repository';
+import { ProviderNotificationTransport } from './adapters/out/notifications/provider-transport';
+import { NotificationService } from './application/services/notification-service';
+
 export interface Container {
+  migrationService: FileMigrationStore;
+  notificationService: NotificationService;
+  qrPaymentService: QrPaymentService;
+  tournamentService: TournamentService;
+  mediaService: MediaService;
   authService: AuthService;
   meService: MeService;
   playerService: PlayerService;
@@ -42,6 +61,7 @@ export interface Container {
 
 export function createContainer(): Container {
   const db = getDb();
+  const uow = new SqliteUnitOfWork(db);
 
   // Adaptadores de salida (repositorios)
   const users = new SqliteUserRepository(db);
@@ -54,11 +74,17 @@ export function createContainer(): Container {
   const sanctions = new SqliteSanctionRepository(db);
   const stats = new SqliteStatsRepository(db);
   const settings = new SqliteSettingsRepository(db);
+  const tournaments = new SqliteTournamentRepository(db);
+  const tournamentService = new TournamentService(tournaments, players, matches, uow);
+  const mediaService = new MediaService(new FileMediaStorage(db), users, uniforms, settings, tournaments, uow);
   const modelStore = new FileModelStore();
+  const qrRepository = new SqliteQrPaymentRepository(db);
+  const notificationService = new NotificationService(new SqliteNotificationRepository(db), new ProviderNotificationTransport(),
+    matches, users, players, settings, qrRepository, uow, Date.now, tournaments);
 
   // Servicios de casos de uso
   const statsService = new StatsService(stats);
-  const settingsService = new SettingsService(settings);
+  const settingsService = new SettingsService(settings, tournaments);
   const aiService = new AiService(
     stats,
     matches,
@@ -69,8 +95,9 @@ export function createContainer(): Container {
     uniformRequests,
     modelStore,
     settings,
+    tournaments,
   );
-  const authService = new AuthService(users, players);
+  const authService = new AuthService(users, players, uow, new SqliteSecurityRepository(db));
   const meService = new MeService(
     users,
     players,
@@ -82,6 +109,7 @@ export function createContainer(): Container {
     stats,
     matches,
     aiService,
+    uow,
   );
   const playerService = new PlayerService(
     users,
@@ -91,10 +119,12 @@ export function createContainer(): Container {
     sanctions,
     stats,
     aiService,
+    uow,
   );
-  const inscriptionService = new InscriptionService(inscriptions, players);
-  const uniformService = new UniformService(uniforms, uniformIssues, uniformRequests, players);
-  const matchService = new MatchService(matches, players, stats, aiService, settings);
+  const inscriptionService = new InscriptionService(inscriptions, players, uow);
+  const qrPaymentService = new QrPaymentService(qrRepository, new FileMediaStorage(db), players, inscriptionService, uow, notificationService);
+  const uniformService = new UniformService(uniforms, uniformIssues, uniformRequests, players, uow);
+  const matchService = new MatchService(matches, players, stats, aiService, settings, sanctions, uow, tournaments, notificationService);
   const sanctionService = new SanctionService(sanctions, players);
   const dashboardService = new DashboardService(
     users,
@@ -108,9 +138,14 @@ export function createContainer(): Container {
     stats,
     statsService,
     aiService,
+    settings,
   );
 
   return {
+    migrationService: new FileMigrationStore(db, path.dirname(path.resolve(env.dbPath)), env.publicAppUrl),
+    notificationService,
+    qrPaymentService,
+    tournamentService, mediaService,
     authService,
     meService,
     playerService,
@@ -124,3 +159,4 @@ export function createContainer(): Container {
     settingsService,
   };
 }
+import { SqliteSecurityRepository } from './adapters/out/persistence/repositories/security.repository';

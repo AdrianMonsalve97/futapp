@@ -10,6 +10,7 @@ import { Spinner } from '../../atoms/Spinner';
 import { DateLabel } from '../../molecules/DateLabel';
 import { Money } from '../../molecules/Money';
 import { StatusBadge } from '../../molecules/StatusBadge';
+import { QrPaymentPanel } from '../../organisms/QrPaymentPanel';
 import { formatDate, formatMoney, pendingAmount } from '../../utils/format';
 import type { MeInscriptionResponse } from '../../types/api';
 
@@ -88,7 +89,7 @@ export function MyInscriptionPage() {
                   <p className="text-sm text-base-content/60">Temporada {inscription.season}</p>
                   <p className="text-lg font-bold">{inscription.concept}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex max-w-full flex-wrap items-center gap-3">
                   <StatusBadge status={inscription.status} size="lg" />
                   <Badge tone="neutral" size="sm">
                     Vence <DateLabel value={inscription.dueDate} />
@@ -130,6 +131,7 @@ export function MyInscriptionPage() {
           </Card>
 
           {/* Desglose de la cuota */}
+          <QrPaymentPanel kind="inscription" onSaved={reload} refreshKey={data} />
           <Card>
             <CardBody className="gap-2">
               <CardTitle className="text-base">Desglose de la cuota</CardTitle>
@@ -206,7 +208,7 @@ export function MyInscriptionPage() {
                           <td className="whitespace-nowrap">{formatDate(payment.paidAt)}</td>
                           <td className="capitalize">{payment.method}</td>
                           <td className="font-mono text-sm">{payment.reference ?? '—'}</td>
-                          <td className="text-sm text-base-content/60">{payment.notes ?? '—'}</td>
+                          <td className="text-sm text-base-content/60">{payment.notes ?? '—'}{payment.registeredByName && <p className="text-xs mt-1">Registrado por {payment.registeredByName}</p>}</td>
                           <td className="text-right font-semibold">
                             <Money value={payment.amount} />
                           </td>

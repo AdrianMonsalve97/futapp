@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS players (
   weight_kg          INTEGER,
   foot               TEXT CHECK (foot IS NULL OR foot IN ('izq','der','ambos')),
   emergency_contact  TEXT,
+  eps                TEXT,
+  prepaid_health     TEXT,
   joined_at          TEXT NOT NULL DEFAULT (date('now'))
 );
 
@@ -96,7 +98,7 @@ CREATE TABLE IF NOT EXISTS matches (
   status        TEXT NOT NULL DEFAULT 'programado' CHECK (status IN ('programado','jugado','cancelado','pospuesto')),
   formation     TEXT NOT NULL DEFAULT '4-3-3',
   format        INTEGER NOT NULL DEFAULT 8 CHECK (format IN (5,7,8,11)),
-  minutes       INTEGER NOT NULL DEFAULT 60,
+  minutes       INTEGER NOT NULL DEFAULT 50,
   goals_for     INTEGER,
   goals_against INTEGER,
   notes         TEXT,

@@ -14,6 +14,7 @@ import { SanctionsTable } from '../../organisms/SanctionsTable';
 import { PerformanceChart } from '../../organisms/PerformanceChart';
 import { RatingTrendChart } from '../../organisms/RatingTrendChart';
 import { AiPlayerCard } from '../../organisms/AiPlayerCard';
+import { HealthForm } from '../../organisms/HealthForm';
 import { PositionBadge } from '../../molecules/PositionBadge';
 import { RatingBadge } from '../../molecules/RatingBadge';
 import { StatusBadge } from '../../molecules/StatusBadge';
@@ -22,11 +23,12 @@ import { ProgressBar } from '../../atoms/ProgressBar';
 import { ageFrom, formatDate, formatMinutes, formatNumber } from '../../utils/format';
 import type { Match, PlayerDetailResponse } from '../../types/api';
 
-type Tab = 'inscripciones' | 'uniformes' | 'sanciones' | 'estadisticas' | 'ia';
+type Tab = 'inscripciones' | 'uniformes' | 'sanciones' | 'estadisticas' | 'ia' | 'salud';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'inscripciones', label: 'Inscripciones' },
   { key: 'uniformes', label: 'Uniformes' },
+  { key: 'salud', label: 'Salud' },
   { key: 'sanciones', label: 'Sanciones' },
   { key: 'estadisticas', label: 'Estadísticas' },
   { key: 'ia', label: 'IA' },
@@ -121,7 +123,6 @@ export function PlayerDetailPage() {
                     label: 'Pie',
                     value: player.foot ? (player.foot === 'izq' ? 'Izquierdo' : player.foot === 'der' ? 'Derecho' : 'Ambos') : '—',
                   },
-                  { label: 'Contacto emergencia', value: player.emergencyContact ?? '—' },
                 ].map((item) => (
                   <div key={item.label} className="rounded-lg bg-base-200 px-3 py-2 min-w-0">
                     <p className="text-xs text-base-content/60">{item.label}</p>
@@ -223,6 +224,11 @@ export function PlayerDetailPage() {
       ) : null}
 
       {tab === 'uniformes' ? <UniformIssueList issues={uniformIssues} showPlayer={false} /> : null}
+
+      {tab === 'salud' ? <Card><CardBody>
+        <h2 className="font-semibold text-lg">Salud</h2>
+        <HealthForm player={player} endpoint={`/api/players/${player.id}`} onSaved={reload} />
+      </CardBody></Card> : null}
 
       {tab === 'sanciones' ? (
         sanctions.length === 0 ? (

@@ -16,6 +16,8 @@ export interface CreatePlayerInput {
   weightKg?: number | null;
   foot?: Foot | null;
   emergencyContact?: string | null;
+  eps?: string | null;
+  prepaidHealth?: string | null;
 }
 
 export type UpdatePlayerInput = Partial<Omit<CreatePlayerInput, 'userId'>>;

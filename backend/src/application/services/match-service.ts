@@ -12,6 +12,9 @@ import type { MatchRepository } from '../ports/out/match.repository';
 import type { PlayerRepository } from '../ports/out/player.repository';
 import type { SettingsRepository } from '../ports/out/settings.repository';
 import type { StatsRepository } from '../ports/out/stats.repository';
+import type { SanctionRepository } from '../ports/out/sanction.repository';
+import type { UnitOfWork } from '../ports/out/unit-of-work';
+import type { AttendanceStatus, MatchAttendance } from '../../domain/entities';
 import type {
   LineupSlot,
   Match,
@@ -23,6 +26,11 @@ import type {
 import { formationBelongsTo, formationsFor, getFormation } from '../../domain/formations';
 import { getFormat, isTeamFormat, type FormatProfile, type TeamFormat } from '../../domain/formats';
 import { NotFoundError, ValidationError } from '../../domain/errors';
+
+import type { TournamentRepository } from '../ports/out/tournament.repository';
+import type { TournamentSnapshot } from '../../domain/tournament';
+import type { NotificationEvents } from '../../domain/notifications';
+import { broadcastUrl } from '../../domain/broadcast';
 
 const KICKOFF_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
 const MATCH_STATUSES: MatchStatus[] = ['programado', 'jugado', 'cancelado', 'pospuesto'];
@@ -37,6 +45,10 @@ export class MatchService implements MatchPort {
     private readonly stats: StatsRepository,
     private readonly ai: AiPort,
     private readonly settings: SettingsRepository,
+    private readonly sanctions: SanctionRepository,
+    private readonly uow: UnitOfWork,
+    private readonly tournaments: TournamentRepository,
+    private readonly notifications?: NotificationEvents,
   ) {}
 
   list(): Match[] {
@@ -50,63 +62,125 @@ export class MatchService implements MatchPort {
     return [...upcoming, ...finished];
   }
 
-  get(id: number): MatchDetail {
+  get(id: number, playerView = false): MatchDetail {
     const match = this.requireMatch(id);
     return {
-      match,
+      match: playerView ? { ...match, formation: match.publishedFormation ?? match.formation } : match,
       strategies: this.matches.listStrategies(id),
-      lineup: this.lineupFor(match),
+      lineup: playerView ? this.matches.getPublishedLineup(id) : this.lineupFor(match),
       stats: this.stats.list({ matchId: id }),
     };
   }
 
+  attendance(id: number, userId?: number): MatchAttendance[] {
+    const match = this.requireMatch(id);
+    const enrolled = match.tournamentId ? new Set(this.tournaments.playerIds(match.tournamentId)) : null;
+    const suspended = new Set(this.sanctions.list({ type: 'suspension', status: 'activa' }).map(s => s.playerId));
+    const own = userId !== undefined ? this.players.findByUserId(userId) : null;
+    return this.matches.listAttendance(id).filter(row => (!enrolled || enrolled.has(row.playerId)) && (userId === undefined || row.playerId === own?.id)).map(row => ({
+      ...row, eligible: row.eligible && !suspended.has(row.playerId), reason: suspended.has(row.playerId) ? 'Suspensión activa' : row.reason,
+    }));
+  }
+
+  setAttendance(id: number, userId: number, status: AttendanceStatus): MatchAttendance {
+    const match = this.requireMatch(id);
+    if (!UPCOMING.includes(match.status)) throw new ValidationError('Solo puedes confirmar asistencia a partidos pendientes');
+    if (!['pendiente', 'confirmado', 'no_disponible'].includes(status)) throw new ValidationError('Estado de asistencia inválido');
+    const player = this.players.findByUserId(userId);
+    if (!player) throw new ValidationError('Necesitas una ficha de jugador');
+    if (match.tournamentId && !this.tournaments.hasPlayer(match.tournamentId, player.id)) throw new ValidationError('No estás inscrito en este torneo. Solicita tu inscripción al administrador');
+    this.matches.setAttendance(id, player.id, status);
+    return this.attendance(id, userId)[0];
+  }
+
+  publishLineup(id: number): Match {
+    return this.uow.run(() => {
+      const match = this.requireMatch(id);
+      if (!UPCOMING.includes(match.status)) throw new ValidationError('Solo se publica la alineación de partidos pendientes');
+      const slots = this.lineupFor(match);
+      if (slots.some(slot => slot.playerId === null)) throw new ValidationError('Completa todas las posiciones antes de publicar');
+      this.setLineup(id, slots);
+      return this.matches.publishLineup(id);
+    });
+  }
+
   create(input: CreateMatchInput): Match {
+    if (input.streamUrl !== undefined) input = {...input, streamUrl: broadcastUrl(input.streamUrl)};
     this.validateMatchInput(input);
-    const format = this.resolveFormat(input.format);
+    const tournamentId = input.tournamentId === undefined ? this.settings.get().defaultTournamentId : input.tournamentId;
+    const rules = tournamentId ? this.snapshot(tournamentId) : null;
+    const format = rules?.format ?? this.resolveFormat(input.format);
+    this.assertRuleOverrides(rules, input);
     const profile = getFormat(format);
-    const formation = (input.formation ?? '').trim() || profile.defaultFormation;
+    const formation = (input.formation ?? '').trim() || rules?.allowedFormations[0] || profile.defaultFormation;
+    this.assertTournamentFormation(rules, formation);
     this.assertFormationInFormat(formation, format);
-    const minutes = this.resolveMinutes(input.minutes, profile);
-    return this.matches.create({
+    const minutes = rules ? rules.periods * rules.minutesPerPeriod : this.resolveMinutes(input.minutes, profile);
+    return this.uow.run(() => {
+    const created = this.matches.create({
       ...input,
+      tournamentId, tournamentRules: rules,
       status: 'programado',
       formation,
       format,
       minutes,
     });
+    this.notifications?.matchChanged(created);
+    return created;
+    });
   }
 
   update(id: number, input: UpdateMatchInput): Match {
-    const current = this.requireMatch(id);
-    this.validateMatchInput(input);
-    if (input.status !== undefined && !MATCH_STATUSES.includes(input.status)) {
-      throw new ValidationError(`Estado inválido. Opciones: ${MATCH_STATUSES.join(', ')}`);
-    }
+    if(input.streamUrl!==undefined)input={...input,streamUrl:broadcastUrl(input.streamUrl)};
+    return this.uow.run(() => {
+      const current = this.requireMatch(id);
+      this.validateMatchInput(input);
+      if (input.status !== undefined && !MATCH_STATUSES.includes(input.status)) {
+        throw new ValidationError(`Estado inválido. Opciones: ${MATCH_STATUSES.join(', ')}`);
+      }
 
-    const format = input.format !== undefined ? this.resolveFormat(input.format) : current.format;
-    const profile = getFormat(format);
-    const formatChanged = format !== current.format;
+      if (input.tournamentId !== undefined && current.status === 'jugado') throw new ValidationError('El torneo de un partido jugado se conserva como historial');
+      const rules = input.tournamentId !== undefined ? (input.tournamentId ? this.snapshot(input.tournamentId) : null) : current.tournamentRules ?? null;
+      this.assertRuleOverrides(rules, input);
+      const format = rules?.format ?? (input.format !== undefined ? this.resolveFormat(input.format) : current.format);
+      const profile = getFormat(format);
+      const formatChanged = format !== current.format;
 
-    let formation = input.formation ?? current.formation;
-    if (input.formation === undefined && formatChanged && !formationBelongsTo(formation, format)) {
-      formation = profile.defaultFormation; // la formación vieja no existe en el formato nuevo
-    }
-    this.assertFormationInFormat(formation, format);
+      let formation = input.formation ?? current.formation;
+      if (input.formation === undefined && formatChanged && !formationBelongsTo(formation, format)) {
+        formation = profile.defaultFormation; // la formación vieja no existe en el formato nuevo
+      }
+      if (input.formation === undefined && rules && !rules.allowedFormations.includes(formation)) formation = rules.allowedFormations[0];
+      this.assertFormationInFormat(formation, format);
+      this.assertTournamentFormation(rules, formation);
 
-    const minutes =
-      input.minutes !== undefined
-        ? this.resolveMinutes(input.minutes, profile)
-        : formatChanged
-          ? profile.matchMinutes
-          : current.minutes;
+      const minutes = rules ? rules.periods * rules.minutesPerPeriod :
+        input.minutes !== undefined
+          ? this.resolveMinutes(input.minutes, profile)
+          : formatChanged
+            ? profile.matchMinutes
+            : current.minutes;
 
-    const updated = this.matches.update(id, { ...input, formation, format, minutes });
+      if (this.stats.list({ matchId: id }).some(row => row.minutes > minutes)) throw new ValidationError('La duración no puede ser menor que los minutos ya registrados');
+      const updated = this.matches.update(id, { ...input, tournamentRules: rules, formation, format, minutes });
 
-    // Si cambió el formato o la formación, la alineación guardada debe re-alinearse.
-    if (formatChanged || formation !== current.formation) {
-      this.realignLineup(id, formation, format);
-    }
-    return updated;
+      // Si cambió el formato o la formación, la alineación guardada debe re-alinearse.
+      if (formatChanged || formation !== current.formation) {
+        this.realignLineup(id, formation, format);
+      }
+      if (formatChanged || (rules && current.publishedFormation && !rules.allowedFormations.includes(current.publishedFormation))) this.matches.unpublishLineup(id);
+      if (input.tournamentId !== undefined && input.tournamentId !== current.tournamentId) {
+        this.matches.unpublishLineup(id);
+        if (updated.tournamentId) {
+          const enrolled = new Set(this.tournaments.playerIds(updated.tournamentId));
+          const draft = this.matches.getLineup(id);
+          this.matches.replaceLineup(id, draft.map(slot => ({ ...slot, playerId: slot.playerId !== null && enrolled.has(slot.playerId) ? slot.playerId : null })));
+        }
+      }
+      const result = this.requireMatch(updated.id);
+      this.notifications?.matchChanged(result, current);
+      return result;
+    });
   }
 
   remove(id: number): { ok: true } {
@@ -116,24 +190,27 @@ export class MatchService implements MatchPort {
   }
 
   setFormation(id: number, formation: string): { match: Match; lineup: LineupSlot[] } {
-    const match = this.requireMatch(id);
-    const key = (formation ?? '').trim();
-    // §12.2: una formación solo es válida dentro del formato del partido (400).
-    this.assertFormationInFormat(key, match.format);
-    const catalog = getFormation(key, match.format);
-    const previous = this.matches.getLineup(id);
-    const playerBySlot = new Map(previous.map((slot) => [slot.slotIndex, slot.playerId]));
-    const slots = catalog.slots.map((slot) => ({
-      slotIndex: slot.slotIndex,
-      playerId: playerBySlot.get(slot.slotIndex) ?? null,
-      x: slot.x,
-      y: slot.y,
-      role: slot.role,
-      label: slot.label,
-    }));
-    const lineup = this.matches.replaceLineup(id, slots);
-    const updated = this.matches.update(id, { formation: catalog.key });
-    return { match: updated, lineup };
+    return this.uow.run(() => {
+      const match = this.requireMatch(id);
+      const key = (formation ?? '').trim();
+      // §12.2: una formación solo es válida dentro del formato del partido (400).
+      this.assertFormationInFormat(key, match.format);
+      this.assertTournamentFormation(match.tournamentRules, key);
+      const catalog = getFormation(key, match.format);
+      const previous = this.matches.getLineup(id);
+      const playerBySlot = new Map(previous.map((slot) => [slot.slotIndex, slot.playerId]));
+      const slots = catalog.slots.map((slot) => ({
+        slotIndex: slot.slotIndex,
+        playerId: playerBySlot.get(slot.slotIndex) ?? null,
+        x: slot.x,
+        y: slot.y,
+        role: slot.role,
+        label: slot.label,
+      }));
+      const lineup = this.matches.replaceLineup(id, slots);
+      const updated = this.matches.update(id, { formation: catalog.key });
+      return { match: updated, lineup };
+    });
   }
 
   addStrategy(matchId: number, input: StrategyInput): Strategy {
@@ -175,6 +252,7 @@ export class MatchService implements MatchPort {
         `La alineación del ${profile.name} debe tener exactamente ${profile.playersOnPitch} posiciones en cancha; recibiste ${slots.length}`,
       );
     }
+    this.assertTournamentFormation(match.tournamentRules, match.formation);
     const catalog = getFormation(match.formation, match.format);
     if (slots.length !== catalog.slots.length) {
       throw new ValidationError(
@@ -184,6 +262,7 @@ export class MatchService implements MatchPort {
     const canonical = new Map(catalog.slots.map((slot) => [slot.slotIndex, slot]));
     const seen = new Set<number>();
     const assigned: number[] = [];
+    const unavailable = new Set(this.attendance(id).filter(row => !row.eligible).map(row => row.playerId));
     for (const slot of slots) {
       const target = canonical.get(slot.slotIndex);
       if (!target) {
@@ -199,8 +278,15 @@ export class MatchService implements MatchPort {
         if (!Number.isInteger(slot.playerId)) {
           throw new ValidationError('Identificador de jugador inválido');
         }
-        if (!this.players.findById(slot.playerId)) {
+        const row = this.players.findWithUser(slot.playerId);
+        if (!row) {
           throw new NotFoundError(`El jugador ${slot.playerId} no existe`);
+        }
+        if (!row.user.active) throw new ValidationError(`${row.user.fullName} está inactivo`);
+        if (match.tournamentId && !this.tournaments.hasPlayer(match.tournamentId, slot.playerId)) throw new ValidationError(`${row.user.fullName} no está inscrito en el torneo de este partido`);
+        if (unavailable.has(slot.playerId)) throw new ValidationError(`${row.user.fullName} no está disponible para este partido`);
+        if (this.sanctions.list({ playerId: slot.playerId, type: 'suspension', status: 'activa' }).length) {
+          throw new ValidationError(`${row.user.fullName} tiene una suspensión activa`);
         }
         assigned.push(slot.playerId);
       }
@@ -229,6 +315,7 @@ export class MatchService implements MatchPort {
     // La formación pedida debe pertenecer al formato del partido (§12.2 → 400).
     if (formation !== undefined && String(formation).trim()) {
       this.assertFormationInFormat(String(formation).trim(), match.format);
+      this.assertTournamentFormation(match.tournamentRules, String(formation).trim());
     }
     return this.ai.recommendXi(id, formation);
   }
@@ -242,13 +329,19 @@ export class MatchService implements MatchPort {
       throw new ValidationError('Debes enviar la lista de estadísticas');
     }
     const clean: Array<Partial<MatchStat> & { playerId: number }> = [];
+    const seen = new Set<number>();
     for (const entry of entries) {
+      if (entry.matchId !== undefined && entry.matchId !== matchId) throw new ValidationError('La estadística pertenece a otro partido');
       if (!Number.isInteger(entry.playerId)) {
         throw new ValidationError('Cada entrada debe indicar un jugador válido (playerId)');
       }
       if (!this.players.findById(entry.playerId)) {
         throw new NotFoundError(`El jugador ${entry.playerId} no existe`);
       }
+      if (seen.has(entry.playerId)) throw new ValidationError('Un jugador tiene estadísticas duplicadas');
+      seen.add(entry.playerId);
+      if ((entry.shotsOnTarget ?? 0) > (entry.shots ?? 0)) throw new ValidationError('Los tiros a puerta no pueden superar los tiros');
+      if ((entry.passesCompleted ?? 0) > (entry.passes ?? 0)) throw new ValidationError('Los pases completados no pueden superar los intentados');
       if (entry.rating !== undefined && (entry.rating < 1 || entry.rating > 10)) {
         throw new ValidationError('La calificación debe estar entre 1 y 10');
       }
@@ -315,6 +408,7 @@ export class MatchService implements MatchPort {
     const lineup = this.matches.getLineup(match.id);
     if (lineup.length === profile.playersOnPitch) return lineup;
 
+    this.assertTournamentFormation(match.tournamentRules, match.formation);
     const catalog = getFormation(match.formation, match.format);
     const bySlot = new Map(lineup.map((slot) => [slot.slotIndex, slot]));
     return catalog.slots.map((slot) => {
@@ -348,10 +442,6 @@ export class MatchService implements MatchPort {
   private realignLineup(matchId: number, formationKey: string, format: TeamFormat): void {
     const catalog = getFormation(formationKey, format);
     const lineup = this.matches.getLineup(matchId);
-    const fits =
-      lineup.length === catalog.slots.length &&
-      catalog.slots.every((slot) => lineup.some((l) => l.slotIndex === slot.slotIndex));
-    if (fits) return;
     const playerBySlot = new Map(lineup.map((slot) => [slot.slotIndex, slot.playerId]));
     this.matches.replaceLineup(
       matchId,
@@ -366,6 +456,17 @@ export class MatchService implements MatchPort {
     );
   }
 
+  private snapshot(id: number): TournamentSnapshot {
+    const tournament = this.tournaments.find(id);
+    if (!tournament || tournament.status !== 'publicado') throw new ValidationError('Selecciona un torneo publicado');
+    return { ...tournament.rules, tournamentName: tournament.name, leagueName: tournament.leagueName, updatedAt: tournament.updatedAt };
+  }
+  private assertRuleOverrides(rules: TournamentSnapshot | null | undefined, input: { format?: number; minutes?: number }) {
+    if (rules && ((input.format !== undefined && input.format !== rules.format) || (input.minutes !== undefined && input.minutes !== rules.periods * rules.minutesPerPeriod))) throw new ValidationError('El formato y la duración deben coincidir con la normativa del torneo');
+  }
+  private assertTournamentFormation(rules: TournamentSnapshot | null | undefined, formation: string) {
+    if (rules && !rules.allowedFormations.includes(formation)) throw new ValidationError('Esta formación no está habilitada para el torneo');
+  }
   private requireMatch(id: number): Match {
     const match = this.matches.findById(id);
     if (!match) throw new NotFoundError('Partido no encontrado');

@@ -35,7 +35,7 @@ export function LoginPage() {
       const payload = await login(email.trim(), password);
       const state = location.state as LocationState | null;
       const target =
-        state?.from && state.from !== '/'
+        state?.from && /^\/(admin|jugador)\//.test(state.from)
           ? state.from
           : payload.user.role === 'admin'
             ? '/admin/inicio'
@@ -49,12 +49,12 @@ export function LoginPage() {
   };
 
   return (
-    <Card className="border border-base-300">
+    <Card className="border border-base-300 auth-entry-card">
       <CardBody className="p-6 sm:p-8">
         <h2 className="text-xl font-bold">Ingresar</h2>
         <p className="text-sm text-base-content/60 mt-1">Accedé con tu cuenta del club.</p>
 
-        <form className="mt-5 space-y-3" onSubmit={(event) => void submit(event)}>
+        <form className="auth-fields" onSubmit={(event) => void submit(event)}>
           {error ? <Alert tone="error">{error}</Alert> : null}
 
           <FormField label="Email" required>
@@ -62,7 +62,7 @@ export function LoginPage() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="admin@club.com"
+              placeholder="tu.correo@equipo.com"
               autoComplete="username"
               autoFocus
             />
@@ -83,18 +83,6 @@ export function LoginPage() {
         </form>
 
         <div className="mt-4 space-y-3">
-          <Alert tone="info" title="Cuentas demo">
-            <ul className="text-sm space-y-1">
-              <li>
-                <span className="font-mono font-semibold">admin@club.com</span> · contraseña{' '}
-                <span className="font-mono font-semibold">Admin123!</span> (administrador)
-              </li>
-              <li>
-                <span className="font-mono font-semibold">jugador01@club.com</span> · contraseña{' '}
-                <span className="font-mono font-semibold">Jugador123!</span> (jugador)
-              </li>
-            </ul>
-          </Alert>
 
           <p className="text-center text-sm">
             ¿No tenés cuenta?{' '}

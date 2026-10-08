@@ -21,6 +21,7 @@ export function RegisterPage() {
     password: '',
     position: 'MED' as Position,
     shirtNumber: '',
+    invitationCode:new URLSearchParams(window.location.hash.slice(1)).get('invitacion')??'',
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +39,8 @@ export function RegisterPage() {
       setError('Nombre, email y contraseña son obligatorios.');
       return;
     }
-    if (form.password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
+    if (form.password.length < 15) {
+      setError('La contraseña debe tener al menos 15 caracteres.');
       return;
     }
     setBusy(true);
@@ -52,6 +53,7 @@ export function RegisterPage() {
         phone: form.phone.trim() || undefined,
         position: form.position,
         shirtNumber: form.shirtNumber ? Number(form.shirtNumber) : undefined,
+        invitationCode:form.invitationCode.trim(),
       });
       navigate('/jugador/inicio', { replace: true });
     } catch (err) {
@@ -62,15 +64,16 @@ export function RegisterPage() {
   };
 
   return (
-    <Card className="border border-base-300">
+    <Card className="border border-base-300 auth-entry-card">
       <CardBody className="p-6 sm:p-8">
         <h2 className="text-xl font-bold">Crear cuenta de jugador</h2>
         <p className="text-sm text-base-content/60 mt-1">
-          Completá tus datos para sumarte al plantel. Un administrador validará tu ficha.
+          Completa tus datos con la invitación del administrador para sumarte al plantel.
         </p>
 
-        <form className="mt-5 space-y-3" onSubmit={(event) => void submit(event)}>
+        <form className="auth-fields" onSubmit={(event) => void submit(event)}>
           {error ? <Alert tone="error">{error}</Alert> : null}
+          <FormField label="Código de invitación" required hint="Pide al administrador el enlace o código del equipo."><Input required autoComplete="off" value={form.invitationCode} onChange={e=>set('invitationCode',e.target.value)} /></FormField>
 
           <FormField label="Nombre completo" required>
             <Input
@@ -97,7 +100,7 @@ export function RegisterPage() {
                 placeholder="300 000 0000"
               />
             </FormField>
-            <FormField label="Contraseña" required hint="Mínimo 6 caracteres.">
+            <FormField label="Contraseña" required hint="Mínimo 15 caracteres. Puedes usar una frase.">
               <Input
                 type="password"
                 value={form.password}
@@ -116,7 +119,7 @@ export function RegisterPage() {
                 <option value="DEL">DEL · Delantero</option>
               </Select>
             </FormField>
-            <FormField label="Dorsal">
+            <FormField label="Dorsal" hint="Elige un número libre o déjalo vacío para asignarlo después.">
               <Input
                 type="number"
                 min={0}

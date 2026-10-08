@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import { MigrationPanel } from '../../organisms/MigrationPanel';
+import { ImageUpload } from '../../molecules/ImageUpload';
+import type { Tournament } from '../../types/tournament';
 import { useFetch } from '../../hooks/useFetch';
 import { useSettings } from '../../context/SettingsContext';
 import { errorMessage } from '../../services/api';
@@ -20,7 +23,10 @@ import type { TeamFormat, TeamSettings } from '../../types/api';
  */
 export function SettingsPage() {
   const { data, loading, error, reload } = useFetch<TeamSettings>('/api/settings');
-  const { settings: globalSettings, save: saveSettings } = useSettings();
+  const { settings: globalSettings, save: saveSettings, reload: reloadGlobal } = useSettings();
+  const tournaments = useFetch<Tournament[]>('/api/tournaments');
+  const [brandColor, setBrandColor] = useState('#d8b86a');
+  const [defaultTournamentId, setDefaultTournamentId] = useState<number | null>(null);
 
   const [teamName, setTeamName] = useState('');
   const [season, setSeason] = useState('');
@@ -31,6 +37,8 @@ export function SettingsPage() {
 
   useEffect(() => {
     if (data) {
+      setBrandColor(data.brandColor || '#d8b86a');
+      setDefaultTournamentId(data.defaultTournamentId ?? null);
       setTeamName(data.teamName);
       setSeason(data.season);
       setFormat(data.format);
@@ -58,7 +66,7 @@ export function SettingsPage() {
     setFormError(null);
     setSaved(false);
     try {
-      await saveSettings({ teamName: teamName.trim(), season: season.trim(), format });
+      await saveSettings({ teamName: teamName.trim(), season: season.trim(), format, brandColor, defaultTournamentId });
       setSaved(true);
       reload();
     } catch (err) {
@@ -93,8 +101,7 @@ export function SettingsPage() {
       />
 
       <Alert tone="info" className="mb-4">
-        El formato global es el valor por defecto de los nuevos partidos; cada partido puede cambiarlo al
-        crearlo. La IA, las formaciones y los minutos se ajustan al formato de cada encuentro.
+        En un torneo, la normativa define el formato y la duración. Para partidos independientes se usa el formato global y puedes indicar la duración real.
       </Alert>
 
       {error ? (
@@ -118,6 +125,9 @@ export function SettingsPage() {
         <Card>
           <CardBody className="gap-3">
             <CardTitle className="text-base">Club y temporada</CardTitle>
+            <ImageUpload endpoint="/api/settings/logo" currentUrl={globalSettings.logoUrl} label="Escudo del equipo" onSaved={() => { reloadGlobal(); reload(); }} />
+            <label className="flex items-center justify-between gap-3 text-sm">Color del club<input type="color" aria-label="Color del club" value={brandColor} onChange={e => setBrandColor(e.target.value)} className="w-12 h-9 cursor-pointer rounded border border-base-300" /></label>
+            <FormField label="Torneo predeterminado" hint="Sus reglas se usan en nuevos partidos."><select className="select select-bordered w-full" value={defaultTournamentId ?? ''} onChange={e => setDefaultTournamentId(e.target.value ? Number(e.target.value) : null)}><option value="">Sin torneo · partido independiente</option>{(tournaments.data ?? []).filter(row => row.status === 'publicado').map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></FormField>
             <FormField label="Nombre del club" required>
               <Input
                 value={teamName}
@@ -207,6 +217,9 @@ export function SettingsPage() {
           </CardBody>
         </Card>
       </div>
+      <MigrationPanel />
+      <AccountSecurityPanel />
     </>
   );
 }
+import { AccountSecurityPanel } from '../../organisms/AccountSecurityPanel';

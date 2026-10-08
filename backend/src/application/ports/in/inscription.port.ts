@@ -16,6 +16,8 @@ export interface CreateInscriptionInput {
 }
 
 export interface AddPaymentInput {
+  registeredBy?: number;
+  idempotencyKey?: string;
   amount: number;
   method: PaymentMethod;
   reference?: string | null;

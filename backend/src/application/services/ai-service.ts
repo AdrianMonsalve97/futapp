@@ -1,4 +1,7 @@
 import type { AiPort, XiSuggestion } from '../ports/in/ai.port';
+import type { TacticalPlan, TacticalStyle } from '../../domain/tactics';
+import { buildPlays } from '../../domain/coaching';
+import { roleCoaching } from '../../domain/role-coaching';
 import type { InscriptionRepository } from '../ports/out/inscription.repository';
 import type { MatchRepository } from '../ports/out/match.repository';
 import type { ModelStore } from '../ports/out/model-store';
@@ -15,7 +18,7 @@ import type {
   Match,
   ModelInfo,
 } from '../../domain/entities';
-import { NotFoundError } from '../../domain/errors';
+import { NotFoundError, ValidationError } from '../../domain/errors';
 import {
   formationBelongsTo,
   formationsFor,
@@ -26,12 +29,16 @@ import { getFormat, type FormatProfile, type TeamFormat } from '../../domain/for
 import {
   averageFeaturesByPlayer,
   extractFeatureSamples,
+  extractForecastSamples,
+  latestFeaturesByPlayer,
   type FeatureSample,
 } from '../../domain/model/features';
 import {
   buildRecommendation,
   buildStrengthsWeaknesses,
   confidenceFor,
+  computeMetrics,
+  predictRaw,
   computeOutcome,
   meanStd,
   MODEL_NAME,
@@ -46,9 +53,12 @@ import {
 } from '../../domain/model/performance-model';
 import { deriveInscriptionStatus, formatMoney, mean } from './shared';
 
+import type { TournamentRepository } from '../ports/out/tournament.repository';
+import type { LeagueContext } from '../../domain/tournament';
+
 const BASELINE_OPP_RATING = 6.4;
 const BASELINE_PLAYER_RATING = 6.5;
-const UPCOMING = new Set(['programado', 'pospuesto']);
+
 
 interface PlayerRating {
   predicted: number;
@@ -71,6 +81,7 @@ export class AiService implements AiPort {
     private readonly uniformRequests: UniformRequestRepository,
     private readonly modelStore: ModelStore,
     private readonly settings: SettingsRepository,
+    private readonly tournaments: TournamentRepository,
   ) {}
 
   /* ------------------------------------------------------------------ */
@@ -86,13 +97,13 @@ export class AiService implements AiPort {
   private formatMinutesByMatch(): Map<number, number> {
     const map = new Map<number, number>();
     for (const match of this.matches.list()) {
-      map.set(match.id, getFormat(match.format).matchMinutes);
+      map.set(match.id, match.minutes);
     }
     return map;
   }
 
   private samples(): ReturnType<typeof extractFeatureSamples> {
-    return extractFeatureSamples(this.stats.listAll(), this.formatMinutesByMatch());
+    return extractFeatureSamples(this.historicalStats(), this.formatMinutesByMatch());
   }
 
   /* ------------------------------------------------------------------ */
@@ -101,23 +112,43 @@ export class AiService implements AiPort {
 
   private trainFromData(): ModelArtifact {
     const profile = this.teamProfile();
-    const samples = this.samples();
-    return trainModel(
-      samples.map((s) => s.features),
-      samples.map((s) => s.rating),
+    const samples = extractForecastSamples(this.historicalStats(), this.formatMinutesByMatch());
+    const matchIds = [...new Set(samples.map(sample => sample.matchId))];
+    const validationIds = new Set(matchIds.length >= 3 ? matchIds.slice(-Math.max(1, Math.ceil(matchIds.length * 0.2))) : []);
+    const training = samples.filter(sample => !validationIds.has(sample.matchId));
+    const validation = samples.filter(sample => validationIds.has(sample.matchId));
+    const artifact = trainModel(
+      training.map((s) => s.features),
+      training.map((s) => s.rating),
       {
         minSamples: profile.ai.minSamples,
         format: profile.format,
         formatMinutes: profile.matchMinutes,
       },
     );
+    return {
+      ...artifact,
+      version: 2,
+      dataSignature: this.dataSignature(),
+      ...(validation.length ? { validation: { ...computeMetrics(validation.map(s => s.rating), validation.map(s => predictRaw(s.features, artifact))), method: 'Partidos posteriores reservados (orden cronológico)' } } : {}),
+    };
+  }
+
+  private historicalStats() {
+    const played = new Set(this.matches.list().filter(match => match.status === 'jugado').map(match => match.id));
+    return this.stats.listAll().filter(stat => played.has(stat.matchId) && stat.minutes > 0);
+  }
+
+  private dataSignature(): string {
+    return JSON.stringify([this.teamProfile().format, this.teamProfile().matchMinutes, [...this.formatMinutesByMatch().entries()], this.historicalStats()]);
   }
 
   private model(): ModelArtifact {
-    if (this.artifactCache) return this.artifactCache;
+    const signature = this.dataSignature();
+    if (this.artifactCache?.version === 2 && this.artifactCache.dataSignature === signature) return this.artifactCache;
     const profile = this.teamProfile();
     const stored = this.modelStore.load();
-    if (stored && stored.format === profile.format) {
+    if (stored?.version === 2 && stored.format === profile.format && stored.dataSignature === signature) {
       this.artifactCache = stored;
       return stored;
     }
@@ -151,6 +182,8 @@ export class AiService implements AiPort {
     };
     if (artifact.format !== undefined) info.format = artifact.format;
     if (artifact.formatMinutes !== undefined) info.formatMinutes = artifact.formatMinutes;
+    info.validation = artifact.validation;
+    info.featuresDescription = 'Promedio de los últimos cinco partidos anteriores; predicción del siguiente rendimiento.';
     return info;
   }
 
@@ -161,7 +194,7 @@ export class AiService implements AiPort {
   private ratings(): Map<number, PlayerRating> {
     const artifact = this.model();
     const samples = this.samples();
-    const averages = averageFeaturesByPlayer(samples);
+    const averages = latestFeaturesByPlayer(samples);
     const result = new Map<number, PlayerRating>();
     for (const [playerId, features] of averages) {
       const ratings = samples.filter((s) => s.playerId === playerId).map((s) => s.rating);
@@ -175,21 +208,26 @@ export class AiService implements AiPort {
   }
 
   /** Jugadores disponibles: activos y sin suspensión activa (§8.4). */
-  private xiCandidates(): { candidates: XiCandidate[]; suspended: Set<number> } {
+  private xiCandidates(matchId?: number): { candidates: XiCandidate[]; suspended: Set<number> } {
     const suspended = new Set(
       this.sanctions.list({ type: 'suspension', status: 'activa' }).map((s) => s.playerId),
     );
     const ratings = this.ratings();
+    const unavailable = new Set(matchId ? this.matches.listAttendance(matchId).filter(row => row.status === 'no_disponible').map(row => row.playerId) : []);
     const candidates: XiCandidate[] = [];
+    const tournamentId = matchId ? this.matches.findById(matchId)?.tournamentId : null;
+    const enrolled = tournamentId ? new Set(this.tournaments.playerIds(tournamentId)) : null;
     for (const { user, player } of this.players.list()) {
       if (!user.active) continue;
+      if (enrolled && !enrolled.has(player.id)) continue;
       if (suspended.has(player.id)) continue;
+      if (unavailable.has(player.id)) continue;
       const rating = ratings.get(player.id);
       candidates.push({
         playerId: player.id,
         playerName: user.fullName,
         shirtNumber: player.shirtNumber,
-        position: player.position,
+        position: player.position, secondaryPosition: player.secondaryPosition,
         predictedRating: rating ? rating.predicted : BASELINE_PLAYER_RATING,
         avgRating: rating ? rating.avgRating : BASELINE_PLAYER_RATING,
       });
@@ -201,27 +239,79 @@ export class AiService implements AiPort {
   /* 8.4 / §12.5.3 · XI recomendado (slots del formato del partido)     */
   /* ------------------------------------------------------------------ */
 
-  recommendXi(matchId: number, formationKey?: string): XiSuggestion {
+  recommendXi(matchId: number, formationKey?: string, styleOverride?: TacticalStyle): XiSuggestion {
     const match = this.matches.findById(matchId);
     if (!match) throw new NotFoundError('Partido no encontrado');
     const profile = getFormat(match.format);
     const requested = (formationKey ?? '').trim();
     const matchFormation = (match.formation ?? '').trim();
 
-    let key = requested || matchFormation || profile.defaultFormation;
-    if (!formationBelongsTo(key, match.format)) {
-      // §12.2 pide 400 con formación de otro formato; este endpoint es de
-      // SUGERENCIA (§7.10) y la tolera usando la formación del partido para
-      // devolver SIEMPRE un XI válido con `playersOnPitch` slots (§12.8).
-      key = formationBelongsTo(matchFormation, match.format)
-        ? matchFormation
-        : profile.defaultFormation;
-    }
-    return this.buildXi(getFormation(key, match.format));
+    const allowed = match.tournamentRules?.allowedFormations ?? formationsFor(match.format).map(row => row.key);
+    if (requested && !allowed.includes(requested)) throw new ValidationError('La formación no está habilitada para este torneo y formato');
+    const { candidates } = this.xiCandidates(matchId);
+    const ranked = allowed.map(key => {
+      const definition = getFormation(key, match.format);
+      const selection = selectXi(definition, candidates);
+      const style = styleOverride ?? match.tournamentRules?.tacticalStyle;
+      const bias = style === 'ofensivo' ? definition.slots.filter(s => s.role === 'DEL').length : style === 'defensivo' ? definition.slots.filter(s => s.role === 'DEF').length : 0;
+      return { key, score: selection.totalScore + bias * 0.25 - selection.assignments.filter(a => a.playerId === null).length * 20 };
+    }).sort((a, b) => b.score - a.score || (a.key === matchFormation ? -1 : 1));
+    const key = requested || ranked[0]?.key || profile.defaultFormation;
+    const xi = this.buildXi(getFormation(key, match.format), matchId);
+    const assigned = new Set(xi.lineup.map(row => row.playerId).filter(id => id !== null));
+    const capacity = Math.max(0, (match.tournamentRules ? match.tournamentRules.maxSquad ?? candidates.length : match.format + 7) - assigned.size);
+    const bench = candidates.filter(row => !assigned.has(row.playerId)).sort((a,b) => b.predictedRating - a.predictedRating).slice(0, capacity);
+    const leagueContext = this.leagueContext(match, xi.lineup);
+    if (match.tournamentId) xi.explanation += ` Plantilla del torneo: ${this.tournaments.playerIds(match.tournamentId).length} inscritos; ${candidates.length} disponibles.${candidates.length ? '' : ' Agrega jugadores activos al torneo y revisa su disponibilidad antes de preparar la alineación.'}`;
+    return { ...xi, formation: key, bench, leagueContext, explanation: xi.explanation + (leagueContext ? ` Normativa: ${leagueContext.periods} tiempos de ${leagueContext.minutesPerPeriod} min (${match.minutes} min de juego). Convocatoria: ${leagueContext.maxSquad === null ? 'límite por confirmar' : 'hasta ' + leagueContext.maxSquad}. Cambios: ${leagueContext.maxSubstitutions ?? 'sin límite numérico'}; ${leagueContext.rollingSubstitutions === null ? 'reingreso por confirmar' : leagueContext.rollingSubstitutions ? 'reingreso permitido' : 'sin reingreso'}.` : '') };
   }
 
-  private buildXi(formation: FormationDef): XiSuggestion {
-    const { candidates, suspended } = this.xiCandidates();
+  private leagueContext(match: Match, slots: LineupSlot[]): LeagueContext | undefined {
+    const rules = match.tournamentRules;
+    if (!rules || !match.tournamentId) return undefined;
+    const tournament = this.tournaments.find(match.tournamentId);
+    return { tournamentId: match.tournamentId, name: rules.tournamentName, leagueName: rules.leagueName,
+      minutes: match.minutes, periods: rules.periods, minutesPerPeriod: rules.minutesPerPeriod,
+      maxSquad: rules.maxSquad, maxSubstitutions: rules.maxSubstitutions, rollingSubstitutions: rules.rollingSubstitutions,
+      notes: tournament?.notes ?? '', documents: (tournament?.documents ?? []).map(doc => ({ title: doc.title, excerpt: doc.extractedText.slice(0, 1500), extractionStatus: doc.extractionStatus })),
+      positionPlan: slots.map(slot => `${slot.label}: ${slot.playerName ?? 'vacante'}${slot.playerPosition && slot.role !== slot.playerPosition ? ' (adaptación de posición)' : ''}`) };
+  }
+
+  tacticalPlan(matchId: number, styleOverride?: TacticalStyle, formationKey?: string): TacticalPlan {
+    const match = this.matches.findById(matchId);
+    if (!match) throw new NotFoundError('Partido no encontrado');
+    const style = styleOverride ?? match.tournamentRules?.tacticalStyle ?? 'equilibrado';
+    const recommendation = this.recommendXi(matchId,formationKey,style);
+    const candidates = this.xiCandidates(matchId).candidates;
+    const keys = match.tournamentRules?.allowedFormations ?? formationsFor(match.format).map(f=>f.key);
+    const formations = keys.map(key => {
+      const definition = getFormation(key,match.format);
+      const selection = selectXi(definition,candidates);
+      const xi = this.buildXi(definition,matchId);
+      const assigned = xi.lineup.filter(s=>s.playerId!==null);
+      const bias = style==='ofensivo'?definition.slots.filter(s=>s.role==='DEL').length:style==='defensivo'?definition.slots.filter(s=>s.role==='DEF').length:0;
+      return {key,score:round2(selection.totalScore+bias*0.25-(match.format-assigned.length)*20),
+        filled:assigned.length,naturalFit:assigned.filter(s=>s.playerPosition===s.role).length,
+        avgRating:round2(mean(assigned.map(s=>candidates.find(c=>c.playerId===s.playerId)!.predictedRating))),slots:xi.lineup};
+    }).sort((a,b)=>b.score-a.score || (a.key===match.formation?-1:1));
+    const lineup = recommendation.lineup;
+    const positions = (['POR','DEF','MED','DEL'] as const).map(role => {
+      const available = candidates.filter(c=>c.position===role || c.secondaryPosition===role);
+      return {role,available:available.length,primary:available.filter(c=>c.position===role).length,
+        needed:lineup.filter(s=>s.role===role).length,avgRating:round2(mean(available.map(c=>c.predictedRating)))};
+    });
+    const rules = match.tournamentRules;
+    const rotation = rules?.maxSubstitutions===null
+      ? `Cambios ilimitados durante ${match.minutes} min. Planifica relevos por función y carga observada; ${rules.rollingSubstitutions===null?'reingreso pendiente de confirmar':rules.rollingSubstitutions?'se permite reingresar':'no se permite reingresar'}.`
+      : `Partido de ${match.minutes} min. ${rules ? 'Máximo '+rules.maxSubstitutions+' cambios.' : 'Confirma los cambios permitidos con la liga.'}`;
+    return {match:{id:match.id,opponent:match.opponent,format:match.format,minutes:match.minutes},style,
+      recommendation:{...recommendation,formation:recommendation.formation!,bench:recommendation.bench??[]},
+      formations,positions,plays:buildPlays(lineup,style),rotation,
+      methodology:'Alineación basada en rendimiento, disponibilidad y encaje de posiciones. Las jugadas son propuestas adaptadas por reglas deportivas y referencias de entrenamiento, para revisar con el entrenador.'};
+  }
+
+  private buildXi(formation: FormationDef, matchId?: number): XiSuggestion {
+    const { candidates, suspended } = this.xiCandidates(matchId);
     const selection = selectXi(formation, candidates);
     const byId = new Map(candidates.map((c) => [c.playerId, c]));
 
@@ -328,7 +418,7 @@ export class AiService implements AiPort {
   /* 8.6 · Insight individual                                           */
   /* ------------------------------------------------------------------ */
 
-  playerInsight(playerId: number): AiPlayerInsight {
+  playerInsight(playerId: number,matchId?:number): AiPlayerInsight {
     const row = this.players.findWithUser(playerId);
     if (!row) throw new NotFoundError('Jugador no encontrado');
 
@@ -340,7 +430,7 @@ export class AiService implements AiPort {
         .filter((m) => m.status === 'jugado')
         .map((m) => [m.id, m] as const),
     );
-    const playerStats = this.stats.list({ playerId });
+    const playerStats = this.historicalStats().filter(stat => stat.playerId === playerId);
 
     const historyAll = playerStats
       .filter((s) => played.has(s.matchId))
@@ -367,9 +457,11 @@ export class AiService implements AiPort {
       const averages = averageFeaturesByPlayer(allSamples);
       playerFeatures = averages.get(playerId);
       if (playerFeatures) {
-        const vectors = [...averages.values()];
+        const keeperIds = new Set(this.players.list().filter(p => p.player.position === 'POR').map(p => p.player.id));
+        const goalkeeper = row.player.position === 'POR';
+        const vectors = [...averages.entries()].filter(([id]) => !goalkeeper || keeperIds.has(id)).map(([, vector]) => vector);
         const { mean: squadMean, std: squadStd } = meanStd(vectors);
-        const compared = buildStrengthsWeaknesses(playerFeatures, squadMean, squadStd);
+        const compared = buildStrengthsWeaknesses(playerFeatures, squadMean, squadStd, {goalkeeper, comparison: goalkeeper ? 'promedio de porteros con historial' : 'promedio del plantel'});
         strengths = compared.strengths;
         weaknesses = compared.weaknesses;
       }
@@ -387,7 +479,22 @@ export class AiService implements AiPort {
             confidence: forecast.confidence,
           });
 
+    const visible=(m:Match)=>!m.tournamentId||(this.tournaments.find(m.tournamentId)?.status==='publicado' && (m.status==='jugado'||this.tournaments.hasPlayer(m.tournamentId,playerId)));
+    const next=matchId?this.matches.findById(matchId):this.matches.list().filter(m=>m.status==='programado'&&Date.parse(m.kickOff+'-05:00')>Date.now()&&visible(m)).sort((a,b)=>a.kickOff.localeCompare(b.kickOff))[0];
+    if(matchId&&(!next||!visible(next)))throw new NotFoundError('Partido no disponible para este análisis');
+    const published=next?this.matches.getPublishedLineup(next.id):[],own=published.find(s=>s.playerId===playerId);
+    const configured=this.settings.get().defaultTournamentId,configuredTournament=configured?this.tournaments.find(configured):null;
+    const rules=next?.tournamentRules??(configuredTournament?.status==='publicado'&&this.tournaments.hasPlayer(configuredTournament.id,playerId)?configuredTournament.rules:null);
+    const format=next?.format??rules?.format??this.settings.get().format,formation=next?.publishedFormation??getFormat(format).defaultFormation;
+    const slots=getFormation(formation,format).slots.map(s=>({...s,playerId:null,...published.find(p=>p.slotIndex===s.slotIndex)}));
+    const minutes=next?.minutes??(rules?rules.periods*rules.minutesPerPeriod:getFormat(format).matchMinutes),role=own?.role??row.player.position,style=rules?.tacticalStyle??'equilibrado';
+    const coaching=roleCoaching(role,style,minutes,rules?.periods??0,!!rules&&rules.maxSubstitutions===null);
+    const preparation={matchId:next?.id??null,opponent:next?.opponent??null,format,minutes,formation,publishedAt:next?.lineupPublishedAt??null,lineup:published,role,
+      assignment:!next?'sin_partido' as const:!next.lineupPublishedAt?'sin_publicar' as const:own?'titular' as const:'fuera_inicial' as const,style,...coaching,plays:buildPlays(slots,style),
+      metricNote:role==='POR'?'La calificación usa el historial general. No se registran atajadas, goles evitados ni salidas, por lo que no mide por completo el rendimiento del portero.':'Las recomendaciones tácticas se adaptan al rol; el pronóstico depende de las estadísticas registradas.'};
     return {
+      preparation,
+      leagueContext: next ? this.leagueContext(next, this.matches.getPublishedLineup(next.id).filter(slot => slot.playerId === playerId)) : undefined,
       playerId,
       playerName: row.user.fullName,
       position: row.player.position,
@@ -404,21 +511,21 @@ export class AiService implements AiPort {
 
   insights(): AiInsights {
     const model = this.getModelInfo();
-    const candidates = this.xiCandidates().candidates;
     const played = this.formTrend();
     const nextMatch =
       this.matches
         .list()
-        .filter((m) => UPCOMING.has(m.status))
+        .filter((m) => m.status === 'programado' && new Date(m.kickOff + '-05:00').getTime() >= Date.now())
         .sort((a, b) => a.kickOff.localeCompare(b.kickOff))[0] ?? null;
 
     // §12: formato del partido concreto; si no hay partido, el del equipo.
+    const candidates = this.xiCandidates(nextMatch?.id).candidates;
     const format: TeamFormat = nextMatch ? nextMatch.format : this.teamProfile().format;
     const profile = getFormat(format);
     const formation = nextMatch
       ? getFormation(nextMatch.formation, nextMatch.format)
       : getFormation(profile.defaultFormation, format);
-    const xi = this.buildXi(formation);
+    const xi = nextMatch ? this.recommendXi(nextMatch.id) : this.buildXi(formation);
 
     const assignedPredicted = xi.lineup
       .map((slot) => (slot.playerId !== null ? candidates.find((c) => c.playerId === slot.playerId) : undefined))
@@ -434,6 +541,7 @@ export class AiService implements AiPort {
     const ratingMap = this.ratings();
     const playerRows = this.players.list();
     const topPlayers = [...ratingMap.entries()]
+      .filter(([playerId]) => !nextMatch || candidates.some(candidate => candidate.playerId === playerId))
       .map(([playerId, rating]) => {
         const row = playerRows.find((r) => r.player.id === playerId);
         return {
@@ -448,6 +556,7 @@ export class AiService implements AiPort {
       .slice(0, 5);
 
     return {
+      leagueContext: nextMatch ? this.leagueContext(nextMatch, xi.lineup) : undefined,
       model,
       format,
       teamRating,
@@ -462,8 +571,8 @@ export class AiService implements AiPort {
               winProbability: outcome.winProbability,
               drawProbability: outcome.drawProbability,
               loseProbability: outcome.loseProbability,
-              projectedGoalsFor: outcome.projectedGoalsFor,
-              projectedGoalsAgainst: outcome.projectedGoalsAgainst,
+              projectedGoalsFor: round2(outcome.projectedGoalsFor * nextMatch.minutes / profile.matchMinutes),
+              projectedGoalsAgainst: round2(outcome.projectedGoalsAgainst * nextMatch.minutes / profile.matchMinutes),
               teamRating,
               opponentRating: round2(opponentRating),
             }
@@ -473,15 +582,15 @@ export class AiService implements AiPort {
         seasonStats: this.inscriptions.list(),
         played,
         nextMatch,
-        projectedFor: outcome ? outcome.projectedGoalsFor : null,
-        projectedAgainst: outcome ? outcome.projectedGoalsAgainst : null,
+        projectedFor: outcome ? round2(outcome.projectedGoalsFor * (nextMatch ? nextMatch.minutes / profile.matchMinutes : 1)) : null,
+        projectedAgainst: outcome ? round2(outcome.projectedGoalsAgainst * (nextMatch ? nextMatch.minutes / profile.matchMinutes : 1)) : null,
         formatProfile: profile,
         modelSamples: model.metrics.samples,
         modelMae: model.metrics.mae,
         modelR2: model.metrics.r2,
       }),
       recommendedXI: {
-        formation: formation.key,
+        formation: xi.formation ?? formation.key,
         slots: xi.lineup,
         explanation: xi.explanation,
       },
@@ -494,7 +603,7 @@ export class AiService implements AiPort {
       .list()
       .filter((m) => m.status === 'jugado')
       .sort((a, b) => a.kickOff.localeCompare(b.kickOff));
-    const rows = this.stats.listAll();
+    const rows = this.historicalStats();
     return played.map((m) => {
       const stats = rows.filter((s) => s.matchId === m.id);
       const rating = round2(mean(stats.map((s) => s.rating)));
@@ -645,7 +754,7 @@ export class AiService implements AiPort {
     items.push({
       level: 'info',
       title: `Formato: ${fp.name}`,
-      message: `En ${fp.name.toLowerCase()} se esperan ~${fp.ai.baselineFor.toFixed(1)} goles por partido (partido de ${fp.matchMinutes} minutos, ${fp.playersOnPitch} en cancha).`,
+      message: `Referencia de ${fp.name.toLowerCase()}: ~${(fp.ai.baselineFor * (input.nextMatch ? input.nextMatch.minutes / fp.matchMinutes : 1)).toFixed(1)} goles para ${input.nextMatch?.minutes ?? fp.matchMinutes} minutos, con ${fp.playersOnPitch} en cancha.`,
     });
 
     // 6) Próximo partido.

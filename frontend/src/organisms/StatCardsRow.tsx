@@ -10,7 +10,7 @@ export interface StatCardsRowProps {
 const COLUMNS: Record<number, string> = {
   3: 'sm:grid-cols-2 lg:grid-cols-3',
   4: 'sm:grid-cols-2 xl:grid-cols-4',
-  5: 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5',
+  5: 'sm:grid-cols-2 lg:grid-cols-3 min-[1600px]:grid-cols-5',
 };
 
 /** Fila de tarjetas de indicadores (`StatTile`) para dashboards. */

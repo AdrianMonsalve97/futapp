@@ -9,11 +9,13 @@ import { ValidationError } from '../../domain/errors';
 import { FORMAT_LIST, getFormat, isTeamFormat } from '../../domain/formats';
 import { FORMATION_LIST } from '../../domain/formations';
 
+import type { TournamentRepository } from '../ports/out/tournament.repository';
+
 const MAX_NAME_LENGTH = 80;
 
 /** §12.4 · Configuración global (`GET/PUT /api/settings`) y catálogo (`GET /api/formations`). */
 export class SettingsService implements SettingsPort {
-  constructor(private readonly settings: SettingsRepository) {}
+  constructor(private readonly settings: SettingsRepository, private readonly tournaments: TournamentRepository) {}
 
   get(): TeamSettings {
     return this.toResponse();
@@ -45,6 +47,14 @@ export class SettingsService implements SettingsPort {
       patch.season = season;
     }
 
+    if (input.brandColor !== undefined) {
+      if (!/^#[0-9a-f]{6}$/i.test(input.brandColor)) throw new ValidationError('Color inválido');
+      patch.brandColor = input.brandColor;
+    }
+    if (input.defaultTournamentId !== undefined) {
+      if (input.defaultTournamentId !== null && this.tournaments.find(input.defaultTournamentId)?.status !== 'publicado') throw new ValidationError('El torneo predeterminado debe estar publicado');
+      patch.defaultTournamentId = input.defaultTournamentId;
+    }
     if (Object.keys(patch).length === 0) {
       throw new ValidationError('Debes indicar al menos un campo a actualizar');
     }
@@ -63,6 +73,7 @@ export class SettingsService implements SettingsPort {
   private toResponse(): TeamSettings {
     const data = this.settings.get();
     return {
+      logoUrl: data.logoUrl, brandColor: data.brandColor, defaultTournamentId: data.defaultTournamentId,
       teamName: data.teamName,
       format: data.format,
       season: data.season,

@@ -62,7 +62,7 @@ export function pitchSizeClass(format: TeamFormat): string {
 
 /** Columna izquierda del grid del editor/AI según formato (literales Tailwind). */
 export function pitchGridClass(format: TeamFormat): string {
-  return format === 11 ? 'lg:grid-cols-[minmax(0,340px)_1fr]' : 'lg:grid-cols-[minmax(0,560px)_1fr]';
+  return format === 11 ? 'lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]' : 'xl:grid-cols-2';
 }
 
 /**
@@ -147,11 +147,11 @@ export function FormationPitch({
   };
 
   return (
-    <div className={`relative w-full ${ASPECT_CLASS[fmt]} ${className}`.trim()}>
+    <div className={`formation-field relative w-full ${ASPECT_CLASS[fmt]} ${className}`.trim()}>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="absolute inset-0 w-full h-full rounded-xl shadow-inner"
-        role="img"
+        role={variant === 'edit' ? 'group' : 'img'}
         aria-label="Cancha con la alineación"
       >
         {/* Césped con franjas */}
@@ -203,14 +203,18 @@ export function FormationPitch({
             <g
               key={slot.slotIndex}
               transform={`translate(${cx} ${cy})`}
-              className={clickable ? 'cursor-pointer' : undefined}
+              className={`pitch-player ${clickable ? 'cursor-pointer' : ''}`}
               onClick={clickable && onSlotClick ? () => onSlotClick(slot) : undefined}
               role={clickable ? 'button' : undefined}
+              aria-label={clickable ? `Editar ${slot.label}: ${slot.playerName ?? 'Vacante'}` : undefined}
               tabIndex={clickable ? 0 : undefined}
               onKeyDown={
                 clickable && onSlotClick
                   ? (event) => {
-                      if (event.key === 'Enter' || event.key === ' ') onSlotClick(slot);
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onSlotClick(slot);
+                      }
                     }
                   : undefined
               }

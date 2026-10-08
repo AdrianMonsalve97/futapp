@@ -7,7 +7,8 @@ import type {
   UpdateMatchInput,
   UpdateStrategyInput,
 } from '../../../../application/ports/out/match.repository';
-import type { LineupSlot, Match, Strategy } from '../../../../domain/entities';
+import type { AttendanceStatus, MatchAttendance, Position, LineupSlot, Match, Strategy } from '../../../../domain/entities';
+import { getFormat } from '../../../../domain/formats';
 import {
   mapLineupSlot,
   mapMatch,
@@ -19,6 +20,41 @@ import {
 
 export class SqliteMatchRepository implements MatchRepository {
   constructor(private readonly db: Database) {}
+
+  getPublishedLineup(matchId: number): LineupSlot[] {
+    const rows = this.db.prepare(`SELECT l.*, p.shirt_number, p.position AS player_position, u.full_name AS player_name
+      FROM published_lineups l LEFT JOIN players p ON p.id = l.player_id LEFT JOIN users u ON u.id = p.user_id
+      WHERE l.match_id = ? ORDER BY l.slot_index`).all(matchId) as LineupRow[];
+    return rows.map(mapLineupSlot);
+  }
+
+  publishLineup(matchId: number): Match {
+    this.db.transaction(() => {
+      this.db.prepare('DELETE FROM published_lineups WHERE match_id = ?').run(matchId);
+      this.db.prepare('INSERT INTO published_lineups SELECT match_id, slot_index, player_id, x, y, role, label FROM lineups WHERE match_id = ?').run(matchId);
+      this.db.prepare("UPDATE matches SET lineup_published_at = ?, published_formation = formation WHERE id = ?").run(new Date().toISOString(), matchId);
+    })();
+    return this.findById(matchId) as Match;
+  }
+
+  unpublishLineup(matchId: number): void {
+    this.db.prepare('DELETE FROM published_lineups WHERE match_id = ?').run(matchId);
+    this.db.prepare('UPDATE matches SET lineup_published_at = NULL, published_formation = NULL WHERE id = ?').run(matchId);
+  }
+
+  listAttendance(matchId: number): MatchAttendance[] {
+    const rows = this.db.prepare(`SELECT p.id AS playerId, u.full_name AS playerName, p.shirt_number AS shirtNumber,
+      p.position, COALESCE(a.status, 'pendiente') AS status, a.updated_at AS updatedAt
+      FROM players p JOIN users u ON u.id = p.user_id
+      LEFT JOIN match_attendance a ON a.player_id = p.id AND a.match_id = ?
+      WHERE u.active = 1 ORDER BY p.position, u.full_name`).all(matchId) as Array<{ playerId: number; playerName: string; shirtNumber: number | null; position: Position; status: AttendanceStatus; updatedAt: string | null }>;
+    return rows.map(row => ({ ...row, eligible: row.status !== 'no_disponible', reason: row.status === 'no_disponible' ? 'No disponible' : null }));
+  }
+
+  setAttendance(matchId: number, playerId: number, status: AttendanceStatus): void {
+    this.db.prepare(`INSERT INTO match_attendance (match_id, player_id, status) VALUES (?, ?, ?)
+      ON CONFLICT(match_id, player_id) DO UPDATE SET status = excluded.status, updated_at = datetime('now')`).run(matchId, playerId, status);
+  }
 
   list(): Match[] {
     const rows = this.db
@@ -37,22 +73,24 @@ export class SqliteMatchRepository implements MatchRepository {
   create(input: CreateMatchInput): Match {
     const result = this.db
       .prepare(
-        `INSERT INTO matches (opponent, competition, kick_off, venue, is_home, status, formation, format, minutes, goals_for, goals_against, notes)
-         VALUES (@opponent, @competition, @kickOff, @venue, @isHome, @status, @formation, @format, @minutes, @goalsFor, @goalsAgainst, @notes)`,
+        `INSERT INTO matches (opponent, competition, kick_off, venue, is_home, status, formation, format, minutes, goals_for, goals_against, notes, tournament_id, tournament_rules, stream_url)
+         VALUES (@opponent, @competition, @kickOff, @venue, @isHome, @status, @formation, @format, @minutes, @goalsFor, @goalsAgainst, @notes, @tournamentId, @tournamentRules, @streamUrl)`,
       )
       .run({
+        tournamentId: input.tournamentId ?? null, tournamentRules: input.tournamentRules ? JSON.stringify(input.tournamentRules) : null,
         opponent: input.opponent.trim(),
         competition: input.competition?.trim() || 'Amistoso',
         kickOff: input.kickOff,
         venue: input.venue ?? null,
         isHome: input.isHome === false ? 0 : 1,
         status: input.status ?? 'programado',
-        formation: input.formation ?? '4-3-3',
+        formation: input.formation ?? getFormat(input.format ?? 8).defaultFormation,
         format: input.format ?? 8,
-        minutes: input.minutes ?? 60,
+        minutes: input.minutes ?? getFormat(input.format ?? 8).matchMinutes,
         goalsFor: input.goalsFor ?? null,
         goalsAgainst: input.goalsAgainst ?? null,
         notes: input.notes ?? null,
+        streamUrl: input.streamUrl ?? null,
       });
     return this.findById(Number(result.lastInsertRowid)) as Match;
   }
@@ -64,6 +102,9 @@ export class SqliteMatchRepository implements MatchRepository {
       fields.push(`${column} = @${key}`);
       params[key] = value;
     };
+    if (input.tournamentId !== undefined) set('tournament_id', 'tournamentId', input.tournamentId);
+    if(input.streamUrl!==undefined)set('stream_url','streamUrl',input.streamUrl);
+    if (input.tournamentRules !== undefined) set('tournament_rules', 'tournamentRules', input.tournamentRules ? JSON.stringify(input.tournamentRules) : null);
     if (input.opponent !== undefined) set('opponent', 'opponent', input.opponent.trim());
     if (input.competition !== undefined) set('competition', 'competition', input.competition);
     if (input.kickOff !== undefined) set('kick_off', 'kickOff', input.kickOff);

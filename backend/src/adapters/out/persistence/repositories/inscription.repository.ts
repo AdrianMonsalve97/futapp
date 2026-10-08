@@ -98,7 +98,7 @@ export class SqliteInscriptionRepository implements InscriptionRepository {
 
   listPayments(inscriptionId: number): Payment[] {
     const rows = this.db
-      .prepare(`SELECT * FROM payments WHERE inscription_id = ? ORDER BY paid_at DESC, id DESC`)
+      .prepare(`SELECT p.*, u.full_name AS registered_by_name FROM payments p LEFT JOIN users u ON u.id = p.registered_by WHERE p.inscription_id = ? ORDER BY p.paid_at DESC, p.id DESC`)
       .all(inscriptionId) as PaymentRow[];
     return rows.map(mapPayment);
   }
@@ -106,8 +106,8 @@ export class SqliteInscriptionRepository implements InscriptionRepository {
   addPayment(input: CreatePaymentInput): Payment {
     const result = this.db
       .prepare(
-        `INSERT INTO payments (inscription_id, amount, method, reference, paid_at, notes, registered_by)
-         VALUES (@inscriptionId, @amount, @method, @reference, @paidAt, @notes, @registeredBy)`,
+        `INSERT INTO payments (inscription_id, amount, method, reference, paid_at, notes, registered_by, idempotency_key)
+         VALUES (@inscriptionId, @amount, @method, @reference, @paidAt, @notes, @registeredBy, @idempotencyKey)`,
       )
       .run({
         inscriptionId: input.inscriptionId,
@@ -117,10 +117,17 @@ export class SqliteInscriptionRepository implements InscriptionRepository {
         paidAt: input.paidAt ?? new Date().toISOString().slice(0, 10),
         notes: input.notes ?? null,
         registeredBy: input.registeredBy ?? null,
+        idempotencyKey: input.idempotencyKey ?? null,
       });
     const row = this.db
       .prepare(`SELECT * FROM payments WHERE id = ?`)
       .get(Number(result.lastInsertRowid)) as PaymentRow;
     return mapPayment(row);
+  }
+
+  findPaymentByKey(inscriptionId: number, key: string): Payment | null {
+    const row = this.db.prepare('SELECT * FROM payments WHERE inscription_id = ? AND idempotency_key = ?')
+      .get(inscriptionId, key) as PaymentRow | undefined;
+    return row ? mapPayment(row) : null;
   }
 }

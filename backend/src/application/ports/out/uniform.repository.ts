@@ -11,6 +11,7 @@ export interface CreateUniformInput {
 }
 
 export interface UpdateUniformInput {
+  imageUrl?: string | null;
   name?: string;
   kind?: UniformKind;
   variant?: UniformVariant;

@@ -4,6 +4,7 @@ import type { Database } from 'better-sqlite3';
 import { FORMATION_LIST } from '../../../domain/formations';
 import { getFormat } from '../../../domain/formats';
 import { getDb } from './database';
+import { migrateNotifications } from './repositories/notification.repository';
 
 /** Rutas candidatas para `schema.sql` (funciona con tsx desde src/ y con node desde dist/). */
 function resolveSchemaPath(): string {
@@ -49,7 +50,7 @@ function ensureFormatSupport(db: Database): void {
       addedFormat = true;
     }
     if (!hasColumn(db, 'matches', 'minutes')) {
-      db.exec(`ALTER TABLE matches ADD COLUMN minutes INTEGER NOT NULL DEFAULT 60`);
+      db.exec(`ALTER TABLE matches ADD COLUMN minutes INTEGER NOT NULL DEFAULT 50`);
     }
 
     // BD legada (los partidos existentes eran de fútbol 11): se deriva el
@@ -92,4 +93,112 @@ export function migrate(): void {
     db.exec(script);
   }
   ensureFormatSupport(db);
+  const duplicateNumbers = db.prepare(`SELECT shirt_number FROM players WHERE shirt_number IS NOT NULL
+    GROUP BY shirt_number HAVING COUNT(*) > 1`).all() as Array<{ shirt_number: number }>;
+  if (duplicateNumbers.length) {
+    throw new Error(`Hay dorsales repetidos (${duplicateNumbers.map(row => row.shirt_number).join(', ')}). Corrige sus asignaciones antes de activar la restricción de dorsales únicos.`);
+  }
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_players_unique_shirt_number ON players(shirt_number) WHERE shirt_number IS NOT NULL');
+  db.exec(`CREATE TABLE IF NOT EXISTS migration_state(id INTEGER PRIMARY KEY CHECK(id=1), enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0,1)), imported_at TEXT);
+    INSERT OR IGNORE INTO migration_state(id) VALUES(1);`);
+  if(!hasColumn(db,'matches','stream_url'))db.exec('ALTER TABLE matches ADD COLUMN stream_url TEXT');
+  db.exec(`CREATE TABLE IF NOT EXISTS auth_sessions(id TEXT PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,stamp TEXT NOT NULL,expires_at INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS auth_session_user ON auth_sessions(user_id);
+    CREATE TABLE IF NOT EXISTS registration_invitation(id INTEGER PRIMARY KEY CHECK(id=1),digest TEXT NOT NULL,expires_at INTEGER NOT NULL);`);
+  if (!hasColumn(db, 'players', 'eps')) db.exec('ALTER TABLE players ADD COLUMN eps TEXT');
+  if (!hasColumn(db, 'players', 'prepaid_health')) db.exec('ALTER TABLE players ADD COLUMN prepaid_health TEXT');
+  if (!hasColumn(db, 'team_settings', 'logo_url')) db.exec("ALTER TABLE team_settings ADD COLUMN logo_url TEXT DEFAULT '/brand/aag-logo.jpg'");
+  if (!hasColumn(db, 'team_settings', 'brand_color')) db.exec("ALTER TABLE team_settings ADD COLUMN brand_color TEXT NOT NULL DEFAULT '#d8b86a'");
+  if (!hasColumn(db, 'uniforms', 'image_url')) db.exec('ALTER TABLE uniforms ADD COLUMN image_url TEXT');
+  db.exec(`CREATE TABLE IF NOT EXISTS tournaments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, league_name TEXT NOT NULL,
+    season TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('borrador','publicado','archivado')),
+    rules_json TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS tournament_players (
+    tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+    player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    registered_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (tournament_id, player_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_tournament_players_player ON tournament_players(player_id);
+  CREATE TABLE IF NOT EXISTS media_assets (
+    id TEXT PRIMARY KEY, owner_id INTEGER NOT NULL REFERENCES users(id),
+    purpose TEXT NOT NULL CHECK(purpose IN ('logo','avatar','uniform','tournament')),
+    file_name TEXT NOT NULL, stored_name TEXT NOT NULL, mime_type TEXT NOT NULL,
+    size INTEGER NOT NULL, extracted_text TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS tournament_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+    title TEXT NOT NULL, asset_id TEXT NOT NULL UNIQUE REFERENCES media_assets(id), file_name TEXT NOT NULL,
+    mime_type TEXT NOT NULL, extracted_text TEXT NOT NULL DEFAULT '',
+    extraction_status TEXT NOT NULL CHECK(extraction_status IN ('extraido','requiere_texto')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );`);
+  if (!hasColumn(db, 'team_settings', 'default_tournament_id')) db.exec('ALTER TABLE team_settings ADD COLUMN default_tournament_id INTEGER REFERENCES tournaments(id)');
+  if (!hasColumn(db, 'matches', 'tournament_id')) db.exec('ALTER TABLE matches ADD COLUMN tournament_id INTEGER REFERENCES tournaments(id)');
+  if (!hasColumn(db, 'matches', 'tournament_rules')) db.exec('ALTER TABLE matches ADD COLUMN tournament_rules TEXT');
+  if (!hasColumn(db, 'payments', 'idempotency_key')) {
+    db.exec('ALTER TABLE payments ADD COLUMN idempotency_key TEXT');
+  }
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_idempotency ON payments(inscription_id, idempotency_key) WHERE idempotency_key IS NOT NULL');
+  const legacyLineups = !hasColumn(db, 'matches', 'lineup_published_at');
+  if (legacyLineups) db.exec('ALTER TABLE matches ADD COLUMN lineup_published_at TEXT');
+  if (!hasColumn(db, 'matches', 'published_formation')) db.exec('ALTER TABLE matches ADD COLUMN published_formation TEXT');
+  ensureQrPayments(db);
+  if (!hasColumn(db, 'tournaments', 'image_asset_id')) db.exec('ALTER TABLE tournaments ADD COLUMN image_asset_id TEXT REFERENCES media_assets(id)');
+  db.exec(`CREATE TABLE IF NOT EXISTS published_lineups (
+    match_id INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    slot_index INTEGER NOT NULL, player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+    x REAL NOT NULL, y REAL NOT NULL, role TEXT NOT NULL, label TEXT NOT NULL,
+    PRIMARY KEY(match_id, slot_index)
+  );
+  CREATE TABLE IF NOT EXISTS match_attendance (
+    match_id INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    status TEXT NOT NULL CHECK(status IN ('pendiente','confirmado','no_disponible')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY(match_id, player_id)
+  );`);
+  if (legacyLineups) {
+    db.exec(`INSERT OR IGNORE INTO published_lineups SELECT match_id, slot_index, player_id, x, y, role, label FROM lineups;
+      UPDATE matches SET lineup_published_at = datetime('now'), published_formation = formation WHERE id IN (SELECT DISTINCT match_id FROM published_lineups);`);
+  }
+}
+
+/** Rebuild only the media CHECK constraint; retain IDs and document references. */
+function ensureQrPayments(db: Database): void {
+  const media = db.prepare("SELECT sql FROM sqlite_master WHERE name = 'media_assets'").get() as { sql: string };
+  if (!media.sql.includes("'receipt'") || !media.sql.includes("'tournament_image'")) {
+    db.pragma('foreign_keys = OFF');
+    try {
+      db.transaction(() => {
+        db.exec(`CREATE TABLE media_assets_extended (
+          id TEXT PRIMARY KEY, owner_id INTEGER NOT NULL REFERENCES users(id),
+          purpose TEXT NOT NULL CHECK(purpose IN ('logo','avatar','uniform','tournament','tournament_image','receipt','payment_qr')),
+          file_name TEXT NOT NULL, stored_name TEXT NOT NULL, mime_type TEXT NOT NULL,
+          size INTEGER NOT NULL, extracted_text TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        ); INSERT INTO media_assets_extended SELECT * FROM media_assets;
+        DROP TABLE media_assets; ALTER TABLE media_assets_extended RENAME TO media_assets;`);
+        if ((db.pragma('foreign_key_check') as unknown[]).length) throw new Error('Referencias de archivos inconsistentes');
+      })();
+    } finally { db.pragma('foreign_keys = ON'); }
+  }
+  if (!hasColumn(db, 'uniform_requests', 'issue_id')) db.exec('ALTER TABLE uniform_requests ADD COLUMN issue_id INTEGER REFERENCES uniform_issues(id)');
+  if (!hasColumn(db, 'uniform_requests', 'quoted_price')) db.exec('ALTER TABLE uniform_requests ADD COLUMN quoted_price REAL');
+  db.exec(`CREATE TABLE IF NOT EXISTS qr_payment_settings (
+    id INTEGER PRIMARY KEY CHECK(id=1), asset_id TEXT REFERENCES media_assets(id), recipient TEXT NOT NULL DEFAULT '', payment_key TEXT NOT NULL DEFAULT ''
+  ); INSERT OR IGNORE INTO qr_payment_settings(id) VALUES(1);
+  CREATE TABLE IF NOT EXISTS payment_receipts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, player_id INTEGER NOT NULL REFERENCES players(id),
+    kind TEXT NOT NULL CHECK(kind IN ('inscription','uniform_request','uniform_issue')),
+    target_id INTEGER NOT NULL, asset_id TEXT NOT NULL UNIQUE REFERENCES media_assets(id),
+    amount REAL NOT NULL CHECK(amount>0), reference TEXT NOT NULL, paid_at TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pendiente' CHECK(status IN ('pendiente','aprobado','rechazado')),
+    review_notes TEXT NOT NULL DEFAULT '', reviewed_by INTEGER REFERENCES users(id), reviewed_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    idempotency_key TEXT NOT NULL, file_hash TEXT NOT NULL, UNIQUE(player_id,idempotency_key)
+  ); CREATE UNIQUE INDEX IF NOT EXISTS idx_receipt_approved_reference ON payment_receipts(reference) WHERE status='aprobado';`);
+  if (!hasColumn(db, 'payment_receipts', 'file_hash')) db.exec("ALTER TABLE payment_receipts ADD COLUMN file_hash TEXT NOT NULL DEFAULT ''");
+  migrateNotifications(db);
 }

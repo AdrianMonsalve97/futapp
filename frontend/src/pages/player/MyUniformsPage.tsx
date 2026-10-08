@@ -15,6 +15,7 @@ import { DateLabel } from '../../molecules/DateLabel';
 import { Money } from '../../molecules/Money';
 import { UniformCatalog } from '../../organisms/UniformCatalog';
 import { UniformIssueList } from '../../organisms/UniformIssueList';
+import { QrPaymentPanel } from '../../organisms/QrPaymentPanel';
 import type { MeUniformsResponse, Uniform, UniformRequestCreatedResponse } from '../../types/api';
 
 type Tab = 'mis' | 'solicitar';
@@ -78,6 +79,7 @@ export function MyUniformsPage() {
   return (
     <>
       <PageHeader title="Mis uniformes" subtitle="Prendas entregadas, solicitudes y catálogo del club" />
+      <QrPaymentPanel kind="uniform" onSaved={reload} refreshKey={data} />
 
       <div role="tablist" className="tabs tabs-boxed w-fit mb-4 bg-base-200 p-1">
         <button

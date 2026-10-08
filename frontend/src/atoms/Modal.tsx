@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 export interface ModalProps {
   open: boolean;
@@ -27,22 +27,22 @@ export function Modal({
   size = 'md',
   closeOnOutside = true,
 }: ModalProps) {
+  const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
+    const element = dialog.current;
+    if (!element) return;
+    if (open && !element.open) element.showModal();
+    if (!open && element.open) element.close();
+    return () => { if (element.open) element.close(); };
+  }, [open]);
 
   return (
-    <div className={`modal ${open ? 'modal-open' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
+    <dialog ref={dialog} className="modal border-0" aria-label={title} onCancel={event => {
+      event.preventDefault();
+      onClose();
+    }}>
       <div
         className={`modal-box ${SIZE_CLASS[size]}`}
-        onClick={(event) => {
-          if (closeOnOutside && event.target === event.currentTarget) onClose();
-        }}
       >
         <div className="flex items-start justify-between gap-4">
           <h3 className="font-bold text-lg">{title}</h3>
@@ -53,7 +53,7 @@ export function Modal({
         <div className="py-3">{children}</div>
         {footer ? <div className="modal-action">{footer}</div> : null}
       </div>
-      <div className="modal-backdrop" onClick={onClose} aria-hidden="true" />
-    </div>
+      <div className="modal-backdrop" onClick={() => { if (closeOnOutside) onClose(); }} aria-hidden="true" />
+    </dialog>
   );
 }

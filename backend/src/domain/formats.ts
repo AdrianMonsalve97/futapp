@@ -78,7 +78,7 @@ export const FORMATS: Record<TeamFormat, FormatProfile> = {
     key: 'f8',
     name: 'Fútbol 8',
     playersOnPitch: 8,
-    matchMinutes: 60,
+    matchMinutes: 50,
     defaultFormation: '1-3-3-1',
     squadHint: '16-18',
     ai: {

@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../context/AuthContext';
 import { useTeamFormat } from '../../context/SettingsContext';
+import { MatchRulesNotice } from '../../molecules/MatchRulesNotice';
 import { PageHeader } from '../../templates/PageHeader';
 import { Alert } from '../../atoms/Alert';
 import { Badge } from '../../atoms/Badge';
@@ -11,6 +12,8 @@ import { Icon } from '../../atoms/Icon';
 import { Spinner } from '../../atoms/Spinner';
 import { FormationPitch, pitchSizeClass, pitchSlotsFrom } from '../../organisms/FormationPitch';
 import { StrategyList } from '../../organisms/StrategyList';
+import { AttendancePanel } from '../../organisms/AttendancePanel';
+import { MatchBroadcast } from '../../organisms/MatchBroadcast';
 import { MatchMeta } from '../../molecules/MatchMeta';
 import { RatingBadge } from '../../molecules/RatingBadge';
 import { StatusBadge } from '../../molecules/StatusBadge';
@@ -77,7 +80,9 @@ export function MatchDetailPage() {
         }
       />
 
+      <MatchRulesNotice match={match} />
       <Card className="mb-4">
+        {!match.lineupPublishedAt && match.status !== 'jugado' && <p className="px-6 pt-5 text-sm text-base-content/60">El equipo técnico está preparando la alineación. Aparecerá aquí cuando se publique.</p>}
         <CardBody className="gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <MatchMeta match={match} />
@@ -94,12 +99,14 @@ export function MatchDetailPage() {
         </CardBody>
       </Card>
 
+      {['programado', 'pospuesto'].includes(match.status) && <AttendancePanel matchId={matchId} tournamentId={match.tournamentId} onChanged={reload} />}
+      <MatchBroadcast key={`${match.id}:${match.streamUrl}`} match={match}/>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardBody className="gap-3">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <CardTitle className="text-base">Alineación</CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex max-w-full flex-wrap items-center gap-2">
                 <Badge tone="info" size="sm">
                   {formatBadge(profile.format, matchMinutes)}
                 </Badge>
@@ -115,7 +122,7 @@ export function MatchDetailPage() {
               <p className="text-sm text-base-content/60 text-center">
                 {slots.some((slot) => slot.playerId === player.id)
                   ? 'Tu posición está resaltada en amarillo.'
-                  : 'No figurás en el XI de este partido.'}
+                  : `No figuras en el ${profile.playersOnPitch} inicial de este partido.`}
               </p>
             ) : null}
           </CardBody>

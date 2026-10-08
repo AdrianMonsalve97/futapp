@@ -54,6 +54,8 @@ export interface PlayerRow {
   weight_kg: number | null;
   foot: string | null;
   emergency_contact: string | null;
+  eps: string | null;
+  prepaid_health: string | null;
   joined_at: string;
 }
 
@@ -72,6 +74,8 @@ export interface InscriptionRow {
 }
 
 export interface PaymentRow {
+  registered_by?: number | null;
+  registered_by_name?: string | null;
   id: number;
   inscription_id: number;
   amount: number;
@@ -82,6 +86,7 @@ export interface PaymentRow {
 }
 
 export interface UniformRow {
+  image_url?: string | null;
   id: number;
   name: string;
   kind: string;
@@ -110,6 +115,8 @@ export interface UniformIssueRow {
 }
 
 export interface UniformRequestRow {
+  quoted_price?: number | null;
+  issue_id?: number | null;
   id: number;
   player_id: number;
   uniform_id: number;
@@ -124,6 +131,11 @@ export interface UniformRequestRow {
 }
 
 export interface MatchRow {
+  stream_url?:string|null;
+  tournament_id?: number | null;
+  tournament_rules?: string | null;
+  lineup_published_at?: string | null;
+  published_formation?: string | null;
   id: number;
   opponent: string;
   competition: string;
@@ -227,6 +239,8 @@ export function mapPlayer(row: PlayerRow): Player {
     weightKg: row.weight_kg,
     foot: (row.foot as Foot | null) ?? null,
     emergencyContact: row.emergency_contact,
+    eps: row.eps,
+    prepaidHealth: row.prepaid_health,
     joinedAt: row.joined_at,
   };
 }
@@ -250,6 +264,8 @@ export function mapInscription(row: InscriptionRow): Inscription {
 
 export function mapPayment(row: PaymentRow): Payment {
   return {
+    registeredBy: row.registered_by ?? null,
+    registeredByName: row.registered_by_name ?? null,
     id: row.id,
     inscriptionId: row.inscription_id,
     amount: row.amount,
@@ -262,6 +278,7 @@ export function mapPayment(row: PaymentRow): Payment {
 
 export function mapUniform(row: UniformRow): Uniform {
   const mapped: Uniform = {
+    imageUrl: row.image_url ?? null,
     id: row.id,
     name: row.name,
     kind: row.kind as UniformKind,
@@ -298,6 +315,8 @@ export function mapUniformIssue(row: UniformIssueRow): UniformIssue {
 
 export function mapUniformRequest(row: UniformRequestRow): UniformRequest {
   const mapped: UniformRequest = {
+    quotedPrice: row.quoted_price ?? null,
+    issueId: row.issue_id ?? null,
     id: row.id,
     playerId: row.player_id,
     uniformId: row.uniform_id,
@@ -316,6 +335,11 @@ export function mapUniformRequest(row: UniformRequestRow): UniformRequest {
 export function mapMatch(row: MatchRow): Match {
   const format = toTeamFormat(row.format);
   return {
+    streamUrl:row.stream_url??null,
+    tournamentId: row.tournament_id ?? null,
+    tournamentRules: row.tournament_rules ? JSON.parse(row.tournament_rules) : null,
+    lineupPublishedAt: row.lineup_published_at ?? null,
+    publishedFormation: row.published_formation ?? null,
     id: row.id,
     opponent: row.opponent,
     competition: row.competition,

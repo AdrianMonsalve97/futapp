@@ -6,7 +6,9 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { AppearanceProvider } from './context/AppearanceContext';
 import './index.css';
+import './stadium.css';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('No se encontró el elemento #root.');
@@ -14,11 +16,13 @@ if (!container) throw new Error('No se encontró el elemento #root.');
 createRoot(container).render(
   <StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <SettingsProvider>
-          <App />
-        </SettingsProvider>
-      </AuthProvider>
+      <AppearanceProvider>
+        <AuthProvider>
+          <SettingsProvider>
+            <App />
+          </SettingsProvider>
+        </AuthProvider>
+      </AppearanceProvider>
     </BrowserRouter>
   </StrictMode>,
 );

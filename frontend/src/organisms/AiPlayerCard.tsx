@@ -5,8 +5,8 @@ import { RatingTrendChart } from './RatingTrendChart';
 import { RatingBadge } from '../molecules/RatingBadge';
 import { PositionBadge } from '../molecules/PositionBadge';
 import { Icon } from '../atoms/Icon';
-import { formatRating } from '../utils/format';
 import type { AiPlayerInsight } from '../types/api';
+import { IndividualPreparation } from './IndividualPreparation';
 
 const TREND: Record<'sube' | 'estable' | 'baja', { label: string; tone: 'success' | 'info' | 'error'; icon: 'arrowRight' }> = {
   sube: { label: 'Tendencia ascendente', tone: 'success', icon: 'arrowRight' },
@@ -46,12 +46,10 @@ export function AiPlayerCard({ insight, compact = false, showHistory = true }: A
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs uppercase text-base-content/50">Próxima calificación</p>
+              <p className="text-xs uppercase text-base-content/50">{insight.forecast.history.length?'Próxima calificación':'Sin historial de rendimiento'}</p>
               <div className="flex items-center gap-2 justify-end mt-1">
-                <RatingBadge value={insight.forecast.nextRating} size="lg" decimals={2} />
-                <span className="text-sm font-semibold tabular-nums text-base-content/60">
-                  {formatRating(insight.forecast.nextRating, 2)}
-                </span>
+                {insight.forecast.history.length?<RatingBadge value={insight.forecast.nextRating} size="lg" decimals={2} />:null}
+                {!insight.forecast.history.length?<span className="text-sm font-semibold text-base-content/60">Registra tus primeros partidos</span>:null}
               </div>
             </div>
           </div>
@@ -123,6 +121,7 @@ export function AiPlayerCard({ insight, compact = false, showHistory = true }: A
       <Alert tone="info" title="Recomendación del modelo">
         {insight.recommendation}
       </Alert>
+      {!compact?<IndividualPreparation key={`${insight.playerId}:${insight.preparation.matchId}:${insight.preparation.publishedAt}`} insight={insight}/>:null}
     </div>
   );
 }

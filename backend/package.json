@@ -9,7 +9,8 @@
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "seed": "tsx src/adapters/out/persistence/seed.ts",
-    "reset": "tsx src/adapters/out/persistence/seed.ts --reset"
+    "reset": "tsx src/adapters/out/persistence/seed.ts --reset",
+    "admin:create": "tsx src/adapters/out/persistence/bootstrap-admin.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -18,14 +19,22 @@
     "dotenv": "^18.0.6",
     "express": "^5.2.1",
     "helmet": "^8.3.0",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.4.0",
+    "nodemailer": "^10.0.16",
+    "pdf-parse": "^2.4.5",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.3.0",
     "@types/node": "^26.6.4",
+    "@types/nodemailer": "^8.0.2",
+    "@types/qrcode": "^1.5.6",
     "tsx": "^4.23.15",
     "typescript": "~5.9.3"
   }

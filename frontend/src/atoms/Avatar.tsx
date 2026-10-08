@@ -1,3 +1,4 @@
+import { useMediaUrl } from '../hooks/useMediaUrl';
 import { initials } from '../utils/format';
 
 export interface AvatarProps {
@@ -16,11 +17,12 @@ const SIZE_CLASS: Record<'xs' | 'sm' | 'md' | 'lg', string> = {
 
 /** Avatar con imagen o iniciales del nombre. */
 export function Avatar({ name, src, size = 'md', className = '' }: AvatarProps) {
+  const url = useMediaUrl(src);
   return (
     <div className={`avatar ${size === 'lg' ? '' : 'avatar-placeholder'} ${className}`.trim()}>
       <div className={`rounded-box bg-neutral text-neutral-content ${SIZE_CLASS[size]}`}>
-        {src ? (
-          <img src={src} alt={name} className="rounded-box object-cover w-full h-full" />
+        {url ? (
+          <img src={url} alt={name} className="rounded-box object-cover w-full h-full" />
         ) : (
           <span className="leading-none">{initials(name)}</span>
         )}

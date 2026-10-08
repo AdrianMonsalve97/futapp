@@ -1,6 +1,6 @@
 import { Icon } from '../atoms/Icon';
 import { Badge } from '../atoms/Badge';
-import { formatDateTime, formatWeekdayShort } from '../utils/format';
+import { formatDateTime } from '../utils/format';
 import type { Match } from '../types/api';
 
 export interface MatchMetaProps {
@@ -20,8 +20,6 @@ export function MatchMeta({ match, compact = false, className = '' }: MatchMetaP
       </span>
       <span className="inline-flex items-center gap-1.5">
         <Icon name="calendar" size={15} className="text-primary" />
-        <span className="capitalize">{formatWeekdayShort(match.kickOff)}</span>
-        <span className="text-base-content/50">·</span>
         {formatDateTime(match.kickOff)}
       </span>
       {match.venue ? (

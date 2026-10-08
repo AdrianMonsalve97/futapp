@@ -8,6 +8,8 @@ import type {
 } from '../../../domain/entities';
 
 export interface CreateMatchInput {
+  streamUrl?: string | null;
+  tournamentId?: number | null;
   opponent: string;
   competition: string;
   kickOff: string;
@@ -22,6 +24,8 @@ export interface CreateMatchInput {
 }
 
 export interface UpdateMatchInput {
+  streamUrl?:string|null;
+  tournamentId?: number | null;
   opponent?: string;
   competition?: string;
   kickOff?: string;
@@ -59,6 +63,9 @@ export interface LineupEntryInput {
 }
 
 export interface XiSuggestion {
+  formation?: string;
+  leagueContext?: import('../../../domain/tournament').LeagueContext;
+  bench?: { playerId: number; playerName: string; position: string; predictedRating: number }[];
   lineup: LineupSlot[];
   explanation: string;
 }
@@ -66,7 +73,10 @@ export interface XiSuggestion {
 /** Casos de uso de partidos (§7.3). */
 export interface MatchPort {
   list(): Match[];
-  get(id: number): MatchDetail;
+  get(id: number, playerView?: boolean): MatchDetail;
+  publishLineup(id: number): Match;
+  attendance(id: number, userId?: number): import('../../../domain/entities').MatchAttendance[];
+  setAttendance(id: number, userId: number, status: import('../../../domain/entities').AttendanceStatus): import('../../../domain/entities').MatchAttendance;
   create(input: CreateMatchInput): Match;
   update(id: number, input: UpdateMatchInput): Match;
   remove(id: number): { ok: true };

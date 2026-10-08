@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { NotificationPreferencesForm } from '../../organisms/NotificationPreferencesForm';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../context/AuthContext';
 import { api, errorMessage } from '../../services/api';
@@ -10,13 +11,15 @@ import { Card, CardBody, CardTitle } from '../../atoms/Card';
 import { Input } from '../../atoms/Input';
 import { Spinner } from '../../atoms/Spinner';
 import { PositionBadge } from '../../molecules/PositionBadge';
+import { ImageUpload } from '../../molecules/ImageUpload';
 import { ProfileForm } from '../../organisms/ProfileForm';
+import { HealthForm } from '../../organisms/HealthForm';
 import { formatDate } from '../../utils/format';
 import type { MeResponse, PasswordResponse } from '../../types/api';
 
 /** Mi perfil (SPEC §10.4): ficha, formulario de datos y cambio de contraseña. */
 export function MyProfilePage() {
-  const { refresh } = useAuth();
+  const { refresh, logout } = useAuth();
   const { data, loading, error, reload } = useFetch<MeResponse>('/api/me');
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [passwordBusy, setPasswordBusy] = useState(false);
@@ -32,8 +35,8 @@ export function MyProfilePage() {
     event.preventDefault();
     setPwdError(null);
     setPwdOk(false);
-    if (passwords.next.length < 6) {
-      setPwdError('La nueva contraseña debe tener al menos 6 caracteres.');
+    if (passwords.next.length < 15) {
+      setPwdError('La nueva contraseña debe tener al menos 15 caracteres.');
       return;
     }
     if (passwords.next !== passwords.confirm) {
@@ -48,6 +51,7 @@ export function MyProfilePage() {
       });
       setPwdOk(true);
       setPasswords({ current: '', next: '', confirm: '' });
+      logout();
     } catch (err) {
       setPwdError(errorMessage(err));
     } finally {
@@ -84,6 +88,7 @@ export function MyProfilePage() {
         <Card className="h-fit">
           <CardBody className="gap-3 items-center text-center">
             <Avatar name={user.fullName} src={user.avatarUrl} size="lg" />
+            <ImageUpload endpoint="/api/me/avatar" currentUrl={user.avatarUrl} label="Tu foto de jugador" showPreview={false} onSaved={handleSaved} />
             <div>
               <p className="font-bold text-lg">{user.fullName}</p>
               <p className="text-sm text-base-content/60">{user.email}</p>
@@ -119,16 +124,25 @@ export function MyProfilePage() {
           <Card>
             <CardBody className="gap-3">
               <CardTitle className="text-base">Ficha del jugador</CardTitle>
-              <ProfileForm player={player} onSaved={handleSaved} />
+              <ProfileForm player={player} phone={user.phone} onSaved={handleSaved} />
             </CardBody>
           </Card>
 
+          {player ? <Card>
+            <CardBody className="gap-3">
+              <CardTitle className="text-base">Salud</CardTitle>
+              <HealthForm player={player} endpoint="/api/me/profile" onSaved={handleSaved} />
+            </CardBody>
+          </Card> : null}
+
+          <Card><CardBody className="gap-3"><CardTitle className="text-base">Mis notificaciones</CardTitle><NotificationPreferencesForm /></CardBody></Card>
           <Card>
             <CardBody className="gap-3">
               <CardTitle className="text-base">Cambiar contraseña</CardTitle>
+              <p className="text-sm text-base-content/60">Usa al menos 15 caracteres. Al cambiarla, se cerrarán tus sesiones y deberás ingresar de nuevo.</p>
               {pwdError ? <Alert tone="error">{pwdError}</Alert> : null}
               {pwdOk ? <Alert tone="success">Contraseña actualizada correctamente.</Alert> : null}
-              <form className="grid gap-3 sm:grid-cols-3" onSubmit={(event) => void changePassword(event)}>
+              <form className="grid gap-3 xl:grid-cols-3" onSubmit={(event) => void changePassword(event)}>
                 <div>
                   <label className="label py-1" htmlFor="current-password">
                     <span className="label-text">Contraseña actual</span>

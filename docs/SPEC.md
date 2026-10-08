@@ -990,7 +990,7 @@ Definir en `backend/src/domain/formats.ts` y espejar en `frontend/src/data/forma
 |---|---|---|---|---|
 | `format` | `5` | `7` | `8` | `11` |
 | Jugadores en cancha | 5 (1 POR + 4) | 7 (1 POR + 6) | 8 (1 POR + 7) | 11 (1 POR + 10) |
-| Minutos por partido (`matchMinutes`) | 40 | 50 | 60 | 90 |
+| Minutos por partido (`matchMinutes`) | 40 | 50 | 50 | 90 |
 | Formación por defecto | `1-2-1` | `1-2-3-1` | `1-3-3-1` | `4-3-3` |
 | Plantel sugerido (`squadHint`) | `10-12` | `14-16` | `16-18` | `22-25` |
 | Nombre (`name`) | `Fútbol 5` | `Fútbol 7` | `Fútbol 8` | `Fútbol 11` |
@@ -1022,7 +1022,7 @@ export function getFormat(f: number): FormatProfile;       // fallback a f11 si 
 rate(value, minutes, formatMinutes) = value * formatMinutes / max(minutes, 1)
 ```
 
-Es decir, `f1..f9` de §8.1 usan `formatMinutes` (40/50/60/90) en lugar del 90 fijo. En la UI de
+Es decir, `f1..f9` de §8.1 usan `formatMinutes` (40/50/50/90 por defecto) en lugar del 90 fijo. En la UI de
 estadísticas, para f5/f7/f8 la etiqueta es **"por partido"** y para f11 **"por 90'"** (o simplemente
 "promedio por partido" en todos).
 
@@ -1092,7 +1092,7 @@ CREATE TABLE IF NOT EXISTS team_settings (
 
 ```sql
 format  INTEGER NOT NULL DEFAULT 8 CHECK (format IN (5,7,8,11)),
-minutes INTEGER NOT NULL DEFAULT 60
+minutes INTEGER NOT NULL DEFAULT 50
 ```
 
 **Migración de BDs existentes** (la actual `portal.db` es f11): en `migrate.ts`, además de crear
@@ -1178,12 +1178,12 @@ Expectativa de verificación: con el seed f8, `POST /api/ai/model/train` debe da
 ## 12.6 Seed en fútbol 8
 
 * `team_settings`: `team_name = 'Club Portal'`, `format = 8`, `season = '2026'`.
-* Los **8 partidos** (6 jugados + 2 próximos): `format = 8`, `minutes = 60`,
+* Los **8 partidos** (6 jugados + 2 próximos): `format = 8`, `minutes = 50`,
   `formation = '1-3-3-1'` (y uno de los próximos en `1-2-3-2` para mostrar variedad).
 * `lineups`: **8 slots** por partido (el primero de los próximos, completo con titulares coherentes
   con su posición).
 * `match_stats`: **≥ 8 filas por partido** (rotaciones) → ≥ 60 filas en total, ratings 5.0–9.5
-  correlacionados con su rendimiento; los minutos deben respetar `minutes = 60` (nunca > 60).
+  correlacionados con su rendimiento; los minutos deben respetar `minutes = 50` (nunca > 50).
 * Estrategias, inscripciones, uniformes, sanciones y usuarios: **sin cambios** (14 jugadores,
   `jugador01..jugador14@club.com` / `Jugador123!`, admin `admin@club.com` / `Admin123!`).
 * El resto de la lógica del seed (§9) se mantiene.
@@ -1212,7 +1212,7 @@ Expectativa de verificación: con el seed f8, `POST /api/ai/model/train` debe da
      partido puede cambiarlo al crearlo."*
 5. **`MatchesPage` (admin)** → al crear/editar partido, selector de **formato** (default = el del
    equipo) y duración derivada.
-6. **`MatchBuilderPage`** → mostrar badge `Fútbol 8 · 60'` y usar el formato del partido en
+6. **`MatchBuilderPage`** → mostrar badge `Fútbol 8 · 50'` y usar el formato del partido en
    `LineupEditor` y en "Sugerir XI con IA".
 7. **`StatsEntryForm`** → el campo minutos no puede superar `match.minutes` (validación + texto
    "máx. 60'").

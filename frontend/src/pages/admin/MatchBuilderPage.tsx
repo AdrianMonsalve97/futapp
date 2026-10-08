@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useFetch } from '../../hooks/useFetch';
 import { useTeamFormat } from '../../context/SettingsContext';
 import { api, errorMessage } from '../../services/api';
+import { MatchRulesNotice } from '../../molecules/MatchRulesNotice';
 import { PageHeader } from '../../templates/PageHeader';
 import { Alert } from '../../atoms/Alert';
 import { Badge } from '../../atoms/Badge';
@@ -16,6 +17,9 @@ import { Spinner } from '../../atoms/Spinner';
 import { Textarea } from '../../atoms/Textarea';
 import { FormField } from '../../molecules/FormField';
 import { LineupEditor } from '../../organisms/LineupEditor';
+import { AttendancePanel } from '../../organisms/AttendancePanel';
+import { MatchBroadcast } from '../../organisms/MatchBroadcast';
+import { NotifyMatchButton } from '../../organisms/NotifyMatchButton';
 import { StatsEntryForm } from '../../organisms/StatsEntryForm';
 import { StrategyList } from '../../organisms/StrategyList';
 import { StatusBadge } from '../../molecules/StatusBadge';
@@ -310,6 +314,8 @@ export function MatchBuilderPage() {
         }
       />
 
+      {match ? <MatchRulesNotice match={match} /> : null}
+      {match?.status==='programado' ? <NotifyMatchButton matchId={match.id} /> : null}
       {notice ? (
         <Alert tone="success" className="mb-4" onClose={() => setNotice(null)}>
           {notice}
@@ -322,11 +328,13 @@ export function MatchBuilderPage() {
       ) : null}
 
       {/* ZONA 1 · datos del partido */}
+      {match && ['programado', 'pospuesto'].includes(match.status) && <AttendancePanel matchId={matchId} tournamentId={match.tournamentId} onChanged={detail.reload} />}
+      {match?<MatchBroadcast key={`${match.id}:${match.streamUrl}`} match={match} admin onSaved={detail.reload}/>:null}
       <Card className="mb-4">
         <CardBody className="gap-3">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <CardTitle className="text-base">1 · Datos del partido</CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex max-w-full flex-wrap items-center gap-2">
               <StatusBadge status={form.status} />
               <Badge tone="info" size="sm">
                 {profile.name} · {matchMinutes}'
@@ -426,6 +434,8 @@ export function MatchBuilderPage() {
             lineup={detail.data.lineup}
             players={players.data ?? []}
             format={profile.format}
+            allowedFormations={match?.tournamentRules?.allowedFormations}
+            publishedAt={match?.lineupPublishedAt}
             onChanged={detail.reload}
           />
         </CardBody>
@@ -436,7 +446,7 @@ export function MatchBuilderPage() {
         <CardBody className="gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">3 · Plan de partido</CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3">
               <div role="tablist" className="tabs tabs-boxed bg-base-200 p-1">
                 <button
                   type="button"

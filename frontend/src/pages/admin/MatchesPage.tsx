@@ -14,9 +14,11 @@ import { FormField } from '../../molecules/FormField';
 import { MatchList } from '../../organisms/MatchList';
 import { FORMAT_LIST, formationsFor, getFormat } from '../../data/formations';
 import { todayIso } from '../../utils/format';
+import type { Tournament } from '../../types/tournament';
 import type { Match, MatchStatus, TeamFormat } from '../../types/api';
 
 interface FormState {
+  tournamentId: number | null;
   opponent: string;
   competition: string;
   kickOff: string;
@@ -36,6 +38,7 @@ function toForm(match: Match | null, teamFormat: TeamFormat): FormState {
   if (!match) {
     const profile = getFormat(teamFormat);
     return {
+      tournamentId: null,
       opponent: '',
       competition: 'Amistoso',
       kickOff: `${todayIso()}T15:00`,
@@ -54,6 +57,7 @@ function toForm(match: Match | null, teamFormat: TeamFormat): FormState {
   const profile = getFormat(format);
   const available = formationsFor(format);
   return {
+    tournamentId: match.tournamentId ?? null,
     opponent: match.opponent,
     competition: match.competition,
     kickOff: match.kickOff.slice(0, 16),
@@ -85,16 +89,23 @@ function MatchFormModal({
   teamFormat: TeamFormat;
   onSaved: () => void;
 }) {
+  const tournaments = useFetch<Tournament[]>('/api/tournaments');
+  const { settings } = useSettings();
+  const [rulesSelected, setRulesSelected] = useState(false);
   const [form, setForm] = useState<FormState>(() => toForm(match, teamFormat));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
-      setForm(toForm(match, teamFormat));
+      setRulesSelected(false);
+      const next = toForm(match, teamFormat);
+      const defaultTournament = !match ? (tournaments.data ?? []).find(row => row.id === settings.defaultTournamentId && row.status === 'publicado') : null;
+      if (defaultTournament) { next.tournamentId = defaultTournament.id; next.competition = defaultTournament.name; next.format = defaultTournament.rules.format; next.minutes = defaultTournament.rules.periods * defaultTournament.rules.minutesPerPeriod; next.formation = defaultTournament.rules.allowedFormations[0]; }
+      setForm(next);
       setError(null);
     }
-  }, [open, match, teamFormat]);
+  }, [open, match, teamFormat, tournaments.data, settings.defaultTournamentId]);
 
   const submit = async () => {
     if (!form.opponent.trim()) {
@@ -104,6 +115,7 @@ function MatchFormModal({
     setBusy(true);
     setError(null);
     const payload = {
+      ...(match?.status === 'jugado' || (match && (match.tournamentId ?? null) === form.tournamentId && !rulesSelected) ? {} : { tournamentId: form.tournamentId }),
       opponent: form.opponent.trim(),
       competition: form.competition.trim() || 'Amistoso',
       kickOff: form.kickOff,
@@ -152,6 +164,14 @@ function MatchFormModal({
       <div className="space-y-3">
         {error ? <Alert tone="error">{error}</Alert> : null}
         <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="Torneo y normativa" className="sm:col-span-2" hint="Al seleccionarlo se aplican sus reglas confirmadas al partido.">
+            <Select value={form.tournamentId ?? ''} disabled={match?.status === 'jugado'} onChange={e => {
+              setRulesSelected(true);
+              const id = e.target.value ? Number(e.target.value) : null;
+              const tournament = (tournaments.data ?? []).find(row => row.id === id);
+              setForm(p => tournament ? { ...p, tournamentId: id, competition: tournament.name, format: tournament.rules.format, minutes: tournament.rules.periods * tournament.rules.minutesPerPeriod, formation: tournament.rules.allowedFormations[0] } : { ...p, tournamentId: null });
+            }}><option value="">Partido independiente</option>{(tournaments.data ?? []).filter(row => row.status === 'publicado' || row.id === match?.tournamentId).map(row => <option key={row.id} value={row.id}>{row.name} · {row.rules.periods} × {row.rules.minutesPerPeriod} min</option>)}</Select>
+          </FormField>
           <FormField label="Rival" required>
             <Input
               value={form.opponent}
@@ -189,6 +209,7 @@ function MatchFormModal({
           </FormField>
           <FormField label="Formato del partido" hint="Por defecto, el formato global del equipo.">
             <Select
+              disabled={form.tournamentId !== null}
               value={form.format}
               onChange={(event) => {
                 const next = Number(event.target.value) as TeamFormat;
@@ -211,15 +232,15 @@ function MatchFormModal({
               ))}
             </Select>
           </FormField>
-          <FormField label="Duración" hint="Se deriva del formato elegido.">
-            <Input value={`${form.minutes}'`} readOnly disabled aria-label="Duración del partido" />
+          <FormField label="Duración" hint={form.tournamentId ? "Definida por la normativa del torneo." : "Minutos totales de juego, sin incluir descansos."}>
+            <Input type="number" min={1} max={400} value={form.minutes} disabled={form.tournamentId !== null} aria-label="Duración del partido" onChange={e => setForm(p => ({ ...p, minutes: Number(e.target.value) }))} />
           </FormField>
           <FormField label="Formación inicial">
             <Select
               value={form.formation}
               onChange={(event) => setForm((prev) => ({ ...prev, formation: event.target.value }))}
             >
-              {formationsFor(form.format).map((option) => (
+              {formationsFor(form.format).filter(option => !form.tournamentId || (match?.tournamentId === form.tournamentId ? match.tournamentRules?.allowedFormations : tournaments.data?.find(t => t.id === form.tournamentId)?.rules.allowedFormations)?.includes(option.key)).map((option) => (
                 <option key={option.key} value={option.key}>
                   {option.key}
                 </option>

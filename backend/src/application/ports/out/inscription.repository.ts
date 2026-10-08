@@ -26,6 +26,7 @@ export interface UpdateInscriptionInput {
 }
 
 export interface CreatePaymentInput {
+  idempotencyKey?: string;
   inscriptionId: number;
   amount: number;
   method: PaymentMethod;
@@ -46,4 +47,5 @@ export interface InscriptionRepository {
   remove(id: number): void;
   listPayments(inscriptionId: number): Payment[];
   addPayment(input: CreatePaymentInput): Payment;
+  findPaymentByKey(inscriptionId: number, key: string): Payment | null;
 }

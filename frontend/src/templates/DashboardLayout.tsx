@@ -4,6 +4,7 @@ import { Sidebar } from '../organisms/Sidebar';
 import { Topbar } from '../organisms/Topbar';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
+import { useLocation } from 'react-router-dom';
 
 /**
  * Layout autenticado (SPEC §10.3): drawer de DaisyUI con sidebar fijo
@@ -14,6 +15,7 @@ export function DashboardLayout() {
   const { user } = useAuth();
   const { settings } = useSettings();
   const role = user?.role ?? 'player';
+  const location = useLocation();
 
   return (
     <div className="drawer lg:drawer-open min-h-full">
@@ -25,14 +27,13 @@ export function DashboardLayout() {
         aria-label="Abrir o cerrar menú lateral"
       />
 
-      <div className="drawer-content flex flex-col min-h-full bg-base-200">
+      <div className="drawer-content dashboard-surface flex flex-col min-h-full min-w-0">
         <Topbar onMenuClick={() => setOpen(true)} />
-        <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 py-5">
-          <Outlet />
+        <main className="flex-1 w-full min-w-0 max-w-[1500px] mx-auto px-4 sm:px-7 py-6">
+          <div key={location.pathname} className="page-enter"><Outlet /></div>
         </main>
         <footer className="px-6 py-4 text-center text-xs text-base-content/40">
-          {settings.teamName} · {settings.profile.name} ({settings.profile.matchMinutes}') · UI en español
-          · datos del contrato API (SPEC §7 / §12)
+          {settings.teamName} · Temporada {settings.season} · Hecho para vivir el fútbol
         </footer>
       </div>
 

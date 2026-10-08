@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../services/api';
 import { Alert } from '../atoms/Alert';
 import { Button } from '../atoms/Button';
@@ -28,6 +28,7 @@ export function PaymentModal({ inscription, onClose, onSaved }: PaymentModalProp
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const paymentAttempt = useRef<{ fingerprint: string; key: string } | null>(null);
 
   useEffect(() => {
     if (inscription) {
@@ -37,6 +38,7 @@ export function PaymentModal({ inscription, onClose, onSaved }: PaymentModalProp
       setPaidAt(todayIso());
       setNotes('');
       setError(null);
+      paymentAttempt.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inscription]);
@@ -54,16 +56,16 @@ export function PaymentModal({ inscription, onClose, onSaved }: PaymentModalProp
     }
     setBusy(true);
     setError(null);
+    const payload = { amount: value, method, reference: reference.trim() || null, paidAt, notes: notes.trim() || null };
+    const fingerprint = JSON.stringify(payload);
+    if (paymentAttempt.current?.fingerprint !== fingerprint) {
+      paymentAttempt.current = { fingerprint, key: crypto.randomUUID() };
+    }
     try {
       const updated = await api<Inscription>(`/api/inscriptions/${inscription.id}/payments`, {
         method: 'POST',
-        json: {
-          amount: value,
-          method,
-          reference: reference.trim() || null,
-          paidAt,
-          notes: notes.trim() || null,
-        },
+        headers: { 'Idempotency-Key': paymentAttempt.current.key },
+        json: payload,
       });
       onSaved(updated);
       onClose();

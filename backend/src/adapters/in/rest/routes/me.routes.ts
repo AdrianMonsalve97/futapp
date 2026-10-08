@@ -68,7 +68,9 @@ export function meRoutes(me: MePort): Router {
   });
 
   router.get('/me/ai', (req, res) => {
-    res.json(me.getAi(getAuth(req).userId));
+    const matchId=req.query.matchId===undefined?undefined:Number(req.query.matchId);
+    if(matchId!==undefined&&(!Number.isSafeInteger(matchId)||matchId<=0))throw new ValidationError('Partido inválido');
+    res.json(me.getAi(getAuth(req).userId,matchId));
   });
 
   return router;

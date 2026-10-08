@@ -2,6 +2,9 @@ import type { TeamFormat } from '../../../domain/formats';
 
 /** Fila de `team_settings` en formato de dominio. */
 export interface TeamSettingsData {
+  logoUrl: string | null;
+  brandColor: string;
+  defaultTournamentId: number | null;
   teamName: string;
   format: TeamFormat;
   season: string;

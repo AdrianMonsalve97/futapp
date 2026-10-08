@@ -1,6 +1,6 @@
 // Router de la aplicación: rutas y guards exactos de docs/SPEC.md §10.3.
 
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { AuthLayout } from './templates/AuthLayout';
 import { DashboardLayout } from './templates/DashboardLayout';
@@ -28,7 +28,13 @@ import { MatchesPage as AdminMatchesPage } from './pages/admin/MatchesPage';
 import { MatchBuilderPage } from './pages/admin/MatchBuilderPage';
 import { SanctionsPage } from './pages/admin/SanctionsPage';
 import { StatsPage } from './pages/admin/StatsPage';
-import { AiPage } from './pages/admin/AiPage';
+const AiPage = lazy(() => import('./pages/admin/AiPage').then(module=>({default:module.AiPage})));
+const PaymentReceiptsPage = lazy(() => import('./pages/admin/PaymentReceiptsPage').then(module=>({default:module.PaymentReceiptsPage})));
+const NotificationsPage = lazy(() => import('./pages/admin/NotificationsPage').then(module=>({default:module.NotificationsPage})));
+const TournamentsPage = lazy(() => import('./pages/TournamentsPage').then(module => ({ default: module.TournamentsPage })));
+const BroadcastsPage = lazy(() => import('./pages/BroadcastsPage').then(module => ({ default: module.BroadcastsPage })));
+const broadcastsPage = () => <Suspense fallback={<p className="py-10 text-center">Cargando transmisiones…</p>}><BroadcastsPage /></Suspense>;
+const tournamentPage = () => <Suspense fallback={<p className="py-10 text-center">Cargando torneos…</p>}><TournamentsPage /></Suspense>;
 import { SettingsPage } from './pages/admin/SettingsPage';
 
 /** Guard de rol envolviendo el contenido de una ruta del dashboard. */
@@ -55,26 +61,34 @@ export function AppRouter() {
 
       {/* Jugador */}
       <Route element={<DashboardLayout />}>
+        <Route path="/jugador/torneos" element={playerRoute(tournamentPage())} />
+        <Route path="/jugador/torneos/:id" element={playerRoute(tournamentPage())} />
         <Route path="/jugador/inicio" element={playerRoute(<PlayerDashboardPage />)} />
         <Route path="/jugador/inscripcion" element={playerRoute(<MyInscriptionPage />)} />
         <Route path="/jugador/uniformes" element={playerRoute(<MyUniformsPage />)} />
         <Route path="/jugador/partidos" element={playerRoute(<PlayerMatchesPage />)} />
+        <Route path="/jugador/transmisiones" element={playerRoute(broadcastsPage())} />
         <Route path="/jugador/partidos/:id" element={playerRoute(<MatchDetailPage />)} />
         <Route path="/jugador/perfil" element={playerRoute(<MyProfilePage />)} />
         <Route path="/jugador/estadisticas" element={playerRoute(<MyStatsPage />)} />
         <Route path="/jugador/ia" element={playerRoute(<MyAiPage />)} />
 
         {/* Admin */}
+        <Route path="/admin/torneos" element={adminRoute(tournamentPage())} />
+        <Route path="/admin/torneos/:id" element={adminRoute(tournamentPage())} />
         <Route path="/admin/inicio" element={adminRoute(<AdminDashboardPage />)} />
         <Route path="/admin/jugadores" element={adminRoute(<PlayersPage />)} />
         <Route path="/admin/jugadores/:id" element={adminRoute(<PlayerDetailPage />)} />
         <Route path="/admin/inscripciones" element={adminRoute(<InscriptionsPage />)} />
         <Route path="/admin/uniformes" element={adminRoute(<UniformsPage />)} />
         <Route path="/admin/partidos" element={adminRoute(<AdminMatchesPage />)} />
+        <Route path="/admin/transmisiones" element={adminRoute(broadcastsPage())} />
         <Route path="/admin/partidos/:id" element={adminRoute(<MatchBuilderPage />)} />
         <Route path="/admin/sanciones" element={adminRoute(<SanctionsPage />)} />
         <Route path="/admin/estadisticas" element={adminRoute(<StatsPage />)} />
-        <Route path="/admin/ia" element={adminRoute(<AiPage />)} />
+        <Route path="/admin/ia" element={adminRoute(<Suspense fallback={<p>Cargando análisis…</p>}><AiPage /></Suspense>)} />
+        <Route path="/admin/pagos-qr" element={adminRoute(<Suspense fallback={<p>Cargando soportes…</p>}><PaymentReceiptsPage /></Suspense>)} />
+        <Route path="/admin/notificaciones" element={adminRoute(<Suspense fallback={<p>Cargando notificaciones…</p>}><NotificationsPage /></Suspense>)} />
         <Route path="/admin/configuracion" element={adminRoute(<SettingsPage />)} />
       </Route>
 

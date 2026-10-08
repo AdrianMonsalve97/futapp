@@ -36,7 +36,7 @@ export function StrategyList({
   }
 
   return (
-    <ol className="timeline timeline-vertical timeline-snap-icon">
+    <ol className="strategy-timeline timeline timeline-vertical timeline-snap-icon">
       {strategies.map((strategy, index) => {
         const isLast = index === strategies.length - 1;
         return (
@@ -50,7 +50,8 @@ export function StrategyList({
               <span className="w-3 h-3 rounded-full bg-primary block" />
             </div>
             <div className="timeline-end timeline-box bg-base-100 border border-base-200">
-              <div className="flex items-start justify-between gap-3">
+              <p className="sm:hidden text-xs text-base-content/50 mb-2">{new Date(strategy.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}</p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge tone={KIND_TONE[strategy.kind] ?? 'primary'} size="xs">

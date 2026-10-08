@@ -1,4 +1,4 @@
-// Cliente HTTP mínimo (sin dependencias): token Bearer, errores tipados y
+// Cliente HTTP mínimo (sin dependencias): cookie de sesión, errores tipados y
 // cierre de sesión global ante 401 (SPEC §10.2).
 
 import type { ApiErrorBody } from '../types/api';
@@ -18,14 +18,6 @@ export class ApiError extends Error {
   }
 }
 
-export function getToken(): string | null {
-  return window.localStorage.getItem(TOKEN_KEY);
-}
-
-export function setToken(token: string): void {
-  window.localStorage.setItem(TOKEN_KEY, token);
-}
-
 export function clearToken(): void {
   window.localStorage.removeItem(TOKEN_KEY);
 }
@@ -33,7 +25,7 @@ export function clearToken(): void {
 export type ApiOptions = RequestInit & { json?: unknown };
 
 function resolveUrl(path: string): string {
-  if (/^https?:\/\//i.test(path)) return path;
+  if (/^https?:\/\//i.test(path)||path.startsWith('//')) throw new Error('La API solo admite rutas de FutApp');
   if (path.startsWith('/api')) return path;
   return `/api${path.startsWith('/') ? path : `/${path}`}`;
 }
@@ -49,13 +41,13 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   const { json, ...rest } = options;
   const headers = new Headers(rest.headers);
   if (json !== undefined) headers.set('Content-Type', 'application/json');
-  const token = getToken();
-  if (token) headers.set('Authorization', `Bearer ${token}`);
+  headers.set('X-FutApp-Client','web');
 
   let res: Response;
   try {
     res = await fetch(resolveUrl(path), {
       ...rest,
+      credentials:'same-origin',
       headers,
       body: json !== undefined ? JSON.stringify(json) : (rest.body ?? undefined),
     });
@@ -93,4 +85,18 @@ export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message;
   if (error instanceof Error) return error.message;
   return 'Ocurrió un error inesperado.';
+}
+
+/** Protected files are fetched with the session header, never a token in the URL. */
+export async function apiBlob(path: string): Promise<Blob> {
+  if (!path.startsWith('/api/')) throw new Error('Ruta de archivo inválida');
+  const res = await fetch(path, { credentials:'same-origin',headers:{'X-FutApp-Client':'web'} });
+  if (res.status === 401) { clearToken(); window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT)); }
+  if (!res.ok) throw new ApiError('No se pudo descargar el archivo', res.status);
+  return res.blob();
+}
+
+export async function uploadFile<T>(path: string, file: File): Promise<T> {
+  const body = new FormData(); body.append('file', file);
+  return api<T>(path, { method: 'POST', body });
 }

@@ -9,6 +9,8 @@ import { FormField } from '../molecules/FormField';
 import { PositionBadge } from '../molecules/PositionBadge';
 import { Select } from '../atoms/Select';
 import { Spinner } from '../atoms/Spinner';
+import { useFetch } from '../hooks/useFetch';
+import type { MatchAttendance } from '../types/api';
 import type {
   AutoLineupResponse,
   LineupResponse,
@@ -27,9 +29,11 @@ export interface LineupEditorProps {
   format: TeamFormat;
   /** Se invoca tras cada escritura para que la página recargue los datos. */
   onChanged: () => void;
+  publishedAt?: string | null;
+  allowedFormations?: string[];
 }
 
-type Busy = 'formation' | 'suggest' | 'save' | null;
+type Busy = 'formation' | 'suggest' | 'save' | 'publish' | null;
 
 const POSITION_ORDER: Record<string, number> = { POR: 0, DEF: 1, MED: 2, DEL: 3 };
 
@@ -59,7 +63,8 @@ function buildSlots(lineup: LineupSlot[], formationKey: string, format: TeamForm
  * FORMATO DEL PARTIDO, pitch editable (click en slot → elegir jugador),
  * contador "N / N en cancha", "Sugerir XI con IA" y "Guardar".
  */
-export function LineupEditor({ matchId, formation, lineup, players, format, onChanged }: LineupEditorProps) {
+export function LineupEditor({ matchId, formation, lineup, players, format, onChanged, publishedAt, allowedFormations }: LineupEditorProps) {
+  const attendance = useFetch<MatchAttendance[]>(`/api/matches/${matchId}/attendance`, [lineup]);
   const [slots, setSlots] = useState<PitchSlot[]>(() => buildSlots(lineup, formation, format));
   const [formationKey, setFormationKey] = useState(formation);
   const [pendingSlot, setPendingSlot] = useState<PitchSlot | null>(null);
@@ -67,9 +72,10 @@ export function LineupEditor({ matchId, formation, lineup, players, format, onCh
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [bench, setBench] = useState<NonNullable<AutoLineupResponse['bench']>>([]);
 
   const profile = getFormat(format);
-  const formationOptions = formationsFor(format);
+  const formationOptions = formationsFor(format).filter(item => !allowedFormations || allowedFormations.includes(item.key));
   const playersOnPitch = profile.playersOnPitch;
 
   // Sincroniza cuando el padre recarga (tras cada guardado).
@@ -89,7 +95,7 @@ export function LineupEditor({ matchId, formation, lineup, players, format, onCh
 
   const filled = slots.filter((slot) => slot.playerId).length;
 
-  const sortedPlayers = [...players].sort((a, b) => {
+  const sortedPlayers = players.filter(item => item.user.active && attendance.data?.some(row => row.playerId === item.player.id && row.eligible)).sort((a, b) => {
     const byPos = (POSITION_ORDER[a.player.position] ?? 9) - (POSITION_ORDER[b.player.position] ?? 9);
     if (byPos !== 0) return byPos;
     const byNumber = (a.player.shirtNumber ?? 99) - (b.player.shirtNumber ?? 99);
@@ -118,16 +124,19 @@ export function LineupEditor({ matchId, formation, lineup, players, format, onCh
     }
   };
 
-  const suggestXi = async () => {
+  const suggestXi = async (compare = false) => {
     setBusy('suggest');
     setError(null);
     setNotice(null);
     try {
       const res = await api<AutoLineupResponse>(`/api/matches/${matchId}/lineup/auto`, {
         method: 'POST',
-        json: { formation: formationKey },
+        json: compare ? {} : { formation: formationKey },
       });
-      setSlots(buildSlots(res.lineup, formationKey, format));
+      const key = res.formation ?? formationKey;
+      setFormationKey(key);
+      setSlots(buildSlots(res.lineup, key, format));
+      setBench(res.bench ?? []);
       setNotice(res.explanation);
     } catch (err) {
       setError(errorMessage(err));
@@ -136,8 +145,8 @@ export function LineupEditor({ matchId, formation, lineup, players, format, onCh
     }
   };
 
-  const save = async () => {
-    setBusy('save');
+  const save = async (publish = false) => {
+    setBusy(publish ? 'publish' : 'save');
     setError(null);
     setNotice(null);
     try {
@@ -151,8 +160,10 @@ export function LineupEditor({ matchId, formation, lineup, players, format, onCh
           label: slot.label,
         })),
       };
+      if (formationKey !== formation) await api(`/api/matches/${matchId}/formation`, { method: 'PUT', json: { formation: formationKey } });
       await api<LineupResponse>(`/api/matches/${matchId}/lineup`, { method: 'PUT', json: payload });
-      setNotice('Alineación guardada correctamente.');
+      if (publish) await api(`/api/matches/${matchId}/lineup/publish`, { method: 'POST' });
+      setNotice(publish ? 'Alineación publicada. Los jugadores ya pueden consultar sus posiciones.' : 'Borrador guardado. Publícalo cuando esté listo para el equipo.');
       onChanged();
     } catch (err) {
       setError(errorMessage(err));
@@ -182,14 +193,15 @@ export function LineupEditor({ matchId, formation, lineup, players, format, onCh
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2 text-xs"><span className={`badge badge-sm ${publishedAt ? 'badge-success' : 'badge-warning'}`}>{publishedAt ? 'Hay una alineación publicada' : 'Sin publicar'}</span><span className="text-base-content/55">Estás editando el borrador. Los cambios aparecen al publicar.</span></div>
       {/* Selector de formaciones del formato + acciones */}
       <div className="flex flex-wrap items-center gap-2 justify-between">
-        <div className="join">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Formaciones disponibles">
           {formationOptions.map((option) => (
             <button
               key={option.key}
               type="button"
-              className={`btn btn-sm join-item ${formationKey === option.key ? 'btn-active btn-primary' : 'btn-outline'}`}
+              className={`btn btn-sm ${formationKey === option.key ? 'btn-active btn-primary' : 'btn-outline'}`}
               onClick={() => void changeFormation(option.key)}
               disabled={busy !== null}
             >
@@ -197,16 +209,18 @@ export function LineupEditor({ matchId, formation, lineup, players, format, onCh
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="lineup-actions flex flex-wrap items-center gap-3">
           <span className="badge badge-ghost badge-sm">
             {filled} / {playersOnPitch} en cancha
           </span>
-          <Button size="sm" variant="secondary" onClick={() => void suggestXi()} loading={busy === 'suggest'}>
-            Sugerir XI con IA
+          <Button size="sm" variant="secondary" onClick={() => void suggestXi()} loading={busy === 'suggest'} disabled={busy !== null}>
+            Sugerir {playersOnPitch} inicial con IA
           </Button>
-          <Button size="sm" onClick={() => void save()} loading={busy === 'save'} disabled={filled === 0}>
-            Guardar alineación
+          <Button size="sm" variant="outline" onClick={() => void suggestXi(true)} disabled={busy !== null}>Comparar formaciones con IA</Button>
+          <Button size="sm" variant="outline" onClick={() => void save()} loading={busy === 'save'} disabled={busy !== null}>
+            Guardar borrador
           </Button>
+          <Button size="sm" onClick={() => void save(true)} loading={busy === 'publish'} disabled={filled !== playersOnPitch || busy !== null}>Publicar alineación</Button>
         </div>
       </div>
 
@@ -217,6 +231,7 @@ export function LineupEditor({ matchId, formation, lineup, players, format, onCh
           {notice}
         </Alert>
       ) : null}
+      {bench.length ? <p className="text-sm text-base-content/65"><strong>Suplentes sugeridos:</strong> {bench.map(row => `${row.playerName} (${row.position})`).join(' · ')}. Revisa la convocatoria y las reglas de cambios antes de publicar.</p> : null}
 
       <div className={`grid gap-4 ${pitchGridClass(format)}`}>
         <FormationPitch
@@ -241,7 +256,7 @@ export function LineupEditor({ matchId, formation, lineup, players, format, onCh
                 Se necesitan exactamente {playersOnPitch} jugadores en cancha para publicar la alineación
                 (actualmente {filled} / {playersOnPitch} en cancha).
               </li>
-              <li>“Sugerir XI con IA” arma el titular por rendimiento y luego “Guardá” para publicarlo.</li>
+              <li>La IA considera rendimiento y disponibilidad. Guarda el borrador o publica el equipo completo.</li>
             </ul>
           </div>
 

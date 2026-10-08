@@ -25,11 +25,13 @@ export interface Player {
   id: number; userId: number; dni: string | null; birthDate: string | null;
   position: Position; secondaryPosition: Position | null; shirtNumber: number | null;
   heightCm: number | null; weightKg: number | null; foot: Foot | null;
-  emergencyContact: string | null; joinedAt: string;
+  emergencyContact: string | null; eps: string | null; prepaidHealth: string | null; joinedAt: string;
 }
 export interface AuthPayload { token: string; user: User; player: Player | null; }
 
 export interface Payment {
+  registeredBy?: number | null;
+  registeredByName?: string | null;
   id: number; inscriptionId: number; amount: number; method: PaymentMethod;
   reference: string | null; paidAt: string; notes: string | null;
 }
@@ -40,6 +42,7 @@ export interface Inscription {
   payments?: Payment[];
 }
 export interface Uniform {
+  imageUrl?: string | null;
   id: number; name: string; kind: UniformKind; variant: UniformVariant;
   price: number; stock: number; minStock: number; active: boolean; issuedCount?: number;
 }
@@ -50,6 +53,8 @@ export interface UniformIssue {
   notes: string | null; issuedAt: string;
 }
 export interface UniformRequest {
+  quotedPrice?: number | null;
+  issueId?: number | null;
   id: number; playerId: number; playerName?: string; uniformId: number;
   uniformName?: string; size: string; reason: string | null;
   status: UniformRequestStatus; reviewNotes: string | null;
@@ -72,11 +77,22 @@ export interface FormationSlot {
 }
 export interface FormationDef { key: string; name: string; format: TeamFormat; slots: FormationSlot[] }
 export interface Match {
+  streamUrl?:string|null;
+  tournamentId?: number | null;
+  tournamentRules?: import('./tournament').TournamentSnapshot | null;
+  lineupPublishedAt?: string | null;
+  publishedFormation?: string | null;
   id: number; opponent: string; competition: string; kickOff: string; venue: string | null;
   isHome: boolean; status: MatchStatus; formation: string;
   format: TeamFormat;   // §12.4 — formato del partido (puede sobreescribir el global)
   minutes: number;      // §12.4 — duración efectiva del partido
   goalsFor: number | null; goalsAgainst: number | null; notes: string | null; createdAt: string;
+}
+export type AttendanceStatus = 'pendiente' | 'confirmado' | 'no_disponible';
+export interface MatchAttendance {
+  playerId: number; playerName: string; shirtNumber: number | null;
+  position: Position; status: AttendanceStatus; updatedAt: string | null;
+  eligible: boolean; reason: string | null;
 }
 export interface Strategy {
   id: number; matchId: number; title: string; kind: StrategyKind; content: string; createdAt: string;
@@ -118,6 +134,8 @@ export interface TeamStats {
   teamAverages: StatsSummary;
 }
 export interface ModelInfo {
+  validation?: { samples: number; mae: number; rmse: number; r2: number; method: string };
+  featuresDescription?: string;
   model: string;                     // 'regresion-lineal-gradiente-descendente'
   features: string[];                // nombres de features
   weights: number[];                 // w0 + w1..wn
@@ -125,6 +143,8 @@ export interface ModelInfo {
   trainedAt: string;
 }
 export interface AiPlayerInsight {
+  preparation:{matchId:number|null;opponent:string|null;format:TeamFormat;minutes:number;formation:string;publishedAt:string|null;lineup:LineupSlot[];role:Position;assignment:'titular'|'sin_publicar'|'fuera_inicial'|'sin_partido';style:'equilibrado'|'ofensivo'|'defensivo';individual:{title:string;detail:string}[];team:string[];training:string[];plays:import('./tactics').TacticalPlay[];metricNote:string};
+  leagueContext?: import('./tournament').LeagueContext;
   playerId: number; playerName: string; position: Position;
   forecast: { nextRating: number; confidence: number; trend: 'sube' | 'estable' | 'baja'; history: { matchId: number; opponent: string; rating: number }[] };
   strengths: { label: string; detail: string }[];
@@ -132,6 +152,7 @@ export interface AiPlayerInsight {
   recommendation: string;
 }
 export interface AiInsights {
+  leagueContext?: import('./tournament').LeagueContext;
   model: ModelInfo;
   teamRating: number;
   format: TeamFormat;                     // §12.4 — formato usado por la IA (vista de plantel)
@@ -185,7 +206,7 @@ export interface MatchDetailResponse { match: Match; strategies: Strategy[]; lin
 /** §7.3 — respuestas con lineup. */
 export interface LineupResponse { lineup: LineupSlot[] }
 export interface MatchWithLineupResponse { match: Match; lineup: LineupSlot[] }
-export interface AutoLineupResponse { lineup: LineupSlot[]; explanation: string }
+export interface AutoLineupResponse { lineup: LineupSlot[]; explanation: string; formation?: string; leagueContext?: import('./tournament').LeagueContext; bench?: { playerId: number; playerName: string; position: string; predictedRating: number }[] }
 export interface StatsEntriesResponse { entries: MatchStat[] }
 /** §7.4 — `GET /api/players/:id` y alta/edición. */
 export interface PlayerDetailResponse {
@@ -210,13 +231,14 @@ export interface OkResponse { ok: true }
 export interface PasswordResponse { ok: true }
 /** §12.4 — `GET/PUT /api/settings`. */
 export interface TeamSettings {
+  logoUrl?: string | null; brandColor?: string; defaultTournamentId?: number | null;
   teamName: string; format: TeamFormat; season: string; profile: FormatProfile;
 }
 /** §12.4 — body de `PUT /api/settings` (todos los campos opcionales). */
-export interface TeamSettingsPayload { teamName?: string; format?: TeamFormat; season?: string }
+export interface TeamSettingsPayload { brandColor?: string; defaultTournamentId?: number | null; teamName?: string; format?: TeamFormat; season?: string }
 /** §12.4 — `GET /api/formations` (catálogo completo; el front filtra por formato). */
 export interface FormationsResponse { formats: FormatProfile[]; formations: FormationDef[] }
 /** §7.10 — IA. */
-export interface RecommendXiResponse { lineup: LineupSlot[]; explanation: string }
+export interface RecommendXiResponse { formation?: string; lineup: LineupSlot[]; explanation: string }
 /** Cuerpo de error del contrato (§7). */
 export interface ApiErrorBody { error?: { message?: string; code?: string } }

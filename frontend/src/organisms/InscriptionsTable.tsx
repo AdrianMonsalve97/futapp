@@ -10,6 +10,8 @@ import { ConfirmAction } from '../molecules/ConfirmAction';
 import { DateLabel } from '../molecules/DateLabel';
 import { pendingAmount } from '../utils/format';
 import type { Inscription } from '../types/api';
+import { Fragment } from 'react';
+import { formatDate } from '../utils/format';
 
 export interface InscriptionsTableProps {
   items: Inscription[];
@@ -67,7 +69,7 @@ export function InscriptionsTable({
             const progressTone =
               item.status === 'pagada' ? 'success' : item.status === 'parcial' ? 'primary' : 'warning';
             return (
-              <tr key={item.id} className="hover">
+              <Fragment key={item.id}><tr className="hover">
                 <td className="font-medium whitespace-nowrap">{item.playerName ?? `Jugador #${item.playerId}`}</td>
                 <td>{item.season}</td>
                 <td className="text-sm text-base-content/70">{item.concept}</td>
@@ -121,6 +123,8 @@ export function InscriptionsTable({
                   </div>
                 </td>
               </tr>
+              {Boolean(item.payments?.length) && <tr><td colSpan={9} className="!py-0"><details className="payment-history"><summary className="cursor-pointer text-xs text-base-content/55 py-3">Historial · {item.payments!.length} pagos</summary><div className="grid gap-2 sm:grid-cols-2 pb-4">{item.payments!.map(payment => <div className="rounded-xl bg-base-200 p-3 text-xs" key={payment.id}><div className="flex flex-wrap justify-between gap-2"><strong>{formatDate(payment.paidAt)} · {payment.method}</strong><Money value={payment.amount} /></div><p className="text-base-content/60 mt-1">Registrado por {payment.registeredByName ?? 'Sin registro histórico'} · Ref. {payment.reference ?? '—'}</p>{payment.notes && <p className="text-base-content/55 mt-1">{payment.notes}</p>}</div>)}</div></details></td></tr>}
+              </Fragment>
             );
           })}
         </tbody>

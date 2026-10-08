@@ -9,7 +9,7 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 export function Card({ tone = 'base', className = '', children, ...rest }: CardProps) {
   const toneClass = tone === 'base' ? 'bg-base-100 shadow-sm' : tone === 'bordered' ? 'border border-base-300' : '';
   return (
-    <div className={`card ${toneClass} ${className}`.trim()} {...rest}>
+    <div className={`card club-card min-w-0 ${toneClass} ${className}`.trim()} {...rest}>
       {children}
     </div>
   );

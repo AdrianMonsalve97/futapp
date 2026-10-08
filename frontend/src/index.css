@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 @plugin 'daisyui' {
-  themes: emerald --default, dark --prefersdark;
+  themes: emerald --default, dark;
 }
 
 html,
@@ -11,8 +11,8 @@ body,
 }
 
 body {
-  background-color: oklch(var(--b1));
-  color: oklch(var(--bc));
+  background-color: var(--color-base-200);
+  color: var(--color-base-content);
 }
 
 /* Cancha: franjas de césped */

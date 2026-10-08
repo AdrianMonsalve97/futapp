@@ -1,7 +1,7 @@
 /**
  * Extracción de features desde `match_stats` (§8.1 y §12.1 del SPEC).
  * Las features normalizadas por tiempo usan `rate(v, minutes, formatMinutes)`:
- * "por partido completo del formato" (40/50/60/90 min) en lugar de 90 fijo.
+ * "por partido completo del formato" (40/50/50/90 min) en lugar de 90 fijo.
  * Solo continuidad y tendencia quedan fuera de esa normalización.
  */
 import type { MatchStat } from '../entities';
@@ -44,7 +44,7 @@ export interface FeatureSample {
  * @param previousAvgRating promedio de calificaciones ANTERIORES del mismo jugador (0 si es su primer partido)
  * @param isFirstMatch true si es el primer partido del jugador en la muestra (f10 = 0)
  * @param squadMaxMinutes máximo de minutos que jugó cualquier jugador del plantel en ese partido
- * @param formatMinutes duración completa del formato del partido (40/50/60/90, §12.1)
+ * @param formatMinutes duración real del partido (por defecto 40/50/50/90, §12.1)
  */
 export function computeFeatureVector(
   stat: MatchStat,
@@ -149,4 +149,25 @@ export function averageFeaturesByPlayer(samples: FeatureSample[]): Map<number, n
     result.set(playerId, entry.sum.map((v) => v / entry.count));
   }
   return result;
+}
+
+/** Predict the NEXT rating using only the player's five earlier appearances. */
+export function extractForecastSamples(stats: MatchStat[], formatMinutesByMatch?: ReadonlyMap<number, number>): FeatureSample[] {
+  const history = new Map<number, FeatureSample[]>();
+  const result: FeatureSample[] = [];
+  for (const sample of extractFeatureSamples(stats, formatMinutesByMatch)) {
+    const previous = history.get(sample.playerId) ?? [];
+    if (previous.length) {
+      const features = Array.from({ length: FEATURE_COUNT }, (_, i) => previous.reduce((sum, row) => sum + row.features[i], 0) / previous.length);
+      result.push({ ...sample, features });
+    }
+    history.set(sample.playerId, [...previous, sample].slice(-5));
+  }
+  return result;
+}
+
+export function latestFeaturesByPlayer(samples: FeatureSample[]): Map<number, number[]> {
+  const history = new Map<number, FeatureSample[]>();
+  for (const sample of samples) history.set(sample.playerId, [...(history.get(sample.playerId) ?? []), sample].slice(-5));
+  return averageFeaturesByPlayer([...history.values()].flat());
 }

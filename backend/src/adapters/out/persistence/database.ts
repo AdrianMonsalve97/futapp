@@ -12,6 +12,7 @@ let instance: Database.Database | null = null;
 export function getDb(): Database.Database {
   if (instance) return instance;
   const filePath = path.isAbsolute(env.dbPath) ? env.dbPath : path.resolve(process.cwd(), env.dbPath);
+  if (fs.existsSync(path.join(path.dirname(filePath), '.restore-in-progress'))) throw new Error('La restauración de datos no ha finalizado. Selecciona una copia completa antes de iniciar');
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const db = new Database(filePath);
   db.pragma('journal_mode = WAL');

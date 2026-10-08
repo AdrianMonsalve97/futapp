@@ -1,3 +1,4 @@
+import { MediaImage } from '../atoms/MediaImage';
 import { Alert } from '../atoms/Alert';
 import { Badge } from '../atoms/Badge';
 import { Button } from '../atoms/Button';
@@ -88,6 +89,7 @@ export function UniformCatalog({
           const low = item.stock <= item.minStock;
           return (
             <div key={item.id} className="card bg-base-100 border border-base-200 shadow-sm">
+              <MediaImage src={item.imageUrl} alt={`Referencia de ${item.name}`} className="uniform-reference h-48 w-full object-contain rounded-t-xl bg-base-200" />
               <div className="card-body p-4 gap-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">

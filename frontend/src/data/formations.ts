@@ -28,7 +28,7 @@ export const FORMATS: Record<TeamFormat, FormatProfile> = {
   },
   8: {
     format: 8, key: 'f8', name: 'Fútbol 8',
-    playersOnPitch: 8, matchMinutes: 60,
+    playersOnPitch: 8, matchMinutes: 50,
     defaultFormation: '1-3-3-1', squadHint: '16-18',
     ai: { baselineFor: 5.0, baselineAgainst: 4.5, xgClampMax: 10, winProbK: 1.1, drawLogWeight: -0.51, homeBonus: 0.15, minSamples: 30 },
   },
@@ -243,7 +243,7 @@ export function rateLabel(format: number): string {
   return getFormat(format).format === 11 ? "por 90'" : 'por partido';
 }
 
-/** Badge corto del formato, p.ej. `Fútbol 8 · 60'`. */
+/** Badge corto del formato, p.ej. `Fútbol 8 · 50'`. */
 export function formatBadge(format: number, minutes?: number): string {
   const profile = getFormat(format);
   return `${profile.name} · ${minutes ?? profile.matchMinutes}'`;

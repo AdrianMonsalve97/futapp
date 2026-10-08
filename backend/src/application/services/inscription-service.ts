@@ -1,3 +1,4 @@
+import type { UnitOfWork } from '../ports/out/unit-of-work';
 import type {
   AddPaymentInput,
   CreateInscriptionInput,
@@ -17,6 +18,7 @@ export class InscriptionService implements InscriptionPort {
   constructor(
     private readonly inscriptions: InscriptionRepository,
     private readonly players: PlayerRepository,
+    private readonly uow: UnitOfWork,
   ) {}
 
   /** Siempre devuelve `status` derivado de `paid`/`amount` (§4). */
@@ -50,35 +52,53 @@ export class InscriptionService implements InscriptionPort {
   }
 
   addPayment(id: number, input: AddPaymentInput): Inscription {
-    const current = this.inscriptions.findById(id);
-    if (!current) throw new NotFoundError('Inscripción no encontrada');
-    if (!Number.isFinite(input.amount) || input.amount <= 0) {
-      throw new ValidationError('El monto del pago debe ser mayor a 0');
-    }
-    const status = deriveInscriptionStatus(current.paid, current.amount);
-    if (status === 'pagada') {
-      throw new ValidationError('La inscripción ya está saldada');
-    }
-    const saldo = current.amount - current.paid;
-    if (input.amount > saldo + EPSILON) {
-      throw new ValidationError(
-        `El pago de ${formatMoney(input.amount)} excede el saldo pendiente de ${formatMoney(saldo)}`,
-      );
-    }
-    this.inscriptions.addPayment({
-      inscriptionId: id,
-      amount: input.amount,
-      method: input.method,
-      reference: input.reference,
-      paidAt: input.paidAt,
-      notes: input.notes,
+    return this.uow.run(() => {
+      const current = this.inscriptions.findById(id);
+      if (!current) throw new NotFoundError('Inscripción no encontrada');
+      if (!Number.isFinite(input.amount) || input.amount <= 0) {
+        throw new ValidationError('El monto del pago debe ser mayor a 0');
+      }
+      const reference = input.reference?.trim() || null;
+      if (input.idempotencyKey) {
+        if (!/^[a-zA-Z0-9_-]{8,128}$/.test(input.idempotencyKey)) throw new ValidationError('Identificador de pago inválido');
+        const previous = this.inscriptions.findPaymentByKey(id, input.idempotencyKey);
+        if (previous) {
+          if (previous.amount !== input.amount || previous.method !== input.method || previous.reference !== reference || previous.notes !== (input.notes ?? null) || (input.paidAt && previous.paidAt !== input.paidAt)) {
+            throw new ValidationError('Este identificador ya pertenece a otro pago. Abre un nuevo registro.', 'PAYMENT_KEY_CONFLICT');
+          }
+          return this.withPayments(current);
+        }
+      }
+      if (reference && this.inscriptions.listPayments(id).some(p => p.method === input.method && p.reference?.trim() === reference)) {
+        throw new ValidationError('Ya existe un pago con esta referencia', 'DUPLICATE_PAYMENT');
+      }
+      const status = deriveInscriptionStatus(current.paid, current.amount);
+      if (status === 'pagada') {
+        throw new ValidationError('La inscripción ya está saldada');
+      }
+      const saldo = current.amount - current.paid;
+      if (input.amount > saldo + EPSILON) {
+        throw new ValidationError(
+          `El pago de ${formatMoney(input.amount)} excede el saldo pendiente de ${formatMoney(saldo)}`,
+        );
+      }
+      this.inscriptions.addPayment({
+        inscriptionId: id,
+        registeredBy: input.registeredBy,
+        idempotencyKey: input.idempotencyKey,
+        amount: input.amount,
+        method: input.method,
+        reference,
+        paidAt: input.paidAt,
+        notes: input.notes,
+      });
+      const paid = roundMoney(current.paid + input.amount);
+      const updated = this.inscriptions.update(id, {
+        paid,
+        status: deriveInscriptionStatus(paid, current.amount),
+      });
+      return this.withPayments(updated);
     });
-    const paid = roundMoney(current.paid + input.amount);
-    const updated = this.inscriptions.update(id, {
-      paid,
-      status: deriveInscriptionStatus(paid, current.amount),
-    });
-    return this.withPayments(updated);
   }
 
   update(id: number, input: UpdateInscriptionInput): Inscription {
@@ -91,6 +111,7 @@ export class InscriptionService implements InscriptionPort {
       throw new ValidationError('La temporada es obligatoria');
     }
     const amount = input.amount ?? current.amount;
+    if (amount < current.paid) throw new ValidationError('El monto no puede ser menor que lo ya pagado');
     const updated = this.inscriptions.update(id, {
       ...input,
       status: deriveInscriptionStatus(current.paid, amount),

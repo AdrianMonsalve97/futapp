@@ -7,6 +7,9 @@ import type {
 } from '../../../domain/entities';
 
 export interface CreateMatchInput {
+  streamUrl?:string|null;
+  tournamentId?: number | null;
+  tournamentRules?: import('../../../domain/tournament').TournamentSnapshot | null;
   opponent: string;
   competition?: string;
   kickOff: string;
@@ -49,6 +52,11 @@ export interface LineupSlotInput {
 
 /** Puerto de salida para partidos, estrategias y alineaciones. */
 export interface MatchRepository {
+  getPublishedLineup(matchId: number): LineupSlot[];
+  publishLineup(matchId: number): Match;
+  unpublishLineup(matchId: number): void;
+  listAttendance(matchId: number): import('../../../domain/entities').MatchAttendance[];
+  setAttendance(matchId: number, playerId: number, status: import('../../../domain/entities').AttendanceStatus): void;
   list(): Match[];
   findById(id: number): Match | null;
   create(input: CreateMatchInput): Match;

@@ -8,6 +8,7 @@ export interface CreateUniformRequestInput {
 }
 
 export interface UpdateUniformRequestInput {
+  issueId?: number;
   status?: UniformRequestStatus;
   reviewNotes?: string | null;
   reviewedAt?: string | null;

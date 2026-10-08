@@ -10,7 +10,8 @@ import type { UniformIssueRepository } from '../ports/out/uniform-issue.reposito
 import type { UniformRequestRepository } from '../ports/out/uniform-request.repository';
 import type { UniformRepository } from '../ports/out/uniform.repository';
 import type { UserRepository } from '../ports/out/user.repository';
-import type { DashboardAdmin, DashboardPlayer, Inscription } from '../../domain/entities';
+import type { SettingsRepository } from '../ports/out/settings.repository';
+import type { DashboardAdmin, DashboardPlayer } from '../../domain/entities';
 import { NotFoundError } from '../../domain/errors';
 import { deriveInscriptionStatus, emptyStatsSummary, summarizeStats } from './shared';
 
@@ -29,6 +30,7 @@ export class DashboardService implements DashboardPort {
     private readonly stats: StatsRepository,
     private readonly teamStatsService: StatsPort,
     private readonly ai: AiPort,
+    private readonly settings: SettingsRepository,
   ) {}
 
   admin(): DashboardAdmin {
@@ -39,12 +41,12 @@ export class DashboardService implements DashboardPort {
       status: deriveInscriptionStatus(i.paid, i.amount),
     }));
 
-    const season = this.currentSeason(derived);
+    const season = this.settings.get().season;
     const seasonRows = derived.filter((i) => i.season === season);
 
     const upcoming = this.nextMatch();
     const seen = new Set<number>();
-    const pendingInscriptionPlayers = derived
+    const pendingInscriptionPlayers = seasonRows
       .filter((i) => i.status !== 'pagada')
       .filter((i) => {
         if (seen.has(i.playerId)) return false;
@@ -135,15 +137,9 @@ export class DashboardService implements DashboardPort {
   private upcomingMatchWithSlot(playerId: number | null) {
     const match = this.nextMatch();
     if (!match) return null;
-    const lineup = this.matches.getLineup(match.id);
+    const lineup = this.matches.getPublishedLineup(match.id);
     const lineupSlot = playerId !== null ? lineup.find((s) => s.playerId === playerId) ?? null : null;
-    return { ...match, lineupSlot };
+    return { ...match, formation: match.publishedFormation ?? match.formation, lineupSlot };
   }
 
-  private currentSeason(rows: Inscription[]): string {
-    const currentYear = String(new Date().getFullYear());
-    const seasons = [...new Set(rows.map((r) => r.season))].sort();
-    if (seasons.includes(currentYear)) return currentYear;
-    return seasons.length > 0 ? (seasons[seasons.length - 1] as string) : currentYear;
-  }
 }

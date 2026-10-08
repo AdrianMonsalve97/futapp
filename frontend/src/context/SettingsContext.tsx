@@ -18,6 +18,7 @@ import type { FormatProfile, TeamSettings, TeamSettingsPayload } from '../types/
 
 /** Valores de respaldo mientras carga o si el endpoint no está disponible (backend legacy en f11). */
 const FALLBACK_SETTINGS: TeamSettings = {
+  logoUrl: '/brand/aag-logo.jpg', brandColor: '#d8b86a',
   teamName: 'Club Portal',
   format: 11,
   season: '2026',
@@ -51,18 +52,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    if (!token) {
-      setSettings(FALLBACK_SETTINGS);
-      setError(null);
-      setLoading(false);
-      return;
-    }
     let cancelled = false;
     setLoading(true);
     setError(null);
-    api<TeamSettings>('/api/settings')
+    api<TeamSettings>(token ? '/api/settings' : '/api/branding')
       .then((result) => {
-        if (!cancelled) setSettings(withProfile(result));
+        if (!cancelled) setSettings(withProfile({ ...FALLBACK_SETTINGS, ...result }));
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(errorMessage(err));
@@ -74,6 +69,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [token, version]);
+
+  useEffect(() => { document.documentElement.style.setProperty('--club-brand-color', settings.brandColor || '#d8b86a'); }, [settings.brandColor]);
+  useEffect(() => { document.title = `${settings.teamName} · Fútbol`; }, [settings.teamName]);
+  useEffect(() => {
+    const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (icon) { const logo = settings.logoUrl || '/brand/aag-logo.jpg'; icon.href = logo.startsWith('/api/media/') ? '/api/branding/logo?v=' + logo.split('/').pop() : logo; icon.removeAttribute('type'); }
+  }, [settings.logoUrl]);
 
   const reload = useCallback(() => setVersion((value) => value + 1), []);
 

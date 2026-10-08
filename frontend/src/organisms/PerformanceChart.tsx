@@ -41,9 +41,11 @@ export function PerformanceChart({
         <EmptyState title="Sin datos para graficar" message="Cargá estadísticas de partidos para ver el comparativo." />
       ) : (
         <>
+          <div className="chart-scroll overflow-x-auto" tabIndex={0} role="region" aria-label={`${title ?? 'Gráfico de barras'}: desliza para ver completo`}>
           <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={title ?? 'Gráfico de barras'}>
             <Bars series={series} items={items} />
           </svg>
+          </div>
           {showLegend ? (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-base-content/70">
               {series.map((s) => (

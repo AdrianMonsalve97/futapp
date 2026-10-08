@@ -7,7 +7,7 @@ import type {
 } from '../../../../application/ports/in/inscription.port';
 import type { InscriptionStatus } from '../../../../domain/entities';
 import { ValidationError } from '../../../../domain/errors';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { getAuth, requireAuth, requireRole } from '../middleware/auth';
 import { jsonBody, paramId, queryStr } from '../route-helpers';
 
 /** §7.5 · Inscripciones (solo admin). */
@@ -50,6 +50,8 @@ export function inscriptionRoutes(inscriptions: InscriptionPort): Router {
     }
     res.json(
       inscriptions.addPayment(paramId(req), {
+        registeredBy: getAuth(req).userId,
+        idempotencyKey: req.get('Idempotency-Key'),
         amount: Number(body.amount),
         method: body.method,
         reference: body.reference ?? null,
