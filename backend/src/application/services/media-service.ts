@@ -4,12 +4,14 @@ import type { UserRepository } from '../ports/out/user.repository';
 import type { UniformRepository } from '../ports/out/uniform.repository';
 import type { TournamentRepository } from '../ports/out/tournament.repository';
 import type { UnitOfWork } from '../ports/out/unit-of-work';
+import type { PlayerRepository } from '../ports/out/player.repository';
 import { NotFoundError, ValidationError } from '../../domain/errors';
 
 export class MediaService {
   constructor(private readonly storage: MediaStorage, private readonly users: UserRepository,
     private readonly uniforms: UniformRepository, private readonly settings: SettingsRepository,
-    private readonly tournaments: TournamentRepository, private readonly uow: UnitOfWork) {}
+    private readonly tournaments: TournamentRepository, private readonly uow: UnitOfWork,
+    private readonly players: PlayerRepository) {}
   async branding() {
     const { teamName, logoUrl, brandColor } = (await this.settings.get());
     return { teamName, logoUrl, brandColor };
@@ -23,7 +25,11 @@ export class MediaService {
   async read(id: string, userId: number, admin: boolean): Promise<MediaAsset> {
     const asset = (await this.storage.find(id));
     if (!asset) throw new NotFoundError('Archivo no encontrado');
-    if ((asset.purpose === 'avatar' || asset.purpose === 'receipt') && !admin && asset.ownerId !== userId) throw new NotFoundError('Archivo no encontrado');
+    if (asset.purpose === 'receipt' && !admin && asset.ownerId !== userId) throw new NotFoundError('Archivo no encontrado');
+    if (asset.purpose === 'avatar' && !admin && asset.ownerId !== userId) {
+      const owner = await this.users.findById(asset.ownerId);
+      if (!owner?.active || !await this.players.findByUserId(asset.ownerId)) throw new NotFoundError('Archivo no encontrado');
+    }
     if (asset.purpose === 'tournament' && !admin) {
       const document = (await this.tournaments.documentForAsset(id));
       const tournament = document ? (await this.tournaments.find(document.tournamentId)) : null;

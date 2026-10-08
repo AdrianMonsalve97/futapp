@@ -10,7 +10,7 @@ import { canonicalSchema } from './postgres-schema';
 import type { PostgresDatabase } from './postgres-database';
 import type { ObjectStorage } from './supabase-storage';
 
-const transient=new Set(['auth_sessions','registration_invitation','notification_jobs','notification_match_versions']);
+const transient=new Set(['auth_sessions','registration_invitation','notification_jobs','notification_match_versions','media_deletion_jobs']);
 const counted=['users','players','tournaments','tournament_players','matches','inscriptions','payments','payment_receipts','media_assets'];
 const counts=(packet:MigrationPacket)=>Object.fromEntries(counted.map(name=>[name,packet.tables[name].rows.length]));
 const hash=(bytes:Buffer)=>createHash('sha256').update(bytes).digest('hex');

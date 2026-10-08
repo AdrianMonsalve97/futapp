@@ -162,6 +162,7 @@ export interface StrategyRow {
 }
 
 export interface LineupRow {
+  avatar_url?: string | null;
   id: number;
   match_id: number;
   player_id: number | null;
@@ -378,6 +379,7 @@ export function mapLineupSlot(row: LineupRow): LineupSlot {
     label: row.label,
   };
   if (row.player_name !== undefined) mapped.playerName = row.player_name ?? null;
+  if (row.avatar_url !== undefined) mapped.avatarUrl = row.avatar_url ?? null;
   if (row.shirt_number !== undefined) mapped.shirtNumber = row.shirt_number ?? null;
   if (row.player_position !== undefined) {
     mapped.playerPosition = (row.player_position as Position | null) ?? null;

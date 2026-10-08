@@ -232,6 +232,7 @@ export class AiService implements AiPort {
       candidates.push({
         playerId: player.id,
         playerName: user.fullName,
+        avatarUrl: user.avatarUrl,
         shirtNumber: player.shirtNumber,
         position: player.position, secondaryPosition: player.secondaryPosition,
         predictedRating: rating ? rating.predicted : BASELINE_PLAYER_RATING,
@@ -330,6 +331,7 @@ export class AiService implements AiPort {
         slotIndex: slot.slotIndex,
         playerId,
         playerName: candidate ? candidate.playerName : null,
+        avatarUrl: candidate?.avatarUrl ?? null,
         shirtNumber: candidate ? candidate.shirtNumber : null,
         playerPosition: candidate ? candidate.position : null,
         x: slot.x,
@@ -504,6 +506,7 @@ export class AiService implements AiPort {
       leagueContext: next ? (await this.leagueContext(next, published.filter(slot => slot.playerId === playerId))) : undefined,
       playerId,
       playerName: row.user.fullName,
+      avatarUrl: row.user.avatarUrl,
       position: row.player.position,
       forecast,
       strengths,

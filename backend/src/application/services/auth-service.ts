@@ -5,7 +5,7 @@ import { createHmac, createHash, randomBytes, randomUUID, timingSafeEqual } from
 import type { SecurityRepository } from '../ports/out/security.repository';
 import { validatePassword } from '../../domain/password-policy';
 import { env } from '../../config/env';
-import type { AuthPort, AuthUserView, LoginInput, RegisterInput } from '../ports/in/auth.port';
+import type { AuthPort, AuthUserView, LoginInput, RegisterInput, RegistrationPayload } from '../ports/in/auth.port';
 import type { PlayerRepository } from '../ports/out/player.repository';
 import type { UserRepository } from '../ports/out/user.repository';
 import type { AuthPayload, User } from '../../domain/entities';
@@ -37,12 +37,13 @@ export class AuthService implements AuthPort {
       throw new UnauthorizedError('Credenciales inválidas', 'INVALID_CREDENTIALS');
     }
     if (!user.active) {
+      if (await this.security.pendingRegistration(user.id)) throw new UnauthorizedError('Tu solicitud está pendiente del aval del administrador.', 'REGISTRATION_PENDING');
       throw new UnauthorizedError('La cuenta está inactiva', 'ACCOUNT_DISABLED');
     }
     return (await this.buildPayload(user));
   }
 
-  async register(input: RegisterInput): Promise<AuthPayload> {
+  async register(input: RegisterInput): Promise<RegistrationPayload> {
     return (await this.uow.run(async () => {
           const email = (input.email ?? '').trim().toLowerCase();
           const password = input.password ?? '';
@@ -65,13 +66,15 @@ export class AuthService implements AuthPort {
                   fullName,
                   phone: input.phone ?? null,
                   role: 'player',
+                  active: false,
                 }));
-          (await this.players.create({
+          const player = (await this.players.create({
                     userId: user.id,
                     position,
                     shirtNumber: input.shirtNumber ?? null,
                   }));
-          return (await this.buildPayload(user));
+          await this.security.requestRegistration(user.id);
+          return {user,player,pendingApproval:true,message:'Solicitud enviada. El administrador debe aprobar tu ingreso antes de que puedas iniciar sesión.'};
         }));
   }
 

@@ -27,6 +27,7 @@ export interface Player {
   heightCm: number | null; weightKg: number | null; foot: Foot | null;
   emergencyContact: string | null; eps: string | null; prepaidHealth: string | null; joinedAt: string;
 }
+export interface RegistrationPayload { user: User; player: Player | null; pendingApproval: true; message: string }
 export interface AuthPayload { token: string; user: User; player: Player | null; }
 
 export interface Payment {
@@ -100,7 +101,7 @@ export interface Strategy {
 }
 export interface LineupSlot {
   slotIndex: number; playerId: number | null; playerName?: string | null;
-  shirtNumber?: number | null; playerPosition?: Position | null;
+  shirtNumber?: number | null; playerPosition?: Position | null; avatarUrl?: string | null;
   x: number; y: number; role: 'POR' | 'DEF' | 'MED' | 'DEL'; label: string;
 }
 export interface MatchStat {
@@ -122,6 +123,7 @@ export interface StatsSummary {
   yellowCards: number; redCards: number; avgRating: number;
 }
 export interface PlayerListItem {
+  pendingApproval?: boolean;
   user: User; player: Player;
   inscription: { season: string; status: InscriptionStatus; amount: number; paid: number; dueDate: string | null } | null;
   stats: StatsSummary;
@@ -144,6 +146,7 @@ export interface ModelInfo {
   trainedAt: string;
 }
 export interface AiPlayerInsight {
+  avatarUrl?: string | null;
   preparation:{matchId:number|null;opponent:string|null;format:TeamFormat;minutes:number;formation:string;publishedAt:string|null;lineup:LineupSlot[];role:Position;assignment:'titular'|'sin_publicar'|'fuera_inicial'|'sin_partido';style:'equilibrado'|'ofensivo'|'defensivo';individual:{title:string;detail:string}[];team:string[];training:string[];plays:import('./tactics').TacticalPlay[];metricNote:string};
   leagueContext?: import('./tournament').LeagueContext;
   playerId: number; playerName: string; position: Position;
@@ -176,7 +179,7 @@ export interface DashboardAdmin {
 }
 export interface DashboardPlayer {
   inscription: Inscription | null;
-  upcomingMatch: (Match & { lineupSlot: LineupSlot | null }) | null;
+  upcomingMatch: (Match & { lineupSlot: LineupSlot | null; lineup: LineupSlot[] }) | null;
   myStats: StatsSummary;
   myRecentStats: MatchStat[];
   mySanctions: Sanction[];

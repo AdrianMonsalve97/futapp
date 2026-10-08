@@ -25,6 +25,7 @@ const db = getDb();
 const adminId = Number(db.prepare("INSERT INTO users(email,password_hash,full_name,role) VALUES (?,?,?,'admin')")
   .run('admin@test.com', bcrypt.hashSync('AdminTest123!', 4), 'Admin').lastInsertRowid);
 const c = createContainer();
+const users = new (await import('../backend/src/adapters/out/persistence/repositories/user.repository')).SqliteUserRepository(db);
 const players = await Promise.all(Array.from({ length: 11 }, async (_, i) => (await c.playerService.create({
   email: `player${i}@test.com`, password: 'PlayerTest123456!', fullName: `Jugador ${i}`,
   position: i === 0 ? 'POR' : i < 5 ? 'DEF' : i < 8 ? 'MED' : 'DEL', shirtNumber: i + 1,
@@ -84,10 +85,10 @@ test('shirt numbers are unique across creation, registration, own profile and ad
   assert.equal((await request('PUT', '/me/profile', { shirtNumber: 1 }, playerToken)).status, 200);
   assert.throws(() => db.prepare('UPDATE players SET shirt_number = 1 WHERE id = ?').run(players[1].player.id), /UNIQUE constraint failed/);
   // A disabled player still owns their number until it is explicitly cleared.
-  (await c.playerService.update(players[10].player.id, { active: false }));
+  (await users.update(players[10].user.id, { active: false }));
   try {
     assert.equal((await request('POST', '/players', { email: 'disabled-number@test.com', password: 'DuplicateNumber123!', fullName: 'Duplicado', position: 'DEF', shirtNumber: 11 })).status, 400);
-  } finally { (await c.playerService.update(players[10].player.id, { active: true })); }
+  } finally { (await users.update(players[10].user.id, { active: true })); }
   const invitationCode = (await c.authService.createInvitation()).code;
   const competing = await Promise.all([0, 1].map(async i => (await request('POST', '/auth/register', { invitationCode, email: `number-race${i}@test.com`, password: 'DuplicateNumber123!', fullName: 'Registro de prueba', shirtNumber: 222 }, ''))));
   assert.deepEqual(competing.map(result => result.status).sort(), [200, 400]);
@@ -165,7 +166,7 @@ after(async () => {
 test('player IDs update the correct account and immediately revoke disabled sessions', async () => {
   const first = players[0];
   assert.notEqual(first.player.id, first.user.id);
-  (await c.playerService.update(first.player.id, { fullName: 'Nombre nuevo', active: false }));
+  (await users.update(first.user.id, { fullName: 'Nombre nuevo', active: false }));
   assert.equal((await c.authService.me(adminId)).user.fullName, 'Admin');
   assert.equal((await c.authService.me(first.user.id)).user.fullName, 'Nombre nuevo');
   assert.equal((await request('GET', '/auth/me', undefined, playerToken)).status, 401);
@@ -183,7 +184,7 @@ test('changing a role revokes tokens issued for the previous role', async () => 
 test('last administrator cannot be disabled', async () => {
   db.prepare('INSERT INTO players(user_id, position) VALUES (?, ?)').run(adminId, 'MED');
   const row = db.prepare('SELECT id FROM players WHERE user_id = ?').get(adminId) as { id: number };
-  (await assert.rejects(async () => (await c.playerService.update(row.id, { active: false })), /administrador/i));
+  (await assert.rejects(async () => (await c.playerService.remove(row.id)), /administrador/i));
 });
 test('registration rolls back a new user when the player insert fails', async () => {
   db.exec("CREATE TRIGGER fail_registration BEFORE INSERT ON players BEGIN SELECT RAISE(ABORT,'test failure'); END");
@@ -257,9 +258,9 @@ test('attendance belongs to the authenticated player and declined players cannot
   const lineup = (await c.matchService.get(match.id)).lineup.map((slot, i) => ({ ...slot, playerId: players[i].player.id }));
   (await assert.rejects(async () => (await c.matchService.setLineup(match.id, lineup)), /disponible/i));
   (await c.matchService.setAttendance(match.id, players[0].user.id, 'confirmado'));
-  (await c.playerService.update(players[1].player.id, { active: false }));
+  (await users.update(players[1].user.id, { active: false }));
   (await assert.rejects(async () => (await c.matchService.setLineup(match.id, lineup)), /inactivo/i));
-  (await c.playerService.update(players[1].player.id, { active: true }));
+  (await users.update(players[1].user.id, { active: true }));
   (await c.sanctionService.create({ playerId: players[1].player.id, type: 'suspension', reason: 'Prueba' }));
   (await assert.rejects(async () => (await c.matchService.setLineup(match.id, lineup)), /disponible|suspensión/i));
   const sanction = (await c.sanctionService.list()).find(s => s.playerId === players[1].player.id)!;
@@ -338,9 +339,11 @@ test('dashboard follows the season configured by the club', async () => {
   assert.equal((await c.dashboardService.admin()).pendingInscriptionPlayers.length, 0);
 });
 
-test('removing a player disables their account without affecting the administrator', async () => {
-  (await c.playerService.remove(players[10].player.id));
-  assert.equal((await c.authService.me(players[10].user.id)).user.active, false);
+test('removing a player deletes their account without affecting the administrator', async () => {
+  const removed = await c.playerService.create({ email:'removed@test.com',password:'Removed test passphrase 123!',fullName:'Jugador por eliminar',position:'DEF' });
+  (await c.playerService.remove(removed.player.id));
+  await assert.rejects(()=>c.authService.me(removed.user.id),/no encontrado/i);
+  assert.equal(db.prepare('SELECT id FROM players WHERE id=?').get(removed.player.id),undefined);
   assert.equal((await c.authService.me(adminId)).user.active, true);
 });
 
@@ -370,7 +373,7 @@ test('image uploads validate contents, hide player photos and enforce administra
   const privateFile = await fetch(base + photo.data.url);
   assert.equal(privateFile.status, 401);
   const otherToken = (await c.authService.login({ email: 'player1@test.com', password: 'PlayerTest123456!' })).token;
-  assert.equal((await fetch(base + photo.data.url, { headers: { Authorization: `Bearer ${otherToken}` } })).status, 404);
+  assert.equal((await fetch(base + photo.data.url, { headers: { Authorization: `Bearer ${otherToken}` } })).status, 200);
   const loaded = await fetch(base + photo.data.url, { headers: { Authorization: `Bearer ${playerToken}` } });
   assert.equal(loaded.status, 200); assert.equal(loaded.headers.get('content-type'), 'image/webp');
   assert.equal((await fileRequest('/settings/logo', image, 'logo.png', playerToken)).status, 403);

@@ -68,7 +68,7 @@ export function PlayerDashboardPage() {
     }));
 
   const pitchSlots = upcomingMatch
-    ? pitchSlotsFrom(upcomingMatch.formation, mySlot ? [mySlot] : [], profile.format).map((slot) =>
+    ? pitchSlotsFrom(upcomingMatch.formation, upcomingMatch.lineup, upcomingMatch.format).map((slot) =>
         slot.slotIndex === mySlot?.slotIndex
           ? { ...slot, playerName: slot.playerName ?? 'Tú', highlighted: true }
           : slot,

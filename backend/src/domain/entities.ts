@@ -98,7 +98,7 @@ export interface Strategy {
 }
 export interface LineupSlot {
   slotIndex: number; playerId: number | null; playerName?: string | null;
-  shirtNumber?: number | null; playerPosition?: Position | null;
+  shirtNumber?: number | null; playerPosition?: Position | null; avatarUrl?: string | null;
   x: number; y: number; role: 'POR' | 'DEF' | 'MED' | 'DEL'; label: string;
 }
 export interface MatchStat {
@@ -120,6 +120,7 @@ export interface StatsSummary {
   yellowCards: number; redCards: number; avgRating: number;
 }
 export interface PlayerListItem {
+  pendingApproval?: boolean;
   user: User; player: Player;
   inscription: { season: string; status: InscriptionStatus; amount: number; paid: number; dueDate: string | null } | null;
   stats: StatsSummary;
@@ -144,6 +145,7 @@ export interface ModelInfo {
   formatMinutes?: number;            // minutos por partido usados en la normalización
 }
 export interface AiPlayerInsight {
+  avatarUrl?: string | null;
   preparation:import('./role-coaching').RolePreparation;
   leagueContext?: import('./tournament').LeagueContext;
   playerId: number; playerName: string; position: Position;
@@ -176,7 +178,7 @@ export interface DashboardAdmin {
 }
 export interface DashboardPlayer {
   inscription: Inscription | null;
-  upcomingMatch: (Match & { lineupSlot: LineupSlot | null }) | null;
+  upcomingMatch: (Match & { lineupSlot: LineupSlot | null; lineup: LineupSlot[] }) | null;
   myStats: StatsSummary;
   myRecentStats: MatchStat[];
   mySanctions: Sanction[];

@@ -82,6 +82,7 @@ export function validateBody(path: string, method: string, body: unknown): void 
   if(path==='/auth/invitation'||path==='/auth/logout')return check(body,{});
   if (path === '/me/profile') return check(body, profile);
   if (path === '/me/password') return check(body, { currentPassword: nonempty(128), newPassword: nonempty(128) }, ['currentPassword', 'newPassword']);
+  if (/^\/players\/\d+\/approval$/.test(path)) return check(body, {});
   if (/^\/players(\/\d+)?$/.test(path)) return check(body, create ? { ...profile, ...credentials } : { ...profile, fullName: credentials.fullName, role: oneOf('admin', 'player'), active: boolean }, create ? ['email', 'password', 'fullName'] : []);
   if (/^\/matches(\/\d+)?$/.test(path)) return check(body, match, create ? ['opponent', 'kickOff'] : []);
   if (path.endsWith('/formation')) return check(body, { formation: match.formation }, ['formation']);

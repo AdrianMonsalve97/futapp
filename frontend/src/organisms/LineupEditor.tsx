@@ -54,6 +54,7 @@ function buildSlots(lineup: LineupSlot[], formationKey: string, format: TeamForm
       playerId: saved?.playerId ?? null,
       playerName: saved?.playerName ?? null,
       shirtNumber: saved?.shirtNumber ?? null,
+      avatarUrl: saved?.avatarUrl ?? null,
     };
   });
 }
@@ -185,6 +186,7 @@ export function LineupEditor({ matchId, formation, lineup, players, format, onCh
               playerId,
               playerName: found ? found.user.fullName : null,
               shirtNumber: found ? found.player.shirtNumber : null,
+              avatarUrl: found?.user.avatarUrl ?? null,
             },
       ),
     );

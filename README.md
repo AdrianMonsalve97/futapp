@@ -180,6 +180,8 @@ en transacciones; un error revierte la operación completa.
 
 ## Seguridad, transmisión y comienzo del equipo
 
+Las bajas definitivas, el registro con aval del administrador y los mapas con fotos del equipo se explican en [Bajas, aval y mapas del equipo](docs/JUGADORES.md). La baja elimina los datos vinculados y libera el dorsal; todo nuevo registro por invitación queda pendiente de aprobación.
+
 Las sesiones se pueden revocar: cerrar sesión, cambiar contraseña, rol o estado invalida el acceso correspondiente. Las contraseñas nuevas requieren al menos 15 caracteres y como máximo 72 bytes UTF-8. Se limita la frecuencia de peticiones, intentos de acceso y registro. Las operaciones del navegador verifican el origen para prevenir CSRF; la API y los archivos privados no se almacenan en caché. En producción se aplican cabeceras de seguridad y una política CSP con destinos de video restringidos. Mantén HTTPS, secretos aleatorios, dependencias actualizadas y respaldos externos. Estas medidas reducen riesgos; no constituyen una garantía de invulnerabilidad ni una auditoría externa.
 
 El menú **Transmisiones** reúne los partidos para guardar, sustituir o quitar su enlace de YouTube Live desde administración. Los jugadores ven las emisiones y grabaciones disponibles y pueden abrir el reproductor dentro de FutApp, usar pantalla completa o abrir YouTube. El enlace también se administra desde el tablero del partido. La emisión se realiza desde un canal habilitado de YouTube y el teléfono o software del operador; FutApp no captura ni retransmite la cámara por sí mismo.

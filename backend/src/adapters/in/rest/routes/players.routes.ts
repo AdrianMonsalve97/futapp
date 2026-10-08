@@ -4,7 +4,7 @@ import type {
   PlayerPort,
   UpdatePlayerInput,
 } from '../../../../application/ports/in/player.port';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { getAuth, requireAuth, requireRole } from '../middleware/auth';
 import { jsonBody, paramId } from '../route-helpers';
 
 /** §7.4 · Jugadores (solo admin). */
@@ -50,6 +50,11 @@ export function playerRoutes(players: PlayerPort): Router {
 
   router.delete('/players/:id', ...admin, async (req, res) => {
     res.json((await players.remove(paramId(req))));
+  });
+
+  router.post('/players/:id/approval', ...admin, async (req, res) => {
+    jsonBody(req);
+    res.json(await players.approve(paramId(req), getAuth(req).userId));
   });
 
   return router;

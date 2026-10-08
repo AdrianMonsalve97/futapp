@@ -180,6 +180,7 @@ export function trainModel(X: number[][], y: number[], context: TrainContext = {
 /* ------------------------------------------------------------------ */
 
 export interface XiCandidate {
+  avatarUrl?: string | null;
   secondaryPosition?: Position | null;
   playerId: number;
   playerName: string;

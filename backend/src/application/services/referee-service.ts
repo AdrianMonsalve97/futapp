@@ -95,7 +95,7 @@ export class RefereeService {
     const lineup=await this.matches.getPublishedLineup(matchId),match=await this.matches.findById(matchId);
     if(!match||!['programado','pospuesto'].includes(match.status))return lineup;
     const allowed=new Set((await this.status(matchId)).rows.filter(row=>row.starterEligible).map(row=>row.playerId));
-    return lineup.map(slot=>slot.playerId===null||allowed.has(slot.playerId)?slot:{...slot,playerId:null,playerName:null,shirtNumber:null,playerPosition:null});
+    return lineup.map(slot=>slot.playerId===null||allowed.has(slot.playerId)?slot:{...slot,playerId:null,playerName:null,shirtNumber:null,playerPosition:null,avatarUrl:null});
   }
   async assertRemovable(matchId:number) {
     if((await this.receipts.receipts()).some(row=>row.kind==='referee'&&row.targetId===matchId)||(await this.fees.transfers()).some(row=>row.matchId===matchId))throw new ValidationError('Este partido tiene historial de arbitraje; cancélalo para conservar los pagos y saldos');

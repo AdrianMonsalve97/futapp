@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { AuthPayload, Player, User } from '../types/api';
+import type { AuthPayload, RegistrationPayload, Player, User } from '../types/api';
 import {
   AUTH_EXPIRED_EVENT,
   api,
@@ -33,7 +33,7 @@ interface AuthContextValue {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<AuthPayload>;
-  register: (input: RegisterInput) => Promise<AuthPayload>;
+  register: (input: RegisterInput) => Promise<RegistrationPayload>;
   logout: () => void;
   refresh: () => Promise<void>;
 }
@@ -104,19 +104,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (input: RegisterInput): Promise<AuthPayload> => {
+    async (input: RegisterInput): Promise<RegistrationPayload> => {
       try {
-        const payload = await api<AuthPayload>('/api/auth/register', {
+        const payload = await api<RegistrationPayload>('/api/auth/register', {
           method: 'POST',
           json: input,
         });
-        applySession(payload);
         return payload;
       } catch (err) {
         throw new Error(errorMessage(err));
       }
     },
-    [applySession],
+    [],
   );
 
   const logout = useCallback(() => {

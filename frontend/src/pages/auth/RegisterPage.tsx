@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { errorMessage } from '../../services/api';
 import { Alert } from '../../atoms/Alert';
@@ -13,7 +13,7 @@ import type { Position } from '../../types/api';
 /** Registro público de jugador (SPEC §10.4) → redirige a `/jugador/inicio`. */
 export function RegisterPage() {
   const { register } = useAuth();
-  const navigate = useNavigate();
+  const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({
     fullName: '',
     email: '',
@@ -55,7 +55,8 @@ export function RegisterPage() {
         shirtNumber: form.shirtNumber ? Number(form.shirtNumber) : undefined,
         invitationCode:form.invitationCode.trim(),
       });
-      navigate('/jugador/inicio', { replace: true });
+      setForm(previous => ({ ...previous, password: '' }));
+      setSubmitted(true);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -63,12 +64,14 @@ export function RegisterPage() {
     }
   };
 
+  if (submitted) return <Card className="auth-entry-card"><CardBody className="p-8 space-y-4"><h2 className="text-xl font-bold">Solicitud enviada</h2><Alert tone="success">Tu ingreso está pendiente del aval del administrador. Podrás iniciar sesión cuando apruebe tu solicitud.</Alert><Link to="/login" className="btn btn-primary">Volver al inicio de sesión</Link></CardBody></Card>;
+
   return (
     <Card className="border border-base-300 auth-entry-card">
       <CardBody className="p-6 sm:p-8">
-        <h2 className="text-xl font-bold">Crear cuenta de jugador</h2>
+        <h2 className="text-xl font-bold">Solicitar ingreso al equipo</h2>
         <p className="text-sm text-base-content/60 mt-1">
-          Completa tus datos con la invitación del administrador para sumarte al plantel.
+          Completa tus datos con la invitación del administrador para solicitar tu ingreso. El administrador debe aprobarlo.
         </p>
 
         <form className="auth-fields" onSubmit={(event) => void submit(event)}>
@@ -132,7 +135,7 @@ export function RegisterPage() {
           </div>
 
           <Button type="submit" className="w-full" loading={busy}>
-            Crear cuenta
+            Enviar solicitud
           </Button>
         </form>
 

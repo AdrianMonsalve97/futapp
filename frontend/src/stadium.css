@@ -211,3 +211,32 @@ main, .auth-form-zone, .modal-box { overflow-wrap: anywhere; }
   .auth-form-zone .card-body { padding: 1.25rem; }
   .auth-fields .input, .auth-fields .select { font-size: 16px; }
 }
+.tactical-arena { overflow: hidden; border: 1px solid #d8b86a45; border-radius: 1.25rem; background: #0b211b; color: #f5f4e9; box-shadow: 0 12px 36px #0003, inset 0 1px 0 #ffffff10; width: 100%; }
+.tactical-arena-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .75rem 1rem; background: linear-gradient(110deg,#142c24,#0c1d18); font-size: .75rem; font-weight: 700; letter-spacing: .05em; }
+.tactical-live-dot { display: inline-block; width: 7px; height: 7px; margin-right: .5rem; border-radius: 50%; background: #d8b86a; box-shadow: 0 0 10px #d8b86a80; }
+.tactical-control { border: 1px solid #ffffff25; border-radius: .65rem; padding: .45rem .75rem; min-height: 36px; color: #e7cf96; background: #ffffff08; cursor: pointer; }
+.tactical-control:hover, .tactical-control[aria-pressed=true] { background: #d8b86a24; border-color: #d8b86a80; }
+.tactical-control:focus-visible { outline: 2px solid #e9c76e; outline-offset: 3px; }
+.tactical-arena .formation-field { border-radius: 0; border: 0; box-shadow: none; }
+.tactical-arena .formation-field svg { border-radius: 0; }
+.tactical-arena-footer { padding: .8rem 1rem; background: linear-gradient(110deg,#142c24,#0c1d18); border-top: 1px solid #ffffff12; }
+.tactical-hint { font-size: .75rem; color: #c1cec6; line-height: 1.5; margin-bottom: .75rem; }
+.tactical-role-legend { display: flex; flex-wrap: wrap; gap: .9rem; font-size: .65rem; font-weight: 700; letter-spacing: .06em; color: #c1cec6; }
+.tactical-role-legend span { display: inline-flex; align-items: center; gap: .4rem; }
+.tactical-role-legend i { width: 6px; height: 6px; border-radius: 50%; }
+.tactical-player-detail { display: flex; align-items: center; gap: .75rem; margin-bottom: .85rem; }
+.tactical-player-detail > div { flex: 1; min-width: 0; }
+.tactical-player-detail strong { display: block; font-size: .8rem; overflow-wrap: anywhere; }
+.tactical-player-detail span { display: block; font-size: .7rem; color: #d5c18c; margin-top: .2rem; }
+.pitch-player { animation: tactical-arrival .65s ease both; }
+.pitch-player .pitch-portrait { transition: filter .2s ease; }
+.pitch-player:hover .pitch-portrait, .pitch-player:focus .pitch-portrait { filter: brightness(1.22) drop-shadow(0 0 1.2px #e9c76e80); }
+.pitch-player:focus-visible { outline: none; }
+.pitch-player:focus-visible > circle { stroke: #fff; stroke-width: 1; }
+.pitch-own-ring { animation: tactical-focus 2.4s ease-in-out infinite; }
+.tactical-playboard { background: radial-gradient(ellipse at 50% 30%,#21543f,#081d18); border: 1px solid #d8b86a45; }
+.tactical-ball { transition: cx .65s ease, cy .65s ease; filter: drop-shadow(0 0 1px #ffffff99); }
+@keyframes tactical-arrival { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tactical-focus { 0%,100% { opacity: .55; } 50% { opacity: 1; stroke-width: 1.1; } }
+@media (max-width: 639px) { .tactical-control { min-height: 44px; } .tactical-arena-bar, .tactical-arena-footer { padding: .7rem .8rem; } }
+@media (prefers-reduced-motion: reduce) { .pitch-player, .pitch-own-ring { animation: none !important; } .pitch-player .pitch-portrait, .tactical-ball { transition: none !important; } }

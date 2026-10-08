@@ -25,7 +25,7 @@ export class SqliteMatchRepository implements MatchRepository {
   }
 
   async getPublishedLineup(matchId: number): Promise<LineupSlot[]> {
-    const rows = (await this.db.prepare(`SELECT l.*, p.shirt_number, p.position AS player_position, u.full_name AS player_name
+    const rows = (await this.db.prepare(`SELECT l.*, p.shirt_number, p.position AS player_position, u.full_name AS player_name, u.avatar_url
       FROM published_lineups l LEFT JOIN players p ON p.id = l.player_id LEFT JOIN users u ON u.id = p.user_id
       WHERE l.match_id = ? ORDER BY l.slot_index`).all(matchId)) as LineupRow[];
     return rows.map(mapLineupSlot);
@@ -181,7 +181,7 @@ export class SqliteMatchRepository implements MatchRepository {
   async getLineup(matchId: number): Promise<LineupSlot[]> {
     const rows = (await this.db
           .prepare(
-            `SELECT l.*, p.shirt_number, p.position AS player_position, u.full_name AS player_name
+            `SELECT l.*, p.shirt_number, p.position AS player_position, u.full_name AS player_name, u.avatar_url
          FROM lineups l
          LEFT JOIN players p ON p.id = l.player_id
          LEFT JOIN users u ON u.id = p.user_id

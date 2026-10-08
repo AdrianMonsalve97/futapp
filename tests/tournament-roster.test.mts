@@ -74,10 +74,12 @@ test('bulk enrollment validates every player and rejects invalid payloads withou
     assert.equal((await request('POST', endpoint, body)).status, 400);
   }
   assert.equal((await request('POST', endpoint, {playerIds:[id,999999]})).status, 404);
-  const inactive = squad[8].player.id; (await c.playerService.update(inactive, {active:false}));
+  const inactive = squad[8].player.id;
+  const users = new (await import('../backend/src/adapters/out/persistence/repositories/user.repository')).SqliteUserRepository(db);
+  await users.update(squad[8].user.id,{active:false});
   assert.equal((await request('POST', endpoint, {playerIds:[id,inactive]})).status, 400);
   assert.equal((await request('GET', endpoint)).data.players.length, 0);
-  (await c.playerService.update(inactive, {active:true}));
+  await users.update(squad[8].user.id,{active:true});
   assert.equal((await request('POST', '/tournaments/999999/players', {playerIds:[id]})).status, 404);
 });
 

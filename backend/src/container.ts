@@ -18,6 +18,7 @@ import { SqliteUniformIssueRepository } from './adapters/out/persistence/reposit
 import { SqliteUniformRequestRepository } from './adapters/out/persistence/repositories/uniform-request.repository';
 import { SqliteUniformRepository } from './adapters/out/persistence/repositories/uniform.repository';
 import { SqliteUserRepository } from './adapters/out/persistence/repositories/user.repository';
+import { SqlitePlayerLifecycleRepository } from './adapters/out/persistence/repositories/player-lifecycle.repository';
 import { AiService } from './application/services/ai-service';
 import { AuthService } from './application/services/auth-service';
 import { DashboardService } from './application/services/dashboard-service';
@@ -83,7 +84,7 @@ export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaSto
   const tournaments = new SqliteTournamentRepository(db);
   const tournamentService = new TournamentService(tournaments, players, matches, uow);
   const mediaStorage = cloud?.media ?? new FileMediaStorage(db);
-  const mediaService = new MediaService(mediaStorage, users, uniforms, settings, tournaments, uow);
+  const mediaService = new MediaService(mediaStorage, users, uniforms, settings, tournaments, uow, players);
   const modelStore = cloud?.model ?? new FileModelStore();
   const qrRepository = new SqliteQrPaymentRepository(db);
   const refereeService = new RefereeService(new SqliteRefereeRepository(db),matches,qrRepository);
@@ -130,6 +131,10 @@ export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaSto
     stats,
     aiService,
     uow,
+    new SqlitePlayerLifecycleRepository(db),
+    new SqliteSecurityRepository(db),
+    mediaStorage,
+    refereeService,
   );
   const inscriptionService = new InscriptionService(inscriptions, players, uow);
   const qrPaymentService = new QrPaymentService(qrRepository, mediaStorage, players, inscriptionService, uow, notificationService,refereeService);

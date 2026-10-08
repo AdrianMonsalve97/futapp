@@ -143,14 +143,12 @@ export function PlayersTable({
                     ) : null}
                     {onToggleActive ? (
                       <ConfirmAction
-                        title={item.user.active ? 'Dar de baja' : 'Reactivar jugador'}
+                        title="Dar de baja definitivamente"
                         message={
-                          item.user.active
-                            ? `${item.user.fullName} pasará a inactivo: no podrá acceder ni ser convocado. ¿Continuar?`
-                            : `${item.user.fullName} volverá a estar activo en el plantel. ¿Continuar?`
+                          `${item.user.fullName}: se eliminarán su cuenta, inscripciones, pagos, saldo de arbitraje, fotos y demás datos vinculados. Esta acción no se puede deshacer. Si se registra de nuevo, necesitará tu aval.`
                         }
-                        confirmLabel={item.user.active ? 'Dar de baja' : 'Reactivar'}
-                        variant={item.user.active ? 'danger' : 'primary'}
+                        confirmLabel="Eliminar jugador"
+                        variant="danger"
                         size="xs"
                         onConfirm={() => onToggleActive(item)}
                       />

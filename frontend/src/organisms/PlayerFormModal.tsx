@@ -139,7 +139,7 @@ export function PlayerFormModal({ open, onClose, player, onSaved }: PlayerFormMo
       if (player) {
         await api<UserPlayerResponse>(`/api/players/${player.player.id}`, {
           method: 'PUT',
-          json: { ...common, role: form.role, active: form.active },
+          json: { ...common, role: form.role },
         });
       } else {
         await api<UserPlayerResponse>('/api/players', {
@@ -284,15 +284,7 @@ export function PlayerFormModal({ open, onClose, player, onSaved }: PlayerFormMo
               <option value="admin">Administrador</option>
             </Select>
           </FormField>
-          <FormField label="Estado">
-            <Select
-              value={form.active ? '1' : '0'}
-              onChange={(event) => set('active', event.target.value === '1')}
-            >
-              <option value="1">Activo</option>
-              <option value="0">Inactivo (baja)</option>
-            </Select>
-          </FormField>
+          <FormField label="Estado"><p className="text-sm py-3">{player?.pendingApproval ? 'Pendiente de aval' : form.active ? 'Activo' : 'Inactivo'}. Las bajas se realizan desde el listado de jugadores.</p></FormField>
         </div>
         <section className="space-y-3 border-t border-base-200 pt-4">
           <h3 className="font-semibold">Salud</h3>

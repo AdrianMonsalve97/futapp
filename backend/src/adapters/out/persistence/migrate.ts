@@ -92,6 +92,14 @@ export function migrate(db: Database = getDb()): void {
     db.exec(script);
   }
   ensureFormatSupport(db);
+  db.exec(`CREATE TABLE IF NOT EXISTS registration_requests (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pendiente' CHECK(status IN ('pendiente','aprobada')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL, reviewed_at TEXT
+  ); CREATE TABLE IF NOT EXISTS media_deletion_jobs (
+    asset_id TEXT PRIMARY KEY, stored_name TEXT NOT NULL
+  );`);
   const duplicateNumbers = db.prepare(`SELECT shirt_number FROM players WHERE shirt_number IS NOT NULL
     GROUP BY shirt_number HAVING COUNT(*) > 1`).all() as Array<{ shirt_number: number }>;
   if (duplicateNumbers.length) {

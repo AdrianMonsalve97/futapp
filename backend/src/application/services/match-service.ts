@@ -68,7 +68,7 @@ export class MatchService implements MatchPort {
     const match = (await this.requireMatch(id));
     const original=playerView?await this.matches.getPublishedLineup(id):await this.lineupFor(match);
     const allowed=['programado','pospuesto'].includes(match.status)?new Set((await this.attendance(id)).filter(row=>row.eligible).map(row=>row.playerId)):null;
-    const lineup=original.map(slot=>!allowed||slot.playerId===null||allowed.has(slot.playerId)?slot:{...slot,playerId:null,playerName:null,shirtNumber:null,playerPosition:null});
+    const lineup=original.map(slot=>!allowed||slot.playerId===null||allowed.has(slot.playerId)?slot:{...slot,playerId:null,playerName:null,shirtNumber:null,playerPosition:null,avatarUrl:null});
     const visibleMatch=original.some((slot,index)=>slot.playerId!==lineup[index].playerId)?{...match,lineupPublishedAt:null,publishedFormation:null}:match;
     return {
       match: playerView ? { ...visibleMatch, formation: visibleMatch.publishedFormation ?? visibleMatch.formation } : visibleMatch,

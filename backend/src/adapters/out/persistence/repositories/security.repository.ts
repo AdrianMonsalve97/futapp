@@ -3,6 +3,9 @@ import type { SecurityRepository } from '../../../../application/ports/out/secur
 import { asAsyncDatabase, type ApplicationDatabase } from "../async-database";
 
 export class SqliteSecurityRepository implements SecurityRepository {
+  async requestRegistration(userId:number){await this.db.prepare('INSERT INTO registration_requests(user_id) VALUES(?)').run(userId);}
+  async pendingRegistration(userId:number){return !!await this.db.prepare("SELECT user_id FROM registration_requests WHERE user_id=? AND status='pendiente'").get(userId);}
+  async approveRegistration(userId:number,reviewerId:number){await this.db.prepare("UPDATE registration_requests SET status='aprobada',reviewed_by=?,reviewed_at=? WHERE user_id=? AND status='pendiente'").run(reviewerId,new Date().toISOString(),userId);}
   constructor(db:Database | ApplicationDatabase){
       this.db = asAsyncDatabase(db);
   }

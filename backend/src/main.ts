@@ -35,8 +35,9 @@ const server = app.listen(env.port, () => {
   console.log(`⚽ API del portal de fútbol escuchando en http://localhost:${env.port}`);
 });
 const stopNotifications = container.notificationService.start();
+const stopFileCleanup = container.playerService.startCleanup();
 
-const shutdown = () => { stopNotifications(); server.close(async () => {
+const shutdown = () => { stopNotifications(); stopFileCleanup(); server.close(async () => {
   if (cloud) await cloud.db.close(); else closeDb();
   process.exit(0);
 }); };

@@ -15,6 +15,7 @@ const {broadcastUrl}=await import('../backend/src/domain/broadcast');
 const {buildStrengthsWeaknesses}=await import('../backend/src/domain/model/performance-model');
 const {prepareTeam}=await import('../scripts/prepare-team.mjs');
 migrate();const db=getDb(),c=createContainer();
+const users=new (await import('../backend/src/adapters/out/persistence/repositories/user.repository')).SqliteUserRepository(db);
 const password='Security Test Passphrase 123!';
 db.prepare("INSERT INTO users(email,password_hash,full_name,role) VALUES(?,?,?,'admin')").run('admin@security.test',bcrypt.hashSync(password,4),'Admin seguridad');
 const admin=(await c.authService.login({email:'admin@security.test',password})).token;
@@ -47,7 +48,7 @@ test('logout and password changes invalidate replayed credentials and unrelated 
   assert.equal((await request('GET','/auth/me',undefined,second)).status,401);
   assert.equal((await request('GET','/auth/me',undefined,keeper)).status,200);
   const inactive=(await c.authService.login({email:players[2].user.email,password})).token;
-  (await c.playerService.update(players[2].player.id,{active:false}));(await c.playerService.update(players[2].player.id,{active:true}));
+  (await users.update(players[2].user.id,{active:false}));(await users.update(players[2].user.id,{active:true}));
   assert.equal((await request('GET','/auth/me',undefined,inactive)).status,401);
 });
 
@@ -61,7 +62,15 @@ test('registration requires a live invitation, rejects role injection and enforc
   assert.equal((await request('POST','/auth/register',{...body,invitationCode:second.code,password:'é'.repeat(40)},'')).status,400);
   assert.equal((await request('POST','/auth/register',{...body,invitationCode:second.code,role:'admin'},'')).status,400);
   const joined=await request('POST','/auth/register',{...body,invitationCode:second.code},'');assert.equal(joined.status,200);assert.equal(joined.data.user.role,'player');
-  assert.equal(joined.data.user.passwordHash,undefined);assert.equal((await request('GET','/players',undefined,joined.data.token)).status,403);
+  assert.equal(joined.data.user.passwordHash,undefined);assert.equal(joined.data.token,undefined);assert.equal(joined.data.pendingApproval,true);assert.equal(joined.data.user.active,false);
+  assert.equal(joined.res.headers.get('set-cookie'),null);
+  assert.equal((await request('POST','/auth/login',{email:body.email,password},'')).data.error.code,'REGISTRATION_PENDING');
+  assert.equal((await request('POST','/players/'+joined.data.player.id+'/approval',{},keeper)).status,403);
+  assert.equal((await request('POST','/players/'+joined.data.player.id+'/approval',{role:'admin'})).status,400);
+  assert.equal((await request('PUT','/players/'+joined.data.player.id,{active:true})).status,400);
+  assert.equal((await request('POST','/players/'+joined.data.player.id+'/approval',{})).status,200);
+  const joinedLogin=await request('POST','/auth/login',{email:body.email,password},'');assert.equal(joinedLogin.status,200);
+  assert.equal((await request('GET','/players',undefined,joinedLogin.data.token)).status,403);
   const stored=db.prepare('SELECT digest FROM registration_invitation').get() as {digest:string};assert.notEqual(stored.digest,second.code);
   db.prepare('UPDATE registration_invitation SET expires_at=0').run();assert.equal((await request('POST','/auth/register',{...body,email:'expired@security.test',invitationCode:second.code},'')).status,400);
 });

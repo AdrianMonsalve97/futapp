@@ -67,4 +67,5 @@ export interface PlayerPort {
   create(input: CreatePlayerInput): Promise<{ user: User; player: Player }>;
   update(id: number, input: UpdatePlayerInput): Promise<{ user: User; player: Player }>;
   remove(id: number): Promise<{ ok: true }>;
+  approve(id:number,reviewerId:number):Promise<{ok:true}>;
 }

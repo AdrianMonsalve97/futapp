@@ -27,7 +27,7 @@ export function authRoutes(auth: AuthPort): Router {
 
   router.post('/auth/register', async (req, res) => {
     const body = jsonBody<Partial<RegisterInput>>(req);
-    respond(req,res,
+    res.json(
       (await auth.register({
                 email: String(body.email ?? ''),
                 password: String(body.password ?? ''),

@@ -17,7 +17,10 @@ export class FileMediaStorage implements MediaStorage {
       stored_name AS storedName, mime_type AS mimeType, size, extracted_text AS extractedText
       FROM media_assets WHERE id = ?`).get(id)) as MediaAsset | undefined ?? null;
   }
-  filePath(asset: MediaAsset): string { return path.join(this.directory, asset.storedName); }
+  filePath(asset: MediaAsset): string {
+    if (!/^[a-zA-Z0-9_.-]+$/.test(asset.storedName) || ['.','..'].includes(asset.storedName)) throw new Error('Nombre de archivo inválido');
+    return path.join(this.directory, asset.storedName);
+  }
   async content(asset: MediaAsset): Promise<Buffer> { return (await fs.readFile(this.filePath(asset))); }
   async store(ownerId: number, purpose: MediaPurpose, name: string, data: Uint8Array): Promise<MediaAsset> {
       const {fileName,bytes,extension,mimeType,extractedText}=await normalizeMedia(purpose,name,data);
@@ -33,7 +36,7 @@ export class FileMediaStorage implements MediaStorage {
   }
   async discard(asset: MediaAsset): Promise<void> {
     (await this.db.prepare('DELETE FROM media_assets WHERE id = ?').run(asset.id));
-    await fs.unlink(this.filePath(asset)).catch(() => {});
+    await fs.unlink(this.filePath(asset)).catch(error => { if (error.code !== 'ENOENT') throw error; });
   }
 
     private readonly db: ApplicationDatabase;

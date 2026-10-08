@@ -14,7 +14,7 @@ type Table = { columns: string[]; rows: Cell[][] };
 export type MigrationPacket = { format: string; version: number; createdAt: string; tables: Record<string, Table>; files: { name: string; data: string; sha256: string }[] };
 type Packet = MigrationPacket;
 const LIMIT = 25 * 1024 * 1024, EXPANDED = 64 * 1024 * 1024;
-const TRANSIENT = new Set(['auth_sessions', 'registration_invitation', 'notification_jobs', 'notification_match_versions']);
+const TRANSIENT = new Set(['auth_sessions', 'registration_invitation', 'notification_jobs', 'notification_match_versions', 'media_deletion_jobs']);
 const counted = ['users', 'players', 'tournaments', 'tournament_players', 'matches', 'inscriptions', 'payments', 'payment_receipts', 'media_assets'];
 const quote = (name: string) => { if (!/^[a-z_][a-z0-9_]*$/.test(name)) throw new ValidationError('Esquema no compatible'); return `"${name}"`; };
 const hash = (data: Buffer) => createHash('sha256').update(data).digest('hex');
@@ -86,6 +86,9 @@ export class FileMigrationStore implements MigrationPort {
     catch { throw new ValidationError('Archivo de migración inválido o demasiado grande'); }
     if (p?.format !== 'futapp-migration' || p.version !== 1 || typeof p.createdAt !== 'string' || !Number.isFinite(Date.parse(p.createdAt)) || !p.tables || Array.isArray(p.tables) || !Array.isArray(p.files) || p.files.length > 2000) throw new ValidationError('Formato de migración no compatible');
     const names = this.tables();
+    for (const name of ['registration_requests','media_deletion_jobs']) {
+      if (!Object.hasOwn(p.tables,name) && names.includes(name)) p.tables[name]={columns:(this.db.pragma(`table_info(${name})`) as {name:string}[]).map(column=>column.name),rows:[]};
+    }
     if(!Object.hasOwn(p.tables,'match_referee_transfers')&&names.includes('match_referee_transfers'))p.tables.match_referee_transfers={columns:['receipt_id','match_id','amount'],rows:[]};
     // Packages exported before referee payments retain the same accounts/files.
     if (!Object.hasOwn(p.tables,'match_referee_fees') && names.includes('match_referee_fees')) {

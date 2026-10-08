@@ -6,6 +6,7 @@ import { Button } from '../atoms/Button';
 import { FormationPitch,pitchSlotsFrom } from './FormationPitch';
 import { TacticalPlayboard } from './TacticalPlayboard';
 import { useAuth } from '../context/AuthContext';
+import { Avatar } from '../atoms/Avatar';
 const roles={POR:'portero',DEF:'defensor',MED:'mediocampista',DEL:'delantero'};
 export function IndividualPreparation({insight}:{insight:AiPlayerInsight}){
   const {user}=useAuth();
@@ -14,7 +15,7 @@ export function IndividualPreparation({insight}:{insight:AiPlayerInsight}){
   const play=plan.plays.find(p=>p.id===playId)??plan.plays[0];
   return <Card><CardBody className="gap-5"><div className="flex flex-wrap justify-between gap-4"><div><CardTitle>Enfoque de {roles[plan.role]}</CardTitle><p className="text-sm text-base-content/65">{plan.opponent?`vs. ${plan.opponent}`:'Preparación del equipo'} · F{plan.format} · {plan.minutes} min · {plan.style}</p></div>{plan.matchId?<Link className="btn btn-outline btn-sm" to={`/${user?.role==='admin'?'admin':'jugador'}/partidos/${plan.matchId}`}>Ver partido</Link>:null}</div>
     <div className="grid gap-5 xl:grid-cols-2"><div className="space-y-3"><h3 className="font-semibold">Alineación publicada · {plan.formation}</h3><FormationPitch slots={slots} format={plan.format}/>
-      <p className="text-sm text-base-content/65">{plan.assignment==='sin_partido'?'Programa un partido para vincular este enfoque a una alineación.':plan.assignment==='sin_publicar'?'La alineación aún no está publicada. Se muestran posiciones de referencia; los nombres aparecerán cuando el entrenador la publique.':plan.assignment==='titular'?'Estás en el inicial; tu posición aparece resaltada.':'No figuras en el inicial publicado. Prepara tu rol y coordina el posible relevo con el entrenador.'}</p>
+      <div className="flex items-start gap-3 rounded-xl bg-base-200 p-3"><Avatar name={insight.playerName} src={insight.avatarUrl} size="sm"/><div><p className="font-semibold text-sm">{insight.playerName} · {plan.role}</p><p className="text-sm text-base-content/65">{plan.assignment==='sin_partido'?'Programa un partido para vincular este enfoque a una alineación.':plan.assignment==='sin_publicar'?'La alineación aún no está publicada. Se muestran posiciones de referencia; los nombres aparecerán cuando el entrenador la publique.':plan.assignment==='titular'?'Estás en el inicial; tu posición aparece resaltada.':'No figuras en el inicial publicado. Prepara tu rol y coordina el posible relevo con el entrenador.'}</p></div></div>
       {plan.publishedAt?<p className="text-xs text-base-content/55">Publicación: {new Date(plan.publishedAt).toLocaleString('es-CO',{timeZone:'America/Bogota'})}</p>:null}
     </div><div className="grid gap-3">{plan.individual.map(item=><div key={item.title} className="rounded-xl bg-base-200 p-4"><h3 className="font-semibold text-sm">{item.title}</h3><p className="text-sm text-base-content/70 mt-1">{item.detail}</p></div>)}</div></div>
     <div className="grid gap-5 sm:grid-cols-2"><div><h3 className="font-semibold mb-3">Tu rol para el equipo</h3><ul className="list-disc pl-5 space-y-3 text-sm">{plan.team.map(item=><li key={item}>{item}</li>)}</ul></div><div><h3 className="font-semibold mb-3">Qué practicar</h3><ul className="list-disc pl-5 space-y-3 text-sm">{plan.training.map(item=><li key={item}>{item}</li>)}</ul></div></div>

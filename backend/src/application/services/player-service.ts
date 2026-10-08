@@ -1,4 +1,8 @@
 import type { UnitOfWork } from '../ports/out/unit-of-work';
+import type { PlayerLifecycleRepository } from '../ports/out/player-lifecycle.repository';
+import type { SecurityRepository } from '../ports/out/security.repository';
+import type { MediaStorage } from '../ports/out/media.storage';
+import type { RefereeService } from './referee-service';
 import * as bcrypt from 'bcryptjs';
 import type {
   CreatePlayerInput,
@@ -33,6 +37,10 @@ export class PlayerService implements PlayerPort {
     private readonly stats: StatsRepository,
     private readonly ai: AiPort,
     private readonly uow: UnitOfWork,
+    private readonly lifecycle: PlayerLifecycleRepository,
+    private readonly security: SecurityRepository,
+    private readonly media: MediaStorage,
+    private readonly referee: RefereeService,
   ) {}
 
   async list(): Promise<PlayerListItem[]> {
@@ -40,6 +48,7 @@ export class PlayerService implements PlayerPort {
                                                                                                                                               const stats = (await this.stats.list({ playerId: row.player.id }));
                                                                                                                                               const inscription = (await this.inscriptions.findByPlayer(row.player.id))[0] ?? null;
                                                                                                                                               return {
+                                                                                                                                                pendingApproval: await this.security.pendingRegistration(row.user.id),
                                                                                                                                                 user: row.user,
                                                                                                                                                 player: row.player,
                                                                                                                                                 inscription: inscription
@@ -118,6 +127,8 @@ export class PlayerService implements PlayerPort {
   async update(id: number, input: UpdatePlayerInput): Promise<{ user: User; player: Player }> {
     return (await this.uow.run(async () => {
           const row = (await this.requirePlayer(id));
+          if (input.active === false) throw new ValidationError('Para dar de baja usa la eliminación del jugador; se borrarán todos sus datos vinculados.');
+          if (input.active === true && await this.security.pendingRegistration(row.user.id)) throw new ValidationError('Aprueba primero la solicitud de ingreso del jugador.');
           if (input.position !== undefined && !POSITIONS.includes(input.position)) {
             throw new ValidationError(`Posición inválida. Opciones: ${POSITIONS.join(', ')}`);
           }
@@ -126,7 +137,7 @@ export class PlayerService implements PlayerPort {
           }
           // Protección: no degradar al último administrador activo.
           if (
-            (input.role === 'player' || input.active === false) &&
+            input.role === 'player' &&
             row.user.role === 'admin' &&
             (await this.users.countActiveAdmins(row.user.id)) === 0
           ) {
@@ -159,13 +170,48 @@ export class PlayerService implements PlayerPort {
         }));
   }
 
-  async remove(id: number): Promise<{ ok: true }> {
-    const row = (await this.requirePlayer(id));
-    if (row.user.role === 'admin' && row.user.active && (await this.users.countActiveAdmins(row.user.id)) === 0) {
-      throw new ValidationError('No se puede dar de baja al último administrador activo');
-    }
-    (await this.users.update(row.user.id, { active: false }));
-    return { ok: true };
+  async approve(id: number, reviewerId: number): Promise<{ok:true}> {
+    return this.uow.run(async () => {
+      const row = await this.requirePlayer(id);
+      if (!await this.security.pendingRegistration(row.user.id)) throw new ValidationError('Este jugador no tiene una solicitud pendiente.');
+      await this.security.approveRegistration(row.user.id, reviewerId);
+      await this.users.update(row.user.id, {active:true});
+      return {ok:true};
+    });
+  }
+
+  async remove(id: number): Promise<{ ok: true; filesPending: boolean }> {
+    await this.uow.run(async () => {
+      const row = await this.requirePlayer(id);
+      if (row.user.role === 'admin' && (await this.users.countActiveAdmins(row.user.id)) === 0) {
+        throw new ValidationError('No se puede dar de baja al último administrador activo');
+      }
+      await this.lifecycle.purge(id, row.user.id);
+      await this.referee.reconcile(0);
+    });
+    await this.cleanupFiles();
+    return { ok: true, filesPending: (await this.lifecycle.pendingFiles()).length > 0 };
+  }
+
+  private cleaning = false;
+  async cleanupFiles(): Promise<void> {
+    if (this.cleaning) return;
+    this.cleaning = true;
+    try {
+      for (const file of await this.lifecycle.pendingFiles()) {
+        try {
+          await this.media.discard({ id:file.assetId, storedName:file.storedName, ownerId:0,
+            purpose:'avatar', fileName:'', mimeType:'image/jpeg', size:0, extractedText:'' });
+          await this.lifecycle.completeFile(file.assetId);
+        } catch { console.error('La limpieza de un archivo personal se reintentará automáticamente.'); }
+      }
+    } finally { this.cleaning = false; }
+  }
+  startCleanup(): () => void {
+    void this.cleanupFiles().catch(() => console.error('La limpieza de archivos se reintentará.'));
+    const timer = setInterval(() => void this.cleanupFiles().catch(() => console.error('La limpieza de archivos se reintentará.')), 60000);
+    timer.unref();
+    return () => clearInterval(timer);
   }
 
   private async requirePlayer(id: number): Promise<PlayerWithUser> {
