@@ -184,8 +184,10 @@ export class MatchService implements MatchPort {
                 : current.minutes;
 
           if ((await this.stats.list({ matchId: id })).some(row => row.minutes > minutes)) throw new ValidationError('La duración no puede ser menor que los minutos ya registrados');
-          if(input.status==='jugado'&&current.status!=='jugado')await this.refereePayments.settle(id);
-          const updated = (await this.matches.update(id, { ...input, tournamentRules: rules, formation, format, minutes }));
+          const closing=input.status==='jugado'&&current.status!=='jugado';
+          // Freeze charges and credits using the final schedule and roster of this same update.
+          const updated = (await this.matches.update(id, { ...input, status:closing?'programado':input.status,tournamentRules: rules, formation, format, minutes }));
+          if(closing){await this.refereePayments.settle(id);await this.matches.update(id,{status:'jugado'});}
           await this.refereePayments.reconcile(id);
 
           // Si cambió el formato o la formación, la alineación guardada debe re-alinearse.

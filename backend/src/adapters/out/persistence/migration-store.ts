@@ -86,6 +86,7 @@ export class FileMigrationStore implements MigrationPort {
     catch { throw new ValidationError('Archivo de migración inválido o demasiado grande'); }
     if (p?.format !== 'futapp-migration' || p.version !== 1 || typeof p.createdAt !== 'string' || !Number.isFinite(Date.parse(p.createdAt)) || !p.tables || Array.isArray(p.tables) || !Array.isArray(p.files) || p.files.length > 2000) throw new ValidationError('Formato de migración no compatible');
     const names = this.tables();
+    if(!Object.hasOwn(p.tables,'match_referee_transfers')&&names.includes('match_referee_transfers'))p.tables.match_referee_transfers={columns:['receipt_id','match_id','amount'],rows:[]};
     // Packages exported before referee payments retain the same accounts/files.
     if (!Object.hasOwn(p.tables,'match_referee_fees') && names.includes('match_referee_fees')) {
       const matches=p.tables.matches;
@@ -167,6 +168,13 @@ export class FileMigrationStore implements MigrationPort {
       this.apply(trial, packet);
       for(const fee of trial.prepare('SELECT total,settled_shares FROM match_referee_fees WHERE settled_shares IS NOT NULL').all() as {total:number;settled_shares:string}[]) {
         for(const share of parseSettledShares(fee.settled_shares,fee.total))if(!trial.prepare('SELECT id FROM players WHERE id=?').get(share.playerId))throw new ValidationError('El historial de arbitraje contiene jugadores inexistentes');
+      }
+      const transfers=trial.prepare(`SELECT t.receipt_id,t.match_id,t.amount,r.kind,r.status,r.target_id,r.amount AS paid,m.status AS match_status FROM match_referee_transfers t JOIN payment_receipts r ON r.id=t.receipt_id JOIN matches m ON m.id=t.match_id`).all() as {receipt_id:number;match_id:number;amount:number;kind:string;status:string;target_id:number;paid:number;match_status:string}[];
+      const used=new Map<number,number>();
+      for(const transfer of transfers) {
+        const sum=(used.get(transfer.receipt_id)??0)+(transfer.match_status==='jugado'?transfer.amount:0);
+        if(transfer.kind!=='referee'||transfer.status!=='aprobado'||transfer.match_id===transfer.target_id||!Number.isSafeInteger(transfer.amount)||transfer.amount>transfer.paid||sum>transfer.paid)throw new ValidationError('El respaldo contiene aplicaciones de arbitraje inválidas');
+        used.set(transfer.receipt_id,sum);
       }
     } catch (err) { if (err instanceof ValidationError) throw err; throw new ValidationError('Los datos no cumplen las reglas de la aplicación'); }
     finally { trial.close(); }

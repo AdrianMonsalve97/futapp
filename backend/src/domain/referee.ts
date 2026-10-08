@@ -1,9 +1,12 @@
+import { ValidationError } from './errors';
+
 export const REFEREE_TOTAL = 120000;
 export const REFEREE_NOTICE_HOURS = 48;
 export type RefereePaymentStatus = 'sin_cobro' | 'no_asiste' | 'pendiente' | 'en_revision' | 'a_tiempo' | 'tardio';
 export interface RefereePaymentRow {
   playerId: number; playerName: string; amount: number; paid: number; paidOnTime: number;
   pending: number; outstanding: number; credit: number; status: RefereePaymentStatus;
+  directPaid: number; creditApplied: number; creditTransferred: number; walletCredit: number;
   starterEligible: boolean; benchEligible: boolean;
 }
 export interface MatchRefereeView {
@@ -33,4 +36,3 @@ export function splitReferee(total: number, playerIds: number[]): Map<number, nu
   const ids = [...new Set(playerIds)].sort((a,b)=>a-b);
   return new Map(ids.map((id,index)=>[id, Math.floor(total/ids.length) + (index < total%ids.length ? 1 : 0)]));
 }
-import { ValidationError } from './errors';

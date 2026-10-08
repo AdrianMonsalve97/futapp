@@ -1,4 +1,4 @@
-import {after,test} from 'node:test';
+import {after,afterEach,test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -28,7 +28,7 @@ const players=[];for(const [i,position]of ['POR','DEF','DEF','DEF','MED','MED','
 const image=await sharp({create:{width:8,height:8,channels:3,background:'#d8b86a'}}).png().toBuffer();
 const iso=(time=Date.now())=>new Date(time).toISOString();
 const kickoff=(hours=96)=>iso(Date.now()+hours*3600000-5*3600000).slice(0,16);
-const game=()=>c.matchService.create({opponent:'Rival arbitraje',competition:'Liga',kickOff:kickoff(),isHome:true,tournamentId:null,format:8});
+const game=(hours=96)=>c.matchService.create({opponent:'Rival arbitraje',competition:'Liga',kickOff:kickoff(hours),isHome:true,tournamentId:null,format:8});
 async function receipt(instance:typeof c,matchId:number,userId:number,amount:number,paidAt=iso(),key=randomUUID()) {
   return instance.qrPaymentService.submit(userId,{kind:'referee',targetId:matchId,amount,reference:'REF-'+key,paidAt,idempotencyKey:key},'pago.png',image);
 }
@@ -39,6 +39,7 @@ const server=createHttpServer({notifications:c.notificationService,qrPayments:c.
 await new Promise<void>(resolve=>server.once('listening',resolve));const address=server.address();assert(address&&typeof address!=='string');
 const base=`http://127.0.0.1:${address.port}/api`;
 after(async()=>{await new Promise<void>(resolve=>server.close(()=>resolve()));closeDb();assert.equal(path.dirname(directory),os.tmpdir());fs.rmSync(directory,{recursive:true,force:true});});
+afterEach(()=>{db.exec("DELETE FROM match_referee_transfers; DELETE FROM payment_receipts; DELETE FROM matches; DELETE FROM media_assets WHERE purpose='receipt'");});
 
 test('referee deadline is 48 hours in Colombia and integer shares sum to exactly 120000',()=>{
   assert.equal(refereeDeadline('2026-10-11T18:00'),'2026-10-09T23:00:00.000Z');
@@ -171,6 +172,105 @@ test('SQLite upgrades its legacy receipt constraint while preserving records, re
   } finally {legacy.close();}
 });
 
+test('an approved absent-player payment carries to the next confirmed date, and only its unpaid difference accepts another receipt',async()=>{
+  const first=await game(96),next=await game(168),later=await game(240);
+  for(const player of players.slice(0,8))await c.matchService.setAttendance(first.id,player.user.id,'confirmado');
+  await approve(c,(await receipt(c,first.id,players[0].user.id,15000)).id);
+  await c.matchService.setAttendance(first.id,players[0].user.id,'no_disponible');
+  const row=async(id:number,playerId=players[0].player.id)=>(await c.matchService.referee(id)).rows.find(row=>row.playerId===playerId)!;
+  assert.equal((await row(first.id)).walletCredit,15000);
+  for(const player of players.slice(0,2))await c.matchService.setAttendance(next.id,player.user.id,'confirmado');
+  assert.equal((await row(next.id)).creditApplied,15000);assert.equal((await row(next.id)).outstanding,45000);
+  assert.equal((await row(next.id)).benchEligible,false);assert.equal((await row(first.id)).creditTransferred,15000);
+  await assert.rejects(()=>receipt(c,next.id,players[0].user.id,60000),/supera el saldo/);
+  await approve(c,(await receipt(c,next.id,players[0].user.id,45000)).id);
+  assert.equal((await row(next.id)).starterEligible,true);assert.equal((await row(next.id)).paid,60000);
+  await c.matchService.setAttendance(later.id,players[0].user.id,'confirmado');
+  assert.equal((await row(later.id)).creditApplied,0);assert.equal((await row(later.id)).outstanding,120000);
+  assert.equal((await row(next.id,players[1].player.id)).creditApplied,0);
+  const own=await fetch(base+`/matches/${next.id}/referee`,{headers:{Authorization:'Bearer '+playerToken}});const visible=await own.json();
+  assert.equal(visible.rows.length,1);assert.equal(visible.rows[0].creditApplied,15000);
+});
+
+test('surplus accumulates across dates and changing attendance releases allocations and clears affected future starters',async()=>{
+  const first=await game(96),next=await game(168),later=await game(240);
+  await c.matchService.setAttendance(first.id,players[0].user.id,'confirmado');
+  const deposit=await receipt(c,first.id,players[0].user.id,120000);await approve(c,deposit.id);
+  await c.matchService.setAttendance(first.id,players[0].user.id,'no_disponible');
+  for(const match of [next,later])for(const player of players.slice(0,8))await c.matchService.setAttendance(match.id,player.user.id,'confirmado');
+  const row=async(id:number)=>(await c.matchService.referee(id)).rows.find(row=>row.playerId===players[0].player.id)!;
+  assert.equal((await row(next.id)).creditApplied,15000);assert.equal((await row(later.id)).creditApplied,15000);assert.equal((await row(first.id)).walletCredit,90000);
+  assert.equal(db.prepare("SELECT count(*) AS n FROM payment_receipts WHERE kind='referee'").get().n,1);
+  const slots=getFormation('1-3-3-1',8).slots.map(slot=>({...slot,playerId:slot.role==='POR'?players[0].player.id:null}));
+  await c.matchService.setLineup(next.id,slots);await c.matchService.setLineup(later.id,slots);
+  await c.matchService.setAttendance(next.id,players[0].user.id,'no_disponible');
+  assert.equal((await row(next.id)).creditApplied,0);assert.equal((await row(first.id)).walletCredit,105000);
+  assert((await c.matchService.get(next.id)).lineup.every(slot=>slot.playerId===null));
+  await c.matchService.setAttendance(first.id,players[0].user.id,'confirmado');
+  assert.equal((await row(first.id)).paid,120000);assert.equal((await row(later.id)).creditApplied,0);
+  assert((await c.matchService.get(later.id)).lineup.every(slot=>slot.playerId===null));
+});
+
+test('carried credits retain the original transfer time; pending proofs provide no credit and late full coverage only allows the bench',async()=>{
+  const first=await game(24),next=await game(36),later=await game(96);
+  await c.matchService.setAttendance(first.id,players[0].user.id,'confirmado');
+  const proof=await receipt(c,first.id,players[0].user.id,120000);
+  await c.matchService.setAttendance(first.id,players[0].user.id,'no_disponible');
+  await c.matchService.setAttendance(next.id,players[0].user.id,'confirmado');
+  const row=async(id:number)=>(await c.matchService.referee(id)).rows.find(row=>row.playerId===players[0].player.id)!;
+  assert.equal((await row(next.id)).creditApplied,0);assert.equal((await row(first.id)).walletCredit,0);
+  await approve(c,proof.id);assert.equal((await row(next.id)).creditApplied,120000);
+  assert.equal((await row(next.id)).starterEligible,false);assert.equal((await row(next.id)).benchEligible,true);
+  await c.matchService.setAttendance(later.id,players[0].user.id,'confirmado');assert.equal((await row(later.id)).paid,0);
+  await c.matchService.setAttendance(next.id,players[0].user.id,'no_disponible');
+  assert.equal((await row(later.id)).creditApplied,120000);assert.equal((await row(later.id)).starterEligible,true);
+  await Promise.all([0,1].map(()=>approve(c,proof.id)));assert.equal((await row(later.id)).paid,120000);
+});
+
+test('credits consumed by a completed match survive restart and backup, and cannot be reclaimed or spent a second time',async()=>{
+  const first=await game(96),next=await game(168),later=await game(240);
+  await c.matchService.setAttendance(first.id,players[0].user.id,'confirmado');await approve(c,(await receipt(c,first.id,players[0].user.id,120000)).id);
+  await c.matchService.setAttendance(first.id,players[0].user.id,'no_disponible');
+  for(const player of players.slice(0,2))await c.matchService.setAttendance(next.id,player.user.id,'confirmado');
+  await c.matchService.update(next.id,{status:'jugado'});
+  assert.equal(db.prepare('SELECT amount FROM match_referee_transfers WHERE match_id=?').get(next.id).amount,60000);
+  await c.matchService.setAttendance(first.id,players[0].user.id,'confirmado');
+  const rebuilt=createContainer(),source=(await rebuilt.matchService.referee(first.id)).rows.find(row=>row.playerId===players[0].player.id)!;
+  assert.equal(source.paid,60000);assert.equal(source.outstanding,60000);assert.equal(source.starterEligible,false);
+  assert.equal((await rebuilt.matchService.referee(next.id)).rows.find(row=>row.playerId===players[0].player.id)!.creditApplied,60000);
+  await c.matchService.setAttendance(later.id,players[0].user.id,'confirmado');
+  assert.equal((await rebuilt.matchService.referee(later.id)).rows.find(row=>row.playerId===players[0].player.id)!.creditApplied,0);
+  const validator=new (await import('../backend/src/adapters/out/persistence/migration-store')).FileMigrationStore(db,directory);
+  const packet=validator.validateForImport(await c.migrationService.exportData());assert.equal(packet.tables.match_referee_transfers.rows.length,1);
+  await assert.rejects(()=>c.matchService.remove(next.id),/historial/);
+});
+
+test('cancelling a funded completed date returns its credit, preserves the audit and keeps backups valid after reuse',async()=>{
+  const first=await game(96),next=await game(168),later=await game(240);
+  await c.matchService.setAttendance(first.id,players[0].user.id,'confirmado');await approve(c,(await receipt(c,first.id,players[0].user.id,120000)).id);
+  await c.matchService.setAttendance(first.id,players[0].user.id,'no_disponible');
+  await c.matchService.setAttendance(next.id,players[0].user.id,'confirmado');await c.matchService.update(next.id,{status:'jugado'});
+  await c.matchService.update(next.id,{status:'cancelado'});
+  assert.equal((await c.matchService.referee(first.id)).rows.find(row=>row.playerId===players[0].player.id)!.walletCredit,120000);
+  await c.matchService.setAttendance(later.id,players[0].user.id,'confirmado');await c.matchService.update(later.id,{status:'jugado'});
+  const view=(await c.matchService.referee(later.id)).rows.find(row=>row.playerId===players[0].player.id)!;
+  assert.equal(view.creditApplied,120000);assert.equal(view.walletCredit,0);
+  const validator=new (await import('../backend/src/adapters/out/persistence/migration-store')).FileMigrationStore(db,directory);
+  const packet=validator.validateForImport(await c.migrationService.exportData());assert.equal(packet.tables.match_referee_transfers.rows.length,2);
+  packet.tables.match_referee_transfers.rows[1][packet.tables.match_referee_transfers.columns.indexOf('amount')]=120001;
+  assert.throws(()=>validator.validateForImport(gzipSync(Buffer.from(JSON.stringify(packet)))),/aplicaciones de arbitraje inválidas/);
+});
+
+test('closing and rescheduling in one operation freezes credits against the final match date',async()=>{
+  const first=await game(96),next=await game(168);
+  await c.matchService.setAttendance(first.id,players[0].user.id,'confirmado');await approve(c,(await receipt(c,first.id,players[0].user.id,120000)).id);
+  await c.matchService.setAttendance(first.id,players[0].user.id,'no_disponible');await c.matchService.setAttendance(next.id,players[0].user.id,'confirmado');
+  assert.equal((await c.matchService.referee(next.id)).rows.find(row=>row.playerId===players[0].player.id)!.creditApplied,120000);
+  await c.matchService.update(next.id,{status:'jugado',kickOff:kickoff(80)});
+  assert.equal((await c.matchService.referee(next.id)).rows.find(row=>row.playerId===players[0].player.id)!.creditApplied,0);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM match_referee_transfers').get().n,0);
+});
+
 test('PostgreSQL upgrades the old receipt CHECK without losing records and enforces referee eligibility durably',async()=>{
   const pg=await testPostgres(),files=new Map<string,Buffer>();
   const objects={put:async(key:string,data:Buffer)=>{files.set(key,Buffer.from(data));},get:async(key:string)=>files.get(key)!,remove:async(key:string)=>{files.delete(key);}};
@@ -195,16 +295,38 @@ test('PostgreSQL upgrades the old receipt CHECK without losing records and enfor
     await rebuilt.matchService.update(match.id,{status:'jugado'});
     await pg.prepare('UPDATE users SET active=0 WHERE id=?').run(b.user.id);
     assert.equal((await createContainer(cloud).matchService.referee(match.id)).rows.find(row=>row.playerId===b.player.id)?.amount,60000);
+    await pg.prepare('UPDATE users SET active=1 WHERE id=?').run(b.user.id);
+    const source=await instance.matchService.create({opponent:'Origen saldo',competition:'Liga',kickOff:kickoff(96),isHome:true,tournamentId:null,format:8});
+    await instance.matchService.setAttendance(source.id,a.user.id,'confirmado');
+    await approve(instance,(await receipt(instance,source.id,a.user.id,120000)).id);
+    await instance.matchService.setAttendance(source.id,a.user.id,'no_disponible');
+    const next=await instance.matchService.create({opponent:'Siguiente fecha',competition:'Liga',kickOff:kickoff(168),isHome:true,tournamentId:null,format:8});
+    for(const player of [a,b])await instance.matchService.setAttendance(next.id,player.user.id,'confirmado');
+    const before=(await instance.matchService.referee(next.id)).rows.find(row=>row.playerId===a.player.id)!;
+    assert.equal(before.creditApplied,60000);assert.equal(before.walletCredit,60000);assert.equal(before.starterEligible,true);
+    await instance.matchService.update(next.id,{status:'jugado'});
+    const durable=createContainer(cloud),funded=(await durable.matchService.referee(next.id)).rows.find(row=>row.playerId===a.player.id)!;
+    assert.equal(funded.creditApplied,60000);assert.equal(funded.walletCredit,60000);
+    assert.equal((await pg.prepare('SELECT amount FROM match_referee_transfers WHERE match_id=?').get(next.id)).amount,60000);
+    const exported=await durable.migrationService.exportData(),validated=new (await import('../backend/src/adapters/out/persistence/migration-store')).FileMigrationStore(db,directory).validateForImport(exported);
+    assert.equal(validated.tables.match_referee_transfers.rows.length,1);
   } finally { if(process.env.TEST_DATABASE_URL)await pg.execute('DROP SCHEMA futapp CASCADE');await pg.close(); }
 });
 
 test('backups from before referee billing remain importable with original hashes and trusted new defaults',async()=>{
+  const match=await game();await c.matchService.setAttendance(match.id,players[0].user.id,'confirmado');
+  await c.matchService.update(match.id,{status:'jugado'});
   const bytes=await c.migrationService.exportData(),packet=JSON.parse(gunzipSync(bytes).toString());
   const validator=new (await import('../backend/src/adapters/out/persistence/migration-store')).FileMigrationStore(db,directory);
+  const previous=structuredClone(packet);delete previous.tables.match_referee_transfers;
+  const compatible=validator.validateForImport(gzipSync(Buffer.from(JSON.stringify(previous))));
+  assert.deepEqual(compatible.tables.match_referee_fees,packet.tables.match_referee_fees);assert.deepEqual(compatible.tables.match_referee_transfers.rows,[]);
   const corrupted=structuredClone(packet),sharesColumn=corrupted.tables.match_referee_fees.columns.indexOf('settled_shares');
   corrupted.tables.match_referee_fees.rows[0][sharesColumn]='{"invalid":true}';
   assert.throws(()=>validator.validateForImport(gzipSync(Buffer.from(JSON.stringify(corrupted)))),/cuotas inválidas/);
   delete packet.tables.match_referee_fees;
+  delete packet.tables.match_referee_transfers;
+  packet.tables.matches.rows[0][packet.tables.matches.columns.indexOf('status')]='programado';
   // Old archives cannot contain the new payment kind.
   packet.tables.payment_receipts.rows=packet.tables.payment_receipts.rows.filter((row:any[])=>row[packet.tables.payment_receipts.columns.indexOf('kind')]!=='referee');
   const upgraded=validator.validateForImport(gzipSync(Buffer.from(JSON.stringify(packet))));

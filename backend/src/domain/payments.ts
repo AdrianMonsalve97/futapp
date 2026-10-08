@@ -1,6 +1,7 @@
 export type PaymentTargetKind = 'inscription' | 'uniform_request' | 'uniform_issue' | 'referee';
 export interface PaymentDebt {
   dueAt?: string; credit?: number; paidOnTime?: number; starterEligible?: boolean; benchEligible?: boolean;
+  directPaid?:number;creditApplied?:number;creditTransferred?:number;walletCredit?:number;
   kind: PaymentTargetKind; targetId: number; playerId: number; playerName: string;
   concept: string; amount: number; paid: number; pending: number; outstanding: number;
 }

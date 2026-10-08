@@ -164,6 +164,11 @@ export function migrate(db: Database = getDb()): void {
     total INTEGER NOT NULL DEFAULT 120000 CHECK(total>=0), settled_shares TEXT
   ); INSERT OR IGNORE INTO match_referee_fees(match_id) SELECT id FROM matches WHERE status IN ('programado','pospuesto');`);
   if (!hasColumn(db,'match_referee_fees','settled_shares')) db.exec('ALTER TABLE match_referee_fees ADD COLUMN settled_shares TEXT');
+  db.exec(`CREATE TABLE IF NOT EXISTS match_referee_transfers (
+    receipt_id INTEGER NOT NULL REFERENCES payment_receipts(id) ON DELETE CASCADE,
+    match_id INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    amount INTEGER NOT NULL CHECK(amount>0), PRIMARY KEY(receipt_id,match_id)
+  );`);
   if (legacyLineups) {
     db.exec(`INSERT OR IGNORE INTO published_lineups SELECT match_id, slot_index, player_id, x, y, role, label FROM lineups;
       UPDATE matches SET lineup_published_at = datetime('now'), published_formation = formation WHERE id IN (SELECT DISTINCT match_id FROM published_lineups);`);

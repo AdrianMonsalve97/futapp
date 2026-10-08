@@ -46,6 +46,7 @@ export function PaymentReceiptsPage(){
     <div className="space-y-4">{(view.data?.receipts??[]).filter(r=>filter==='todos'||r.status===filter).map(row=>{
       const debt=view.data?.debts.find(d=>d.kind===row.kind&&d.targetId===row.targetId&&d.playerId===row.playerId);
       return <Card key={row.id}><CardBody>
+        {row.kind==='referee'&&debt?<p className="text-sm">Saldo de fechas anteriores aplicado: {formatMoney(debt.creditApplied)} · saldo acumulado disponible: {formatMoney(debt.walletCredit)}{debt.creditTransferred?` · de este partido aplicado a otras fechas: ${formatMoney(debt.creditTransferred)}`:''}</p>:null}
         <div className="flex flex-wrap justify-between gap-3"><div><h3 className="font-semibold">{row.playerName} · {formatMoney(row.amount)}</h3><p>{debt?.concept??(row.kind==='inscription'?'Inscripción':row.kind==='referee'?'Arbitraje':'Uniforme')}</p><p className="text-sm break-all">{row.reference} · {row.kind==='referee'?formatDateTime(row.paidAt):formatDate(row.paidAt)} · {row.status}</p></div>
           <Button variant="outline" size="sm" onClick={()=>void downloadReceipt(row).catch(e=>setError(errorMessage(e)))}>Descargar comprobante</Button>
         </div>

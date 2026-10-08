@@ -86,7 +86,7 @@ export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaSto
   const mediaService = new MediaService(mediaStorage, users, uniforms, settings, tournaments, uow);
   const modelStore = cloud?.model ?? new FileModelStore();
   const qrRepository = new SqliteQrPaymentRepository(db);
-  const refereeService = new RefereeService(new SqliteRefereeRepository(db),matches,qrRepository,tournaments);
+  const refereeService = new RefereeService(new SqliteRefereeRepository(db),matches,qrRepository);
   const notificationService = new NotificationService(new SqliteNotificationRepository(db), new ProviderNotificationTransport(),
     matches, users, players, settings, qrRepository, uow, Date.now, tournaments);
 
