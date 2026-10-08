@@ -1,6 +1,11 @@
 name: Diagnosticar conexión de FutApp
 on:
   workflow_dispatch:
+    inputs:
+      migration_preview:
+        description: Comprobar carga y previsualización, sin importar datos
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -17,6 +22,8 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
       SUPABASE_DB_CA: ${{ secrets.SUPABASE_DB_CA }}
+      MIGRATION_PREVIEW: ${{ inputs.migration_preview }}
+      MIGRATION_PROBE_URL: ${{ inputs.migration_preview && secrets.MIGRATION_PROBE_URL || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
