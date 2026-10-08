@@ -17,12 +17,12 @@ services:
       PORT: '4000'
       TZ: America/Bogota
       DB_PATH: /var/lib/futapp/portal.db
-      JWT_SECRET: ${JWT_SECRET:?Genera .local/docker.env con scripts/docker-init.sh}
+      JWT_SECRET: ${JWT_SECRET:?Ejecuta scripts/docker-init.sh para generar las claves}
       JWT_EXPIRES_IN: 8h
       BOOTSTRAP_ADMIN: '1'
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@futapp.local}
       ADMIN_NAME: Administrador de migración
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Genera .local/docker.env con scripts/docker-init.sh}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Ejecuta scripts/docker-init.sh para generar las claves}
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:8080}
       CORS_ORIGIN: ${PUBLIC_APP_URL:-http://localhost:8080}
     volumes:

@@ -1,0 +1,48 @@
+name: Publicar FutApp en Mac mini
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: futapp-mac-production
+  cancel-in-progress: false
+jobs:
+  verified:
+    if: github.ref == 'refs/heads/main' && vars.MAC_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exigir CI correcto para este commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          result=$(gh api "repos/$REPOSITORY/actions/workflows/check.yml/runs?head_sha=$COMMIT&event=push" --jq '.workflow_runs[0].conclusion // "pendiente"')
+          test "$result" = success || { echo 'Espera a que FutApp CI/CD termine correctamente para este commit.'; exit 1; }
+  deploy:
+    needs: verified
+    runs-on: [self-hosted, macOS, futapp]
+    environment: mac-production
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Elegir configuración privada fuera del checkout
+        run: echo "FUTAPP_ENV_FILE=$HOME/FutAppData/docker.env" >> "$GITHUB_ENV"
+      - name: Generar variables privadas una sola vez
+        env:
+          FUTAPP_DATA_DIR: ${{ vars.MAC_DATA_DIR }}
+        run: sh scripts/docker-init.sh
+      - name: Construir actualización
+        run: docker compose --env-file "$FUTAPP_ENV_FILE" build app
+      - name: Respaldar los datos actuales antes de actualizar
+        run: |
+          docker compose --env-file "$FUTAPP_ENV_FILE" stop app
+          docker compose --env-file "$FUTAPP_ENV_FILE" run --rm --no-deps app node -e "const fs=require('node:fs'); if(fs.existsSync(process.env.DB_PATH)){import('../scripts/backup.mjs').catch(()=>{console.error('No se pudo respaldar. Actualización cancelada.');process.exit(1);});}else{console.log('Primer despliegue: sin base anterior.');}"
+      - name: Levantar y comprobar la aplicación
+        run: docker compose --env-file "$FUTAPP_ENV_FILE" up -d --no-build --wait --wait-timeout 120 app
+      - name: Reactivar el contenedor anterior si falló la actualización
+        if: failure()
+        run: docker compose --env-file "$FUTAPP_ENV_FILE" start app

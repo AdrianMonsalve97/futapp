@@ -3,7 +3,7 @@
 .local
 **/node_modules
 **/dist
-**/data
+backend/data
 **/backups
 **/uploads
 **/.env
