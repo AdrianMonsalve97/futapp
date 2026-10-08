@@ -24,8 +24,8 @@ jobs:
       - run: npm run build
       - run: npm run test:production
   render:
-    needs: verify
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.RENDER_SERVICE_ID != ''
+    needs: [verify, containers]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_TARGET == 'render' && vars.RENDER_SERVICE_ID != ''
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 25
@@ -41,3 +41,19 @@ jobs:
         run: node scripts/render-deploy.mjs configure
       - name: Publicar el commit validado y comprobar salud
         run: node scripts/render-deploy.mjs deploy
+  containers:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Construir imagen sin datos ni secretos
+        run: docker build -t futapp:ci .
+      - name: Probar ingesta y persistencia al recrear el contenedor
+        run: node scripts/test-docker.mjs

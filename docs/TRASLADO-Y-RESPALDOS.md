@@ -38,6 +38,8 @@ No ejecutes `seed`, `reset` ni `prepare-team.mjs --apply` al restaurar datos rea
 
 ## Publicar en Render
 
+Para la ruta gratuita elegida, usa [Mac mini con Docker](MAC-MINI-DOCKER.md). La alternativa de esta sección requiere un servicio de pago en Render y solo se activa en Actions con la variable de repositorio `DEPLOY_TARGET=render`.
+
 El archivo `render.yaml` prepara un servicio Node con un disco persistente en `/var/data` y `DB_PATH=/var/data/portal.db`. La base, los archivos en `/var/data/uploads` y el modelo quedan en ese disco. El servicio y el disco requieren un plan de pago; la configuración no crea recursos hasta que se despliega.
 
 ### Crear el servicio y conectar GitHub Actions

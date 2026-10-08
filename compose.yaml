@@ -1,0 +1,54 @@
+name: futapp
+services:
+  app:
+    build: .
+    image: ${FUTAPP_IMAGE:-futapp:local}
+    restart: unless-stopped
+    init: true
+    user: "${FUTAPP_UID:-1000}:${FUTAPP_GID:-1000}"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp:rw,nosuid,nodev,size=128m,mode=1777]
+    ports:
+      - "127.0.0.1:${FUTAPP_PORT:-8080}:4000"
+    environment:
+      NODE_ENV: production
+      PORT: '4000'
+      TZ: America/Bogota
+      DB_PATH: /var/lib/futapp/portal.db
+      JWT_SECRET: ${JWT_SECRET:?Genera .local/docker.env con scripts/docker-init.sh}
+      JWT_EXPIRES_IN: 8h
+      BOOTSTRAP_ADMIN: '1'
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@futapp.local}
+      ADMIN_NAME: Administrador de migración
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Genera .local/docker.env con scripts/docker-init.sh}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:8080}
+      CORS_ORIGIN: ${PUBLIC_APP_URL:-http://localhost:8080}
+    volumes:
+      - type: bind
+        source: ${FUTAPP_DATA_DIR:?Define una carpeta permanente de datos en el Mac}
+        target: /var/lib/futapp
+        bind:
+          create_host_path: false
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://app:4000
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      app:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

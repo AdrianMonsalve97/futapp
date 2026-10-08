@@ -275,6 +275,8 @@ Quitar un inscrito libera sus posiciones en borradores de partidos pendientes y 
 
 ## Migración a Render y CI/CD
 
-El despliegue está preparado en `render.yaml` y `.github/workflows/check.yml`. GitHub Actions valida el código, genera/configura variables de entorno mediante una tarea YAML y despliega el commit validado por la API de Render. Requiere el secreto `RENDER_API_KEY` y la variable `RENDER_SERVICE_ID` configurados directamente en GitHub; el servicio usa SQLite en un disco persistente de pago.
+**Ruta gratuita elegida: Mac mini con Docker.** `Dockerfile`, `compose.yaml` y `scripts/docker-init.sh` conservan SQLite y uploads en una carpeta externa al contenedor. El archivo `.futapp` se ingiere desde Configuración en la instalación nueva. GitHub Actions construye y verifica la persistencia de los contenedores AMD64 y ARM64; [instalación, ingesta, túnel y respaldos en el Mac](docs/MAC-MINI-DOCKER.md).
+
+Como alternativa de pago, el despliegue está preparado en `render.yaml` y `.github/workflows/check.yml`. GitHub Actions valida el código, genera/configura variables de entorno mediante una tarea YAML y despliega el commit validado por la API de Render. Requiere elegir `DEPLOY_TARGET=render`, el secreto `RENDER_API_KEY` y la variable `RENDER_SERVICE_ID` configurados directamente en GitHub; el servicio usa SQLite en un disco persistente de pago.
 
 **Configuración → Migración de datos** permite exportar la información real como archivo privado `.futapp` e ingerirla una sola vez en la instalación nueva. Incluye cuentas, fotos, normativa y comprobantes, sin publicar datos en GitHub. [Pasos completos de publicación, ingesta y respaldos](docs/TRASLADO-Y-RESPALDOS.md).
