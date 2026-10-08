@@ -13,7 +13,7 @@ Cuando el proyecto esté listo, necesitarás:
 | `DATABASE_URL` | **Connect → Session pooler**, puerto **5432**. Reemplaza el marcador de contraseña con la contraseña de la base, codificada para una URI. Usa la cadena del panel; la conexión directa puede requerir IPv6. |
 | `SUPABASE_URL` | La URL HTTPS del proyecto, por ejemplo `https://referencia.supabase.co`. |
 | `SUPABASE_SECRET_KEY` | La clave secreta del servidor (`sb_secret_…`); también se admite la clave legacy `service_role`. No uses `publishable` ni `anon`. |
-| `SUPABASE_DB_CA` | Opcional: certificado raíz de la base si la conexión necesita esa CA. Conserva las líneas PEM. La app verifica TLS y no acepta desactivarlo en producción. |
+| `SUPABASE_DB_CA` | Certificado raíz obtenido en **Database Settings → SSL Configuration → Download certificate**. El Session pooler usa la CA de Supabase y necesita este certificado para validar TLS. Guarda el contenido PEM completo, conservando sus líneas. |
 
 Guárdalos en **GitHub → futapp → Settings → Secrets and variables → Actions → New repository secret**. No los pegues en chats, archivos del repositorio, `VITE_*` ni variables del frontend. El bucket `futapp-media` lo crea el backend como privado; si existe y es público, el arranque se detiene. Las tablas de la app están en el esquema privado `futapp`, fuera de la API pública de Supabase.
 
@@ -63,3 +63,9 @@ No uses `seed`, `reset`, `admin:create`, `backup.mjs` ni `restore.mjs` para gest
 Render Free puede suspender la app tras 15 minutos sin solicitudes y tardar alrededor de un minuto en despertar. Por eso el bot de recordatorios no tiene ejecución continua garantizada en este plan. Supabase Free incluye 500 MB de base y 1 GB de archivos y puede pausar proyectos con poca actividad. Revisa las cuotas; si se agotan, decide cómo ajustar el uso antes de contratar servicios de pago. La app no activa planes de pago automáticamente.
 
 Referencias: [Render Free](https://render.com/docs/free), [Supabase Free](https://supabase.com/pricing), [Session pooler](https://supabase.com/docs/guides/database/connecting-to-postgres), [claves de API](https://supabase.com/docs/guides/api/api-keys), [almacenamiento privado](https://supabase.com/docs/guides/storage/serving/downloads).
+
+## Diagnóstico de conexión
+
+Si Render falla al arrancar, ejecuta **Actions → Diagnosticar conexión de FutApp → Run workflow → main**. La tarea consulta el servicio, compara las variables sin imprimirlas y comprueba PostgreSQL y el bucket mediante operaciones de solo lectura. El resumen muestra códigos y estados, sin contraseñas, cadenas de conexión ni datos de jugadores. Su ejecución correcta significa que terminó la consulta; revisa también los resultados de cada comprobación.
+
+`SELF_SIGNED_CERT_IN_CHAIN` indica que falta configurar la CA de Supabase. Añade `SUPABASE_DB_CA` y repite el diagnóstico. Mantén la verificación del certificado y del hostname; no desactives TLS. [Configuración SSL de Supabase](https://supabase.com/docs/guides/platform/ssl-enforcement).
