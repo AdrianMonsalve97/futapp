@@ -1,0 +1,27 @@
+name: Recuperar credencial del administrador importado
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recover:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    env:
+      NODE_ENV: production
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SUPABASE_DB_CA: ${{ secrets.SUPABASE_DB_CA }}
+      ADMIN_ACCESS_PASSWORD: ${{ secrets.ADMIN_ACCESS_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --include=dev
+      - name: Verificar contraseña importada y guardarla en el panel privado
+        run: node --import tsx scripts/recover-admin-access.mts
