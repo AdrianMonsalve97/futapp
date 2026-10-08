@@ -25,6 +25,7 @@ export function matchRoutes(matches: MatchPort): Router {
   });
 
   router.get('/matches/:id/attendance', ...admin, async (req, res) => res.json((await matches.attendance(paramId(req)))));
+  router.get('/matches/:id/referee',requireAuth,async(req,res)=>res.json(await matches.referee(paramId(req),getAuth(req).role==='admin'?undefined:getAuth(req).userId)));
   router.get('/me/matches/:id/attendance', requireAuth, async (req, res) => res.json((await matches.attendance(paramId(req), getAuth(req).userId))));
   router.put('/me/matches/:id/attendance', requireAuth, async (req, res) => {
     const body = jsonBody<{ status: AttendanceStatus }>(req);

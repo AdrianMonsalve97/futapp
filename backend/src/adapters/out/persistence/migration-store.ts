@@ -7,6 +7,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import type { MigrationPort, MigrationPreview, MigrationStatus } from '../../../application/ports/in/migration.port';
 import { ValidationError } from '../../../domain/errors';
+import { parseSettledShares } from '../../../domain/referee';
 
 type Cell = string | number | null;
 type Table = { columns: string[]; rows: Cell[][] };
@@ -85,6 +86,13 @@ export class FileMigrationStore implements MigrationPort {
     catch { throw new ValidationError('Archivo de migración inválido o demasiado grande'); }
     if (p?.format !== 'futapp-migration' || p.version !== 1 || typeof p.createdAt !== 'string' || !Number.isFinite(Date.parse(p.createdAt)) || !p.tables || Array.isArray(p.tables) || !Array.isArray(p.files) || p.files.length > 2000) throw new ValidationError('Formato de migración no compatible');
     const names = this.tables();
+    // Packages exported before referee payments retain the same accounts/files.
+    if (!Object.hasOwn(p.tables,'match_referee_fees') && names.includes('match_referee_fees')) {
+      const matches=p.tables.matches;
+      if (!matches || !Array.isArray(matches.columns) || !Array.isArray(matches.rows)) throw new ValidationError('Formato de migración no compatible');
+      const id=matches.columns.indexOf('id'),status=matches.columns.indexOf('status');
+      p.tables.match_referee_fees={columns:['match_id','total','settled_shares'],rows:matches.rows.filter(row=>['programado','pospuesto'].includes(String(row[status]))).map(row=>[row[id],120000,null])};
+    }
     if (Object.keys(p.tables).sort().join() !== names.sort().join()) throw new ValidationError('Las versiones de origen y destino deben coincidir. Actualiza ambas y vuelve a exportar.');
     let rows = 0;
     for (const name of names) {
@@ -157,6 +165,9 @@ export class FileMigrationStore implements MigrationPort {
       const schema = this.db.prepare("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND type IN ('table','index') AND name NOT LIKE 'sqlite_%' ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END").all() as { sql: string }[];
       for (const row of schema) trial.exec(row.sql);
       this.apply(trial, packet);
+      for(const fee of trial.prepare('SELECT total,settled_shares FROM match_referee_fees WHERE settled_shares IS NOT NULL').all() as {total:number;settled_shares:string}[]) {
+        for(const share of parseSettledShares(fee.settled_shares,fee.total))if(!trial.prepare('SELECT id FROM players WHERE id=?').get(share.playerId))throw new ValidationError('El historial de arbitraje contiene jugadores inexistentes');
+      }
     } catch (err) { if (err instanceof ValidationError) throw err; throw new ValidationError('Los datos no cumplen las reglas de la aplicación'); }
     finally { trial.close(); }
     return packet;

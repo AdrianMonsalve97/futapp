@@ -55,6 +55,7 @@ import { deriveInscriptionStatus, formatMoney, mean } from './shared';
 
 import type { TournamentRepository } from '../ports/out/tournament.repository';
 import type { LeagueContext } from '../../domain/tournament';
+import type { RefereeService } from './referee-service';
 import { asyncFilter } from "./shared";
 
 const BASELINE_OPP_RATING = 6.4;
@@ -83,6 +84,7 @@ export class AiService implements AiPort {
     private readonly modelStore: ModelStore,
     private readonly settings: SettingsRepository,
     private readonly tournaments: TournamentRepository,
+    private readonly refereePayments: RefereeService,
   ) {}
 
   /* ------------------------------------------------------------------ */
@@ -209,7 +211,7 @@ export class AiService implements AiPort {
   }
 
   /** Jugadores disponibles: activos y sin suspensión activa (§8.4). */
-  private async xiCandidates(matchId?: number): Promise<{ candidates: XiCandidate[]; suspended: Set<number> }> {
+  private async xiCandidates(matchId?: number,forBench=false): Promise<{ candidates: XiCandidate[]; suspended: Set<number> }> {
     const suspended = new Set(
       (await this.sanctions.list({ type: 'suspension', status: 'activa' })).map((s) => s.playerId),
     );
@@ -218,11 +220,14 @@ export class AiService implements AiPort {
     const candidates: XiCandidate[] = [];
     const tournamentId = matchId ? (await this.matches.findById(matchId))?.tournamentId : null;
     const enrolled = tournamentId ? new Set((await this.tournaments.playerIds(tournamentId))) : null;
+    const paymentRows=matchId?(await this.refereePayments.status(matchId)).rows:null;
+    const paid=paymentRows?new Set(paymentRows.filter(row=>forBench?row.benchEligible:row.starterEligible).map(row=>row.playerId)):null;
     for (const { user, player } of (await this.players.list())) {
       if (!user.active) continue;
       if (enrolled && !enrolled.has(player.id)) continue;
       if (suspended.has(player.id)) continue;
       if (unavailable.has(player.id)) continue;
+      if (paid&&!paid.has(player.id)) continue;
       const rating = ratings.get(player.id);
       candidates.push({
         playerId: player.id,
@@ -260,8 +265,9 @@ export class AiService implements AiPort {
     const key = requested || ranked[0]?.key || profile.defaultFormation;
     const xi = (await this.buildXi(getFormation(key, match.format), matchId));
     const assigned = new Set(xi.lineup.map(row => row.playerId).filter(id => id !== null));
-    const capacity = Math.max(0, (match.tournamentRules ? match.tournamentRules.maxSquad ?? candidates.length : match.format + 7) - assigned.size);
-    const bench = candidates.filter(row => !assigned.has(row.playerId)).sort((a,b) => b.predictedRating - a.predictedRating).slice(0, capacity);
+    const benchCandidates=(await this.xiCandidates(matchId,true)).candidates;
+    const capacity = Math.max(0, (match.tournamentRules ? match.tournamentRules.maxSquad ?? benchCandidates.length : match.format + 7) - assigned.size);
+    const bench = benchCandidates.filter(row => !assigned.has(row.playerId)).sort((a,b) => b.predictedRating - a.predictedRating).slice(0, capacity);
     const leagueContext = (await this.leagueContext(match, xi.lineup));
     if (match.tournamentId) xi.explanation += ` Plantilla del torneo: ${(await this.tournaments.playerIds(match.tournamentId)).length} inscritos; ${candidates.length} disponibles.${candidates.length ? '' : ' Agrega jugadores activos al torneo y revisa su disponibilidad antes de preparar la alineación.'}`;
     return { ...xi, formation: key, bench, leagueContext, explanation: xi.explanation + (leagueContext ? ` Normativa: ${leagueContext.periods} tiempos de ${leagueContext.minutesPerPeriod} min (${match.minutes} min de juego). Convocatoria: ${leagueContext.maxSquad === null ? 'límite por confirmar' : 'hasta ' + leagueContext.maxSquad}. Cambios: ${leagueContext.maxSubstitutions ?? 'sin límite numérico'}; ${leagueContext.rollingSubstitutions === null ? 'reingreso por confirmar' : leagueContext.rollingSubstitutions ? 'reingreso permitido' : 'sin reingreso'}.` : '') };
@@ -483,7 +489,7 @@ export class AiService implements AiPort {
     const visible=async (m:Match)=>!m.tournamentId||((await this.tournaments.find(m.tournamentId))?.status==='publicado' && (m.status==='jugado'||(await this.tournaments.hasPlayer(m.tournamentId,playerId))));
     const next=matchId?(await this.matches.findById(matchId)):(await asyncFilter((await this.matches.list()),async m=>m.status==='programado'&&Date.parse(m.kickOff+'-05:00')>Date.now()&&(await visible(m)))).sort((a,b)=>a.kickOff.localeCompare(b.kickOff))[0];
     if(matchId&&(!next||!(await visible(next))))throw new NotFoundError('Partido no disponible para este análisis');
-    const published=next?(await this.matches.getPublishedLineup(next.id)):[],own=published.find(s=>s.playerId===playerId);
+    const published=next?(await this.refereePayments.publishedLineup(next.id)):[],own=published.find(s=>s.playerId===playerId);
     const configured=(await this.settings.get()).defaultTournamentId,configuredTournament=configured?(await this.tournaments.find(configured)):null;
     const rules=next?.tournamentRules??(configuredTournament?.status==='publicado'&&(await this.tournaments.hasPlayer(configuredTournament.id,playerId))?configuredTournament.rules:null);
     const format=next?.format??rules?.format??(await this.settings.get()).format,formation=next?.publishedFormation??getFormat(format).defaultFormation;
@@ -495,7 +501,7 @@ export class AiService implements AiPort {
       metricNote:role==='POR'?'La calificación usa el historial general. No se registran atajadas, goles evitados ni salidas, por lo que no mide por completo el rendimiento del portero.':'Las recomendaciones tácticas se adaptan al rol; el pronóstico depende de las estadísticas registradas.'};
     return {
       preparation,
-      leagueContext: next ? (await this.leagueContext(next, (await this.matches.getPublishedLineup(next.id)).filter(slot => slot.playerId === playerId))) : undefined,
+      leagueContext: next ? (await this.leagueContext(next, published.filter(slot => slot.playerId === playerId))) : undefined,
       playerId,
       playerName: row.user.fullName,
       position: row.player.position,

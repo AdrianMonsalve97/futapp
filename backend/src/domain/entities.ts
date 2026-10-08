@@ -87,6 +87,7 @@ export interface TeamSettings {
 }
 export type AttendanceStatus = 'pendiente' | 'confirmado' | 'no_disponible';
 export interface MatchAttendance {
+  starterEligible?: boolean; benchEligible?: boolean; referee?: import('./referee').RefereePaymentRow & {dueAt:string};
   playerId: number; playerName: string; shirtNumber: number | null;
   position: Position; status: AttendanceStatus; updatedAt: string | null;
   eligible: boolean; reason: string | null;

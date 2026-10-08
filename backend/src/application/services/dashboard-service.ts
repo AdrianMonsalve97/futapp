@@ -13,6 +13,7 @@ import type { UserRepository } from '../ports/out/user.repository';
 import type { SettingsRepository } from '../ports/out/settings.repository';
 import type { DashboardAdmin, DashboardPlayer } from '../../domain/entities';
 import { NotFoundError } from '../../domain/errors';
+import type { RefereeService } from './referee-service';
 import { deriveInscriptionStatus, emptyStatsSummary, summarizeStats } from './shared';
 
 const UPCOMING = new Set(['programado', 'pospuesto']);
@@ -31,6 +32,7 @@ export class DashboardService implements DashboardPort {
     private readonly teamStatsService: StatsPort,
     private readonly ai: AiPort,
     private readonly settings: SettingsRepository,
+    private readonly refereePayments:RefereeService,
   ) {}
 
   async admin(): Promise<DashboardAdmin> {
@@ -137,7 +139,7 @@ export class DashboardService implements DashboardPort {
   private async upcomingMatchWithSlot(playerId: number | null) {
     const match = (await this.nextMatch());
     if (!match) return null;
-    const lineup = (await this.matches.getPublishedLineup(match.id));
+    const lineup = (await this.refereePayments.publishedLineup(match.id));
     const lineupSlot = playerId !== null ? lineup.find((s) => s.playerId === playerId) ?? null : null;
     return { ...match, formation: match.publishedFormation ?? match.formation, lineupSlot };
   }

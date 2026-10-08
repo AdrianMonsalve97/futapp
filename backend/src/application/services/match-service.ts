@@ -31,6 +31,7 @@ import type { TournamentRepository } from '../ports/out/tournament.repository';
 import type { TournamentSnapshot } from '../../domain/tournament';
 import type { NotificationEvents } from '../../domain/notifications';
 import { broadcastUrl } from '../../domain/broadcast';
+import type { RefereeService } from './referee-service';
 
 const KICKOFF_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
 const MATCH_STATUSES: MatchStatus[] = ['programado', 'jugado', 'cancelado', 'pospuesto'];
@@ -48,6 +49,7 @@ export class MatchService implements MatchPort {
     private readonly sanctions: SanctionRepository,
     private readonly uow: UnitOfWork,
     private readonly tournaments: TournamentRepository,
+    private readonly refereePayments: RefereeService,
     private readonly notifications?: NotificationEvents,
   ) {}
 
@@ -64,10 +66,14 @@ export class MatchService implements MatchPort {
 
   async get(id: number, playerView = false): Promise<MatchDetail> {
     const match = (await this.requireMatch(id));
+    const original=playerView?await this.matches.getPublishedLineup(id):await this.lineupFor(match);
+    const allowed=['programado','pospuesto'].includes(match.status)?new Set((await this.attendance(id)).filter(row=>row.eligible).map(row=>row.playerId)):null;
+    const lineup=original.map(slot=>!allowed||slot.playerId===null||allowed.has(slot.playerId)?slot:{...slot,playerId:null,playerName:null,shirtNumber:null,playerPosition:null});
+    const visibleMatch=original.some((slot,index)=>slot.playerId!==lineup[index].playerId)?{...match,lineupPublishedAt:null,publishedFormation:null}:match;
     return {
-      match: playerView ? { ...match, formation: match.publishedFormation ?? match.formation } : match,
+      match: playerView ? { ...visibleMatch, formation: visibleMatch.publishedFormation ?? visibleMatch.formation } : visibleMatch,
       strategies: (await this.matches.listStrategies(id)),
-      lineup: playerView ? (await this.matches.getPublishedLineup(id)) : (await this.lineupFor(match)),
+      lineup,
       stats: (await this.stats.list({ matchId: id })),
     };
   }
@@ -77,20 +83,35 @@ export class MatchService implements MatchPort {
     const enrolled = match.tournamentId ? new Set((await this.tournaments.playerIds(match.tournamentId))) : null;
     const suspended = new Set((await this.sanctions.list({ type: 'suspension', status: 'activa' })).map(s => s.playerId));
     const own = userId !== undefined ? (await this.players.findByUserId(userId)) : null;
-    return (await this.matches.listAttendance(id)).filter(row => (!enrolled || enrolled.has(row.playerId)) && (userId === undefined || row.playerId === own?.id)).map(row => ({
-      ...row, eligible: row.eligible && !suspended.has(row.playerId), reason: suspended.has(row.playerId) ? 'Suspensión activa' : row.reason,
-    }));
+    const fees=await this.refereePayments.status(id),payments=new Map(fees.rows.map(row=>[row.playerId,row]));
+    return (await this.matches.listAttendance(id)).filter(row => (!enrolled || enrolled.has(row.playerId)) && (userId === undefined || row.playerId === own?.id)).map(row => {
+      const payment=payments.get(row.playerId)!;
+      const reason=suspended.has(row.playerId)?'Suspensión activa':row.reason??(payment.status==='tardio'?'Pago fuera de plazo: solo suplente':!payment.starterEligible?row.status!=='confirmado'?'Confirma tu asistencia para generar la cuota':payment.status==='en_revision'?'Soporte de arbitraje en revisión':'Arbitraje pendiente de pago aprobado':null);
+      return {...row,eligible:row.eligible&&!suspended.has(row.playerId)&&payment.starterEligible,reason,
+        starterEligible:row.eligible&&!suspended.has(row.playerId)&&payment.starterEligible,
+        benchEligible:row.eligible&&!suspended.has(row.playerId)&&payment.benchEligible,referee:{...payment,dueAt:fees.dueAt}};
+    });
+  }
+  async referee(id:number,userId?:number) {
+    const view=await this.refereePayments.status(id);
+    if(userId===undefined)return view;
+    const player=await this.players.findByUserId(userId);
+    const {collected:_collected,pending:_pending,outstanding:_outstanding,credits:_credits,...shared}=view;
+    return {...shared,rows:view.rows.filter(row=>row.playerId===player?.id)};
   }
 
   async setAttendance(id: number, userId: number, status: AttendanceStatus): Promise<MatchAttendance> {
+    return this.uow.run(async()=>{
     const match = (await this.requireMatch(id));
     if (!UPCOMING.includes(match.status)) throw new ValidationError('Solo puedes confirmar asistencia a partidos pendientes');
     if (!['pendiente', 'confirmado', 'no_disponible'].includes(status)) throw new ValidationError('Estado de asistencia inválido');
     const player = (await this.players.findByUserId(userId));
     if (!player) throw new ValidationError('Necesitas una ficha de jugador');
     if (match.tournamentId && !(await this.tournaments.hasPlayer(match.tournamentId, player.id))) throw new ValidationError('No estás inscrito en este torneo. Solicita tu inscripción al administrador');
-    (await this.matches.setAttendance(id, player.id, status));
+    await this.matches.setAttendance(id, player.id, status);
+    await this.refereePayments.reconcile(id);
     return (await this.attendance(id, userId))[0];
+    });
   }
 
   async publishLineup(id: number): Promise<Match> {
@@ -126,6 +147,7 @@ export class MatchService implements MatchPort {
               minutes,
             }));
         (await this.notifications?.matchChanged(created));
+        await this.refereePayments.ensure(created);
         return created;
         }));
   }
@@ -162,7 +184,9 @@ export class MatchService implements MatchPort {
                 : current.minutes;
 
           if ((await this.stats.list({ matchId: id })).some(row => row.minutes > minutes)) throw new ValidationError('La duración no puede ser menor que los minutos ya registrados');
+          if(input.status==='jugado'&&current.status!=='jugado')await this.refereePayments.settle(id);
           const updated = (await this.matches.update(id, { ...input, tournamentRules: rules, formation, format, minutes }));
+          await this.refereePayments.reconcile(id);
 
           // Si cambió el formato o la formación, la alineación guardada debe re-alinearse.
           if (formatChanged || formation !== current.formation) {
@@ -184,9 +208,10 @@ export class MatchService implements MatchPort {
   }
 
   async remove(id: number): Promise<{ ok: true }> {
-    (await this.requireMatch(id));
-    (await this.matches.remove(id));
-    return { ok: true };
+    return this.uow.run(async()=>{
+      await this.requireMatch(id);await this.refereePayments.assertRemovable(id);
+      await this.matches.remove(id);return {ok:true as const};
+    });
   }
 
   async setFormation(id: number, formation: string): Promise<{ match: Match; lineup: LineupSlot[] }> {
@@ -241,6 +266,7 @@ export class MatchService implements MatchPort {
   }
 
   async setLineup(id: number, slots: LineupEntryInput[]): Promise<{ lineup: LineupSlot[] }> {
+    return this.uow.run(async()=>{
     const match = (await this.requireMatch(id));
     const profile = getFormat(match.format);
     if (!Array.isArray(slots)) {
@@ -308,6 +334,7 @@ export class MatchService implements MatchPort {
       };
     });
     return { lineup: (await this.matches.replaceLineup(id, lineupSlots)) };
+    });
   }
 
   async autoLineup(id: number, formation?: string): Promise<XiSuggestion> {

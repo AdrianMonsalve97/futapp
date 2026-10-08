@@ -27,6 +27,7 @@ import { NotFoundError, ValidationError } from '../../domain/errors';
 import { deriveInscriptionStatus, emptyStatsSummary, summarizeStats } from './shared';
 
 import { validatePassword } from '../../domain/password-policy';
+import type { RefereeService } from './referee-service';
 const UPCOMING = new Set(['programado', 'pospuesto']);
 
 export class MeService implements MePort {
@@ -42,6 +43,7 @@ export class MeService implements MePort {
     private readonly matches: MatchRepository,
     private readonly ai: AiPort,
     private readonly uow: UnitOfWork,
+    private readonly refereePayments:RefereeService,
   ) {}
 
   async getMe(userId: number): Promise<MeResponse> {
@@ -174,7 +176,7 @@ export class MeService implements MePort {
   }
 
   private async toMatchView(match: Match, playerId: number): Promise<MatchView> {
-    const lineup = (await this.matches.getPublishedLineup(match.id));
+    const lineup = (await this.refereePayments.publishedLineup(match.id));
     const mySlot: LineupSlot | null = lineup.find((slot) => slot.playerId === playerId) ?? null;
     return {
       ...match,

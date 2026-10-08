@@ -129,7 +129,7 @@ export class NotificationService implements NotificationEvents {
   async receiptUploaded(receipt: PaymentReceipt) {
     const config=(await this.repository.settings()); if (!config.paymentAlerts) return;
     const player=(await this.players.findById(receipt.playerId)), user=player?(await this.users.findById(player.userId)):null;
-    const concept=receipt.kind==='inscription'?'inscripción':'uniforme';
+    const concept=receipt.kind==='inscription'?'inscripción':receipt.kind==='referee'?'arbitraje':'uniforme';
     const message: NotificationMessage={club:(await this.team.get()).teamName,title:'Nuevo comprobante pendiente de revisión',
       detail:`${user?.fullName || 'Jugador'} subió el soporte #${receipt.id} de ${concept} por ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:2}).format(receipt.amount)}. Referencia: ${receipt.reference}. Esto confirma la carga del soporte; el abono necesita tu aprobación.`,path:'/admin/pagos-qr',audience:'admin'};
     if (config.whatsappEnabled && config.adminWhatsapp) (await this.enqueue('receipt_uploaded',`receipt_uploaded:${receipt.id}`,message,config.adminWhatsapp,'whatsapp',null,null,receipt.id));

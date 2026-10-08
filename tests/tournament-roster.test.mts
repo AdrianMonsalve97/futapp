@@ -43,7 +43,8 @@ async function tournament(status: TournamentInput['status'] = 'publicado') {
         rollingSubstitutions:true, allowedFormations:['1-3-3-1','1-2-3-2'], tacticalStyle:'equilibrado' } }));
 }
 async function match(tournamentId: number | null) {
-  return (await c.matchService.create({ opponent:'Rival', kickOff:'2099-01-01T18:00', tournamentId, format:8 }));
+  const game=await c.matchService.create({ opponent:'Rival', kickOff:'2099-01-01T18:00', tournamentId, format:8 });
+  db.prepare('UPDATE match_referee_fees SET total=0 WHERE match_id=?').run(game.id);return game;
 }
 const slots = () => getFormation('1-3-3-1', 8).slots.map((s, i) => ({ ...s, playerId:squad[i].player.id }));
 after(async () => { await new Promise<void>(resolve => server.close(() => resolve())); closeDb(); fs.rmSync(directory, { recursive:true, force:true }); });
@@ -96,7 +97,8 @@ test('tournament attendance, manual starters, substitutes and tactical AI requir
   assert.equal((await request('PUT', `/matches/${game.id}/lineup`, {slots:slots()})).status, 200);
   (await c.matchService.setAttendance(game.id, squad[0].user.id, 'no_disponible'));
   assert.equal((await c.aiService.recommendXi(game.id)).lineup.find(s => s.role === 'POR')?.playerId, null);
-  (await assert.rejects(async () => (await c.matchService.publishLineup(game.id)), /no está disponible/));
+  assert.equal((await c.matchService.get(game.id)).lineup.find(slot=>slot.role==='POR')?.playerId,null);
+  (await assert.rejects(async () => (await c.matchService.publishLineup(game.id)), /Completa todas las posiciones/));
   const independent = (await match(null));
   assert.equal((await c.matchService.attendance(independent.id)).length, squad.length);
 });

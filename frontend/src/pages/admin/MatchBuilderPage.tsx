@@ -18,6 +18,7 @@ import { Textarea } from '../../atoms/Textarea';
 import { FormField } from '../../molecules/FormField';
 import { LineupEditor } from '../../organisms/LineupEditor';
 import { AttendancePanel } from '../../organisms/AttendancePanel';
+import { RefereePaymentPanel } from '../../organisms/RefereePaymentPanel';
 import { MatchBroadcast } from '../../organisms/MatchBroadcast';
 import { NotifyMatchButton } from '../../organisms/NotifyMatchButton';
 import { StatsEntryForm } from '../../organisms/StatsEntryForm';
@@ -329,6 +330,7 @@ export function MatchBuilderPage() {
 
       {/* ZONA 1 · datos del partido */}
       {match && ['programado', 'pospuesto'].includes(match.status) && <AttendancePanel matchId={matchId} tournamentId={match.tournamentId} onChanged={detail.reload} />}
+      {match?<RefereePaymentPanel matchId={matchId} admin refreshKey={detail.data}/>:null}
       {match?<MatchBroadcast key={`${match.id}:${match.streamUrl}`} match={match} admin onSaved={detail.reload}/>:null}
       <Card className="mb-4">
         <CardBody className="gap-3">

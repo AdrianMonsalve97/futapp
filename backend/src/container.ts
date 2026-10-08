@@ -35,6 +35,8 @@ import { SqliteTournamentRepository } from './adapters/out/persistence/repositor
 import { TournamentService } from './application/services/tournament-service';
 import { MediaService } from './application/services/media-service';
 import { QrPaymentService } from './application/services/qr-payment-service';
+import { RefereeService } from './application/services/referee-service';
+import { SqliteRefereeRepository } from './adapters/out/persistence/repositories/referee.repository';
 import { SqliteQrPaymentRepository } from './adapters/out/persistence/repositories/qr-payment.repository';
 import { SqliteNotificationRepository } from './adapters/out/persistence/repositories/notification.repository';
 import { ProviderNotificationTransport } from './adapters/out/notifications/provider-transport';
@@ -84,6 +86,7 @@ export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaSto
   const mediaService = new MediaService(mediaStorage, users, uniforms, settings, tournaments, uow);
   const modelStore = cloud?.model ?? new FileModelStore();
   const qrRepository = new SqliteQrPaymentRepository(db);
+  const refereeService = new RefereeService(new SqliteRefereeRepository(db),matches,qrRepository,tournaments);
   const notificationService = new NotificationService(new SqliteNotificationRepository(db), new ProviderNotificationTransport(),
     matches, users, players, settings, qrRepository, uow, Date.now, tournaments);
 
@@ -101,6 +104,7 @@ export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaSto
     modelStore,
     settings,
     tournaments,
+    refereeService,
   );
   const authService = new AuthService(users, players, uow, new SqliteSecurityRepository(db));
   const meService = new MeService(
@@ -115,6 +119,7 @@ export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaSto
     matches,
     aiService,
     uow,
+    refereeService,
   );
   const playerService = new PlayerService(
     users,
@@ -127,9 +132,9 @@ export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaSto
     uow,
   );
   const inscriptionService = new InscriptionService(inscriptions, players, uow);
-  const qrPaymentService = new QrPaymentService(qrRepository, mediaStorage, players, inscriptionService, uow, notificationService);
+  const qrPaymentService = new QrPaymentService(qrRepository, mediaStorage, players, inscriptionService, uow, notificationService,refereeService);
   const uniformService = new UniformService(uniforms, uniformIssues, uniformRequests, players, uow);
-  const matchService = new MatchService(matches, players, stats, aiService, settings, sanctions, uow, tournaments, notificationService);
+  const matchService = new MatchService(matches, players, stats, aiService, settings, sanctions, uow, tournaments, refereeService,notificationService);
   const sanctionService = new SanctionService(sanctions, players);
   const dashboardService = new DashboardService(
     users,
@@ -144,6 +149,7 @@ export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaSto
     statsService,
     aiService,
     settings,
+    refereeService,
   );
 
   return {

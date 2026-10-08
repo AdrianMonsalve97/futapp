@@ -10,7 +10,7 @@ import { Select } from '../../atoms/Select';
 import { FormField } from '../../molecules/FormField';
 import { MediaImage } from '../../atoms/MediaImage';
 import { downloadReceipt } from '../../organisms/QrPaymentPanel';
-import { formatMoney,formatDate } from '../../utils/format';
+import { formatMoney,formatDate,formatColombiaDateTime as formatDateTime } from '../../utils/format';
 import type { QrPaymentView } from '../../types/payments';
 
 export function PaymentReceiptsPage(){
@@ -46,9 +46,10 @@ export function PaymentReceiptsPage(){
     <div className="space-y-4">{(view.data?.receipts??[]).filter(r=>filter==='todos'||r.status===filter).map(row=>{
       const debt=view.data?.debts.find(d=>d.kind===row.kind&&d.targetId===row.targetId&&d.playerId===row.playerId);
       return <Card key={row.id}><CardBody>
-        <div className="flex flex-wrap justify-between gap-3"><div><h3 className="font-semibold">{row.playerName} · {formatMoney(row.amount)}</h3><p>{debt?.concept??(row.kind==='inscription'?'Inscripción':'Uniforme')}</p><p className="text-sm break-all">{row.reference} · {formatDate(row.paidAt)} · {row.status}</p></div>
+        <div className="flex flex-wrap justify-between gap-3"><div><h3 className="font-semibold">{row.playerName} · {formatMoney(row.amount)}</h3><p>{debt?.concept??(row.kind==='inscription'?'Inscripción':row.kind==='referee'?'Arbitraje':'Uniforme')}</p><p className="text-sm break-all">{row.reference} · {row.kind==='referee'?formatDateTime(row.paidAt):formatDate(row.paidAt)} · {row.status}</p></div>
           <Button variant="outline" size="sm" onClick={()=>void downloadReceipt(row).catch(e=>setError(errorMessage(e)))}>Descargar comprobante</Button>
         </div>
+        {row.kind==='referee'?<Alert tone="info">Verifica que la fecha y hora declaradas coincidan con la transferencia del comprobante. El plazo para ser titular es {debt?.dueAt?formatDateTime(debt.dueAt):'48 horas antes del partido'}. Si el soporte no coincide, recházalo para que el jugador lo corrija.{debt?.credit?` Saldo a favor: ${formatMoney(debt.credit)}.`:''}</Alert>:null}
         {row.status==='pendiente'?<><FormField label={`Observación para ${row.playerName}`}><Input value={notes[row.id]??''} maxLength={2000} onChange={e=>setNotes(prev=>({...prev,[row.id]:e.target.value}))} placeholder="Motivo de rechazo o nota de validación" /></FormField>
           <div className="flex flex-wrap justify-end gap-2"><Button variant="outline" disabled={busy!==null} onClick={()=>void review(row.id,'rechazado')}>Rechazar</Button><Button loading={busy===String(row.id)} disabled={busy!==null} onClick={()=>void review(row.id,'aprobado')}>Aprobar y registrar abono</Button></div></>:<p className="text-sm">{row.reviewNotes}</p>}
       </CardBody></Card>;

@@ -23,16 +23,16 @@ export function AttendancePanel({ matchId, tournamentId, onChanged }: { matchId:
     try {
       await api(endpoint, { method: 'PUT', json: { status } });
       response.reload(); onChanged?.();
-      setFeedback(status==='confirmado'?'¡Estás dentro! El equipo cuenta contigo.':status==='no_disponible'?'Avisaste al equipo que no podrás asistir.':'Puedes confirmar cuando estés listo.');
+      setFeedback(status==='confirmado'?'Asistencia confirmada. Revisa tu cuota de arbitraje y envía el soporte para quedar habilitado.':status==='no_disponible'?'Avisaste al equipo que no podrás asistir.':'Puedes confirmar cuando estés listo.');
     } catch (err) { setError(errorMessage(err)); }
     finally { setBusy(false); }
   };
   return <Card className={`mb-5 attendance-card ${rows[0]?.status==='confirmado'&&!admin?'attendance-confirmed':''}`}><CardBody>
-    <div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="text-base"><Icon name="usuarios" size={20} />{admin ? 'Convocatoria y disponibilidad' : '¿Cuentas con nosotros para el partido?'}</CardTitle>{admin && <span className="badge badge-success badge-outline">{rows.filter(row => row.status === 'confirmado' && row.eligible).length} confirmados</span>}</div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="text-base"><Icon name="usuarios" size={20} />{admin ? 'Convocatoria y disponibilidad' : '¿Cuentas con nosotros para el partido?'}</CardTitle>{admin && <span className="badge badge-success badge-outline">{rows.filter(row => row.status === 'confirmado').length} confirmados · {rows.filter(row=>row.starterEligible).length} habilitados para titular</span>}</div>
     {(error || response.error) && <Alert tone="error">{error ?? response.error}</Alert>}
     {response.loading && <p className="text-sm text-base-content/50">Consultando disponibilidad…</p>}
     {!response.loading && !response.error && (admin ? <>
-      <p className="text-xs text-base-content/55">Los jugadores confirman desde su cuenta. Las bajas y suspensiones se excluyen de la alineación.</p>
+      <p className="text-xs text-base-content/55">Los jugadores confirman desde su cuenta. Para el inicial se requiere asistencia y arbitraje aprobado a tiempo; los pagos tardíos solo habilitan suplentes. Las bajas y suspensiones se excluyen.</p>
       {tournamentId ? <p className="text-sm">{!rows.length ? 'No hay jugadores activos inscritos en este torneo. ' : 'Esta convocatoria usa la plantilla del torneo. '}<Link className="link text-primary" to={`/admin/torneos/${tournamentId}`}>Gestionar jugadores inscritos</Link></p> : null}
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{rows.map(row => <div key={row.playerId} className="flex min-w-0 items-center gap-3 rounded-xl bg-base-200 p-3"><span className="grid place-items-center w-8 h-8 shrink-0 rounded-lg bg-base-100 font-bold text-xs">{row.shirtNumber ?? '—'}</span><div className="flex-1 min-w-0"><p className="text-xs font-semibold truncate">{row.playerName}</p><p className="text-[10px] text-base-content/55">{row.position} · {row.reason ?? (row.status === 'confirmado' ? 'Asistencia confirmada' : 'Por confirmar')}</p></div><span className={`w-2 h-2 rounded-full shrink-0 ${!row.eligible ? 'bg-error' : row.status === 'confirmado' ? 'bg-success' : 'bg-warning'}`} aria-label={row.reason ?? row.status} /></div>)}</div>
     </> : rows.length ? <>

@@ -159,6 +159,11 @@ export function migrate(db: Database = getDb()): void {
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY(match_id, player_id)
   );`);
+  db.exec(`CREATE TABLE IF NOT EXISTS match_referee_fees (
+    match_id INTEGER PRIMARY KEY REFERENCES matches(id) ON DELETE CASCADE,
+    total INTEGER NOT NULL DEFAULT 120000 CHECK(total>=0), settled_shares TEXT
+  ); INSERT OR IGNORE INTO match_referee_fees(match_id) SELECT id FROM matches WHERE status IN ('programado','pospuesto');`);
+  if (!hasColumn(db,'match_referee_fees','settled_shares')) db.exec('ALTER TABLE match_referee_fees ADD COLUMN settled_shares TEXT');
   if (legacyLineups) {
     db.exec(`INSERT OR IGNORE INTO published_lineups SELECT match_id, slot_index, player_id, x, y, role, label FROM lineups;
       UPDATE matches SET lineup_published_at = datetime('now'), published_formation = formation WHERE id IN (SELECT DISTINCT match_id FROM published_lineups);`);
@@ -190,7 +195,7 @@ function ensureQrPayments(db: Database): void {
   ); INSERT OR IGNORE INTO qr_payment_settings(id) VALUES(1);
   CREATE TABLE IF NOT EXISTS payment_receipts (
     id INTEGER PRIMARY KEY AUTOINCREMENT, player_id INTEGER NOT NULL REFERENCES players(id),
-    kind TEXT NOT NULL CHECK(kind IN ('inscription','uniform_request','uniform_issue')),
+    kind TEXT NOT NULL CHECK(kind IN ('inscription','uniform_request','uniform_issue','referee')),
     target_id INTEGER NOT NULL, asset_id TEXT NOT NULL UNIQUE REFERENCES media_assets(id),
     amount REAL NOT NULL CHECK(amount>0), reference TEXT NOT NULL, paid_at TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pendiente' CHECK(status IN ('pendiente','aprobado','rechazado')),
@@ -199,5 +204,18 @@ function ensureQrPayments(db: Database): void {
     idempotency_key TEXT NOT NULL, file_hash TEXT NOT NULL, UNIQUE(player_id,idempotency_key)
   ); CREATE UNIQUE INDEX IF NOT EXISTS idx_receipt_approved_reference ON payment_receipts(reference) WHERE status='aprobado';`);
   if (!hasColumn(db, 'payment_receipts', 'file_hash')) db.exec("ALTER TABLE payment_receipts ADD COLUMN file_hash TEXT NOT NULL DEFAULT ''");
+  const receipts = db.prepare("SELECT sql FROM sqlite_master WHERE name='payment_receipts'").get() as {sql:string};
+  if (!receipts.sql.includes("'referee'")) {
+    db.pragma('foreign_keys = OFF');
+    try {
+      db.transaction(()=>{
+        db.exec(receipts.sql.replace('CREATE TABLE payment_receipts','CREATE TABLE payment_receipts_extended').replace("'uniform_issue')","'uniform_issue','referee')"));
+        db.exec(`INSERT INTO payment_receipts_extended SELECT * FROM payment_receipts;
+          DROP TABLE payment_receipts; ALTER TABLE payment_receipts_extended RENAME TO payment_receipts;
+          CREATE UNIQUE INDEX idx_receipt_approved_reference ON payment_receipts(reference) WHERE status='aprobado';`);
+        if ((db.pragma('foreign_key_check') as unknown[]).length) throw new Error('Referencias de pagos inconsistentes');
+      })();
+    } finally { db.pragma('foreign_keys = ON'); }
+  }
   migrateNotifications(db);
 }

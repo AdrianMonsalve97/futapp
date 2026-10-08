@@ -34,6 +34,14 @@ export async function migratePostgres(db: PostgresDatabase) {
       if(columns.map(row=>row.column_name).sort().join()!==[...table.columns].sort().join())throw new Error('El esquema de PostgreSQL necesita una migración de versión antes de iniciar');
     }
     for(const index of schema.indexes)await db.execute(index.sql.replace(/^CREATE UNIQUE INDEX /,'CREATE UNIQUE INDEX IF NOT EXISTS ').replace(/^CREATE INDEX /,'CREATE INDEX IF NOT EXISTS '));
+    // Versioned CHECK extension: preserve every existing receipt and its references.
+    const checks=await db.query("SELECT conname,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='futapp.payment_receipts'::regclass AND contype='c'");
+    for (const check of checks.filter(row=>/\bkind\b/.test(row.definition) && !row.definition.includes('referee'))) {
+      if (!/^[a-z_][a-z0-9_]*$/.test(check.conname)) throw new Error('Restricción de pagos no compatible');
+      await db.execute(`ALTER TABLE payment_receipts DROP CONSTRAINT "${check.conname}"`);
+      await db.execute("ALTER TABLE payment_receipts ADD CONSTRAINT payment_receipts_kind_check CHECK(kind IN ('inscription','uniform_request','uniform_issue','referee'))");
+    }
+    await db.execute("INSERT INTO match_referee_fees(match_id) SELECT id FROM matches WHERE status IN ('programado','pospuesto') ON CONFLICT DO NOTHING");
     await db.prepare("INSERT OR IGNORE INTO team_settings(id,team_name,format,season) VALUES(1,'Club Portal',8,'2026')").run();
     await db.prepare('INSERT OR IGNORE INTO migration_state(id) VALUES(1)').run();
     await db.prepare('INSERT OR IGNORE INTO qr_payment_settings(id) VALUES(1)').run();

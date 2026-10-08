@@ -87,6 +87,11 @@ export function formatDateTime(value: string | null | undefined): string {
   return time ? `${date} · ${time}` : date;
 }
 
+/** Referee deadlines and receipt timestamps are displayed in the club's Colombian time zone. */
+export function formatColombiaDateTime(value: string): string {
+  return new Intl.DateTimeFormat('es-CO',{dateStyle:'medium',timeStyle:'short',timeZone:'America/Bogota'}).format(new Date(value));
+}
+
 /** `sábado, 11 de octubre` */
 export function formatWeekday(value: string | null | undefined): string {
   if (!value) return '—';

@@ -47,7 +47,10 @@ async function request(method: string, url: string, json?: unknown, token = admi
   return { status: response.status, data: await response.json() };
 }
 async function fixtureMatch(format = 5) {
-  return (await c.matchService.create({ opponent: 'Prueba FC', competition: 'Prueba', kickOff: '2027-01-15T18:00', isHome: true, format }));
+  const match=await c.matchService.create({ opponent: 'Prueba FC', competition: 'Prueba', kickOff: '2027-01-15T18:00', isHome: true, format });
+  // These fixtures isolate lineup/attendance rules; charged fixtures are covered in referee.test.
+  db.prepare('UPDATE match_referee_fees SET total=0 WHERE match_id=?').run(match.id);
+  return match;
 }
 
 test('football 8 defaults to 50 minutes in the UI, API and AI while preserving explicit durations', async () => {

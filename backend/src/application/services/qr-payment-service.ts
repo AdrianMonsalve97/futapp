@@ -7,14 +7,15 @@ import type { UnitOfWork } from '../ports/out/unit-of-work';
 import type { PaymentQr, PaymentReceipt, PaymentTargetKind } from '../../domain/payments';
 import { NotFoundError, ValidationError } from '../../domain/errors';
 import type { NotificationEvents } from '../../domain/notifications';
+import type { RefereeService } from './referee-service';
 
 export class QrPaymentService {
   constructor(private readonly repository: QrPaymentRepository, private readonly storage: MediaStorage,
     private readonly players: PlayerRepository, private readonly inscriptions: InscriptionPort, private readonly uow: UnitOfWork,
-    private readonly notifications?: NotificationEvents) {}
+    private readonly notifications?: NotificationEvents, private readonly referee?:RefereeService) {}
   async view(userId: number, admin: boolean) {
     const playerId = admin ? undefined : (await this.playerId(userId));
-    return { qr: (await this.repository.qr()), debts: (await this.repository.debts(playerId)), receipts: (await this.repository.receipts(playerId)).map(this.publicReceipt) };
+    return { qr: (await this.repository.qr()), debts: [...await this.repository.debts(playerId),...(await this.referee?.debts(playerId)??[])], receipts: (await this.repository.receipts(playerId)).map(this.publicReceipt) };
   }
   private publicReceipt(row: PaymentReceipt) { const { fileHash: _hash, idempotencyKey: _key, ...data } = row; return data; }
   private async playerId(userId: number): Promise<number> {
@@ -23,12 +24,17 @@ export class QrPaymentService {
     return player.id;
   }
   private async debt(playerId: number, kind: PaymentTargetKind, targetId: number) {
-    const debt = (await this.repository.debts(playerId)).find(d => d.kind === kind && d.targetId === targetId);
+    const debts=kind==='referee'?await this.referee?.debts(playerId)??[]:await this.repository.debts(playerId);
+    const debt = debts.find(d => d.kind === kind && d.targetId === targetId);
     if (!debt) throw new NotFoundError('Concepto de pago no encontrado');
     return debt;
   }
   async submit(userId: number, input: { kind: PaymentTargetKind; targetId: number; amount: number; reference: string; paidAt: string; idempotencyKey: string }, name: string, bytes: Uint8Array) {
     const playerId = (await this.playerId(userId));
+    if(input.kind==='referee') {
+      if(!this.referee||!Number.isInteger(input.amount))throw new ValidationError('El arbitraje se paga en pesos enteros');
+      input={...input,paidAt:this.referee.normalizePaidAt(input.paidAt)};
+    }
     if (!Number.isFinite(input.amount) || input.amount <= 0) throw new ValidationError('El monto debe ser mayor que cero');
     const fileHash = createHash('sha256').update(bytes).digest('hex');
     const clean = { ...input, reference: input.reference.trim().toUpperCase(), playerId, fileHash };
@@ -68,11 +74,12 @@ export class QrPaymentService {
           if (row.status !== 'pendiente') throw new ValidationError('El soporte ya fue revisado');
           if (status === 'aprobado') {
             const debt = (await this.debt(row.playerId,row.kind,row.targetId));
-            if (row.amount > debt.outstanding+0.001) throw new ValidationError('El saldo cambió; este soporte supera lo pendiente');
+            if (row.kind!=='referee' && row.amount > debt.outstanding+0.001) throw new ValidationError('El saldo cambió; este soporte supera lo pendiente');
             if (row.kind === 'inscription') (await this.inscriptions.addPayment(row.targetId,{ amount: row.amount, method: 'qr', reference: row.reference,
                       paidAt: row.paidAt, registeredBy: adminId, idempotencyKey: 'receipt_'+row.id, notes: 'Soporte QR #'+row.id }));
           }
           const reviewed = (await this.repository.review(id,status,notes.trim(),adminId));
+          if(row.kind==='referee')await this.referee?.reconcile(row.targetId);
           (await this.notifications?.receiptReviewed(reviewed));
           return (await this.publicReceipt(reviewed));
         }));

@@ -74,7 +74,7 @@ export function validateBody(path: string, method: string, body: unknown): void 
   if (path === '/notifications/test') return check(body,{channel:oneOf('whatsapp','email')},['channel']);
   if(path==='/notifications/test-group'||path==='/notifications/whatsapp/connect')return check(body,{});
   if (/^\/notifications\/\d+\/retry$/.test(path) || /^\/matches\/\d+\/notify$/.test(path)) return check(body,{});
-  if (path === '/me/payment-receipts') return check(body, { kind: oneOf('inscription','uniform_request','uniform_issue'), targetId: integer(1), amount: money, reference: nonempty(120), paidAt: date }, ['kind','targetId','amount','reference','paidAt']);
+  if (path === '/me/payment-receipts') return check(body, { kind: oneOf('inscription','uniform_request','uniform_issue','referee'), targetId: integer(1), amount: money, reference: nonempty(120), paidAt: typeof body==='object'&&body!==null&&'kind' in body&&body.kind==='referee'?text(40):date }, ['kind','targetId','amount','reference','paidAt']);
   if (/^\/payment-receipts\/\d+\/review$/.test(path)) return check(body, {status:oneOf('aprobado','rechazado'),notes:text(2000)},['status','notes']);
   if (path === '/settings/payment-qr') return check(body, {recipient:nonempty(120),paymentKey:nonempty(120)},['recipient','paymentKey']);
   if (path === '/auth/login') return check(body, { email: credentials.email, password: credentials.password }, ['email', 'password']);

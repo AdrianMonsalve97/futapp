@@ -13,6 +13,7 @@ import { Spinner } from '../../atoms/Spinner';
 import { FormationPitch, pitchSizeClass, pitchSlotsFrom } from '../../organisms/FormationPitch';
 import { StrategyList } from '../../organisms/StrategyList';
 import { AttendancePanel } from '../../organisms/AttendancePanel';
+import { RefereePaymentPanel } from '../../organisms/RefereePaymentPanel';
 import { MatchBroadcast } from '../../organisms/MatchBroadcast';
 import { MatchMeta } from '../../molecules/MatchMeta';
 import { RatingBadge } from '../../molecules/RatingBadge';
@@ -100,6 +101,7 @@ export function MatchDetailPage() {
       </Card>
 
       {['programado', 'pospuesto'].includes(match.status) && <AttendancePanel matchId={matchId} tournamentId={match.tournamentId} onChanged={reload} />}
+      <RefereePaymentPanel matchId={matchId} onChanged={reload} refreshKey={data}/>
       <MatchBroadcast key={`${match.id}:${match.streamUrl}`} match={match}/>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

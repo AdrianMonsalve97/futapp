@@ -69,7 +69,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Verificar ingesta y operaciones contra PostgreSQL real
-        run: node --import tsx --test tests/postgres.test.mts
+        run: node --import tsx --test --test-concurrency=1 tests/postgres.test.mts tests/referee.test.mts
   containers:
     strategy:
       fail-fast: false
