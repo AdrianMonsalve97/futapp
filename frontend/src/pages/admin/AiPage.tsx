@@ -16,6 +16,7 @@ import { TacticalPlayboard } from '../../organisms/TacticalPlayboard';
 import { RatingTrendChart } from '../../organisms/RatingTrendChart';
 import { ProbabilityBars } from '../../organisms/ProbabilityBars';
 import { AiInsightsPanel } from '../../organisms/AiInsightsPanel';
+import { AdminPlayerPreparation } from '../../organisms/AdminPlayerPreparation';
 import { formatDateTime,formatRating } from '../../utils/format';
 import type { AiInsights,Match,ModelInfo } from '../../types/api';
 import type { TacticalPlan,TacticalStyle,CoachingResearch,TacticalPlay } from '../../types/tactics';
@@ -107,6 +108,7 @@ export function AiPage(){
         <p className="text-xs text-base-content/60">{plan.methodology} La búsqueda se realiza en la biblioteca oficial de FIFA por estilo y conserva referencias si no hay conexión. Las jugadas requieren revisión del entrenador.</p>
       </CardBody></Card>
     </>:null}
+    <AdminPlayerPreparation/>
     {insights.error?<Alert tone="error">{insights.error}</Alert>:null}
     {insights.data?<details className="mt-4"><summary className="cursor-pointer font-semibold p-4 rounded-xl bg-base-200">Rendimiento del equipo y métricas del modelo</summary><div className="grid gap-4 lg:grid-cols-2 mt-4">
       <Card><CardBody><CardTitle className="text-base">Forma del equipo</CardTitle><RatingTrendChart title="Rating promedio por partido" points={insights.data.formTrend.map(f=>({label:f.opponent,value:f.rating}))} /><AiInsightsPanel insights={insights.data.insights} /></CardBody></Card>

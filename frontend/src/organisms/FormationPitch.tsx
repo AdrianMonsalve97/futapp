@@ -4,6 +4,7 @@ import type { LineupSlot, TeamFormat } from '../types/api';
 import { useId, useState } from 'react';
 import { Avatar } from '../atoms/Avatar';
 import { PitchPortrait, PITCH_COLORS } from './PitchPortrait';
+import { layoutPitch, PITCH_HEIGHT, type PitchPhase } from '../utils/pitch-layout';
 
 export interface PitchSlot {
   slotIndex: number;
@@ -15,6 +16,7 @@ export interface PitchSlot {
   playerName?: string | null;
   shirtNumber?: number | null;
   avatarUrl?: string | null;
+  playerPosition?: PitchSlot['role'] | null;
   /** Resalta el slot (posición propia en vistas de jugador). */
   highlighted?: boolean;
 }
@@ -32,29 +34,26 @@ export interface FormationPitchProps {
   /** §12.7.2 — formato del partido/equipo: define la relación de aspecto del lienzo. */
   format?: TeamFormat;
   className?: string;
+  phase?: PitchPhase;
+  focusRole?: PitchSlot['role'];
 }
 
 /** §12.7.2 — relación de aspecto del lienzo según formato. */
 const ASPECT_CLASS: Record<TeamFormat, string> = {
-  5: 'aspect-[2/1]',
-  7: 'aspect-[3/2]',
-  8: 'aspect-[7/5]',
+  5: 'aspect-square',
+  7: 'aspect-[4/5]',
+  8: 'aspect-[4/5]',
   11: 'aspect-[2/3]',
 };
 
 /** Altura interna del viewBox: `100 * (alto/ancho)` del aspecto del formato. */
-const VIEW_HEIGHT: Record<TeamFormat, number> = {
-  5: 50,
-  7: 100 * (2 / 3),
-  8: 100 * (5 / 7),
-  11: 150,
-};
+const VIEW_HEIGHT = PITCH_HEIGHT;
 
 const W = 100;
 
 /** Ancho del bloque del pitch según formato (clases literales para Tailwind). */
 export function pitchSizeClass(format: TeamFormat): string {
-  return format === 11 ? 'max-w-[300px] mx-auto' : 'max-w-[540px] mx-auto';
+  return format === 11 ? 'max-w-[420px] mx-auto' : 'max-w-[500px] mx-auto';
 }
 
 /** Columna izquierda del grid del editor/AI según formato (literales Tailwind). */
@@ -85,18 +84,18 @@ export function pitchSlotsFrom(
       playerName: saved?.playerName ?? null,
       shirtNumber: saved?.shirtNumber ?? null,
       avatarUrl: saved?.avatarUrl ?? null,
+      playerPosition: saved?.playerPosition ?? null,
     };
   });
 }
 
 /**
  * Cancha en SVG (SPEC §10.4 + §12.7.2): coordenadas en % de la cancha,
- * `y=0` arco rival (arriba), `y=100` arco propio (abajo). El formato solo
- * cambia la relación de aspecto del contenedor: f5 `2/1`, f7 `3/2`,
- * f8 `7/5` y f11 `2/3`.
+ * `y=0` arco rival (arriba), `y=100` arco propio (abajo).
+ * La geometría visual separa las líneas en los formatos reducidos.
  */
 export function FormationPitch({
-  slots,
+  slots: sourceSlots,
   variant = 'view',
   onSlotClick,
   selectedSlotIndex = null,
@@ -104,7 +103,10 @@ export function FormationPitch({
   emptyMessage = 'Sin alineación cargada',
   format = 11,
   className = '',
+  phase = 'estructura',
+  focusRole,
 }: FormationPitchProps) {
+  const slots = layoutPitch(sourceSlots,format,phase);
   const [detailIndex,setDetailIndex] = useState<number|null>(null);
   const [connections,setConnections] = useState(false);
   const [zoom,setZoom] = useState(false);
@@ -120,8 +122,8 @@ export function FormationPitch({
   const centerR = Math.min(11, H * (11 / 150));
   const goalH = Math.max(1.6, H * 0.016);
   const goalY = goalH * 0.25;
-  const chipR = Math.min(6, H * 0.065);
-  const nameFont = Math.min(3.3, chipR * 0.6);
+  const chipR = Math.min(6.4, H * 0.065);
+  const nameFont = Math.min(3.6, chipR * 0.6);
   const ringR = chipR + 2.6;
   const halfText = nameFont * 3.5;
   const emptyFont = Math.min(4.5, H * 0.06);
@@ -140,9 +142,10 @@ export function FormationPitch({
       return textBottom > otherCy - chipR && textTop < otherCy + chipR;
     };
     const others = slots.filter((other) => other.slotIndex !== slot.slotIndex);
+    const above = cy - chipR - 1;
+    if (slot.role==='POR' && above-nameFont>=0 && !others.some(other=>collides(above,other))) return above;
     const below = cy + chipR + 1 + nameFont;
     if (below + nameFont * 0.3 <= H && !others.some((other) => collides(below, other))) return below;
-    const above = cy - chipR - 1;
     if (above - nameFont >= 0 && !others.some((other) => collides(above, other))) return above;
     return null;
   };
@@ -185,6 +188,7 @@ export function FormationPitch({
         {/* Arcos */}
         <rect x={42} y={goalY} width={16} height={goalH} fill="#ffffff" fillOpacity={0.75} />
         <rect x={42} y={H - goalY - goalH} width={16} height={goalH} fill="#ffffff" fillOpacity={0.75} />
+        {focusRole ? slots.filter(slot=>slot.role===focusRole).map(slot=><ellipse key={`zone-${slot.slotIndex}`} cx={slot.x} cy={cyOf(slot)} rx="12" ry="11" fill={PITCH_COLORS[focusRole]} opacity="0.12" aria-hidden="true"/>):null}
         {connections ? <g stroke="#d8b86a" strokeWidth="0.45" strokeDasharray="1.5 1.8" opacity="0.5" aria-hidden="true">
           {slots.filter(slot=>slot.playerId).flatMap(slot=>slots.filter(other=>other.playerId && other.slotIndex>slot.slotIndex && Math.hypot(other.x-slot.x,other.y-slot.y)<45).map(other=><line key={`${slot.slotIndex}:${other.slotIndex}`} x1={slot.x} y1={cyOf(slot)} x2={other.x} y2={cyOf(other)}/>))}
         </g> : null}
@@ -201,7 +205,7 @@ export function FormationPitch({
           const occupied = Boolean(slot.playerId) || Boolean(slot.playerName);
           const isSelected = selectedSlotIndex === slot.slotIndex || detailIndex === slot.slotIndex;
           const isHighlighted = slot.highlighted || highlightSlotIndex === slot.slotIndex;
-          const displayName = slot.playerName ? shortName(slot.playerName, 13) : '';
+          const displayName = slot.playerName ? shortName(slot.playerName, 12) : '';
           const clickable = occupied || variant === 'edit';
           const activate = () => { setDetailIndex(slot.slotIndex); if (variant==='edit') onSlotClick?.(slot); };
           const labelY = nameY(slot);
@@ -211,6 +215,7 @@ export function FormationPitch({
             <g
               key={slot.slotIndex}
               transform={`translate(${cx} ${cy})`}
+              style={{transform:`translate(${cx}px, ${cy}px)`}}
               className={`pitch-player ${clickable ? 'cursor-pointer' : ''}`}
               onClick={clickable ? activate : undefined}
               role={clickable ? 'button' : undefined}
@@ -239,7 +244,7 @@ export function FormationPitch({
                 <circle r={ringR} fill="none" stroke="#ffffff" strokeWidth={1.4} />
               ) : null}
 
-              <circle r={Math.max(chipR+2,9)} fill="transparent"/>
+              <circle r={Math.max(chipR+2,11)} fill="transparent"/>
               <PitchPortrait src={slot.avatarUrl} name={slot.playerName} number={slot.shirtNumber} label={slot.label} role={slot.role} radius={chipR} occupied={occupied}/>
 
               {labelY !== null && caption ? (
@@ -263,7 +268,7 @@ export function FormationPitch({
     </div>
     </div>
     <div className="tactical-arena-footer">
-      {detail ? <div className="tactical-player-detail" aria-live="polite"><Avatar name={detail.playerName ?? 'Vacante'} src={detail.avatarUrl} size="sm"/><div><strong>{detail.playerName ?? 'Posición vacante'} {detail.shirtNumber!==null && detail.shirtNumber!==undefined?`· #${detail.shirtNumber}`:''}</strong><span>{detail.role} · {detail.label}{detail.highlighted || highlightSlotIndex===detail.slotIndex?' · Tu posición':''}</span></div><button type="button" className="tactical-control" aria-label="Cerrar detalle del jugador" onClick={()=>setDetailIndex(null)}>×</button></div> : <p className="tactical-hint">{zoom?'Desliza la cancha para recorrer las posiciones. ':''}{variant==='edit'?'Toca una posición para asignar un jugador.':'Toca una foto para conocer su posición. Tu ubicación se resalta en dorado.'}</p>}
+      {detail ? <div className="tactical-player-detail" aria-live="polite"><Avatar name={detail.playerName ?? 'Vacante'} src={detail.avatarUrl} size="sm"/><div><strong>{detail.playerName ?? 'Posición vacante'} {detail.shirtNumber!==null && detail.shirtNumber!==undefined?`· #${detail.shirtNumber}`:''}</strong><span>{detail.role} · {detail.label}{detail.playerPosition&&detail.playerPosition!==detail.role?` · Habitual: ${detail.playerPosition} (adaptación)`:''}{detail.highlighted || highlightSlotIndex===detail.slotIndex?' · Tu posición':''}</span></div><button type="button" className="tactical-control" aria-label="Cerrar detalle del jugador" onClick={()=>setDetailIndex(null)}>×</button></div> : <p className="tactical-hint">{zoom?'Desliza la cancha para recorrer las posiciones. ':''}{variant==='edit'?'Toca una posición para asignar un jugador.':'Toca una foto para conocer su posición. Tu ubicación se resalta en dorado.'}</p>}
       <div className="tactical-role-legend">{Object.entries(PITCH_COLORS).map(([role,color])=><span key={role}><i style={{backgroundColor:color}}/>{role}</span>)}</div>
     </div>
     </section>

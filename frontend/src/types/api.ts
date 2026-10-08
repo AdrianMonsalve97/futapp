@@ -147,7 +147,7 @@ export interface ModelInfo {
 }
 export interface AiPlayerInsight {
   avatarUrl?: string | null;
-  preparation:{matchId:number|null;opponent:string|null;format:TeamFormat;minutes:number;formation:string;publishedAt:string|null;lineup:LineupSlot[];role:Position;assignment:'titular'|'sin_publicar'|'fuera_inicial'|'sin_partido';style:'equilibrado'|'ofensivo'|'defensivo';individual:{title:string;detail:string}[];team:string[];training:string[];plays:import('./tactics').TacticalPlay[];metricNote:string};
+  preparation:{matchId:number|null;opponent:string|null;format:TeamFormat;minutes:number;formation:string;publishedAt:string|null;lineup:LineupSlot[];trainingLineup:LineupSlot[];trainingScope:'plantel'|'partido';teammates:{playerId:number;playerName:string;avatarUrl:string|null;shirtNumber:number|null;position:Position}[];role:Position;assignment:'titular'|'sin_publicar'|'fuera_inicial'|'sin_partido';style:'equilibrado'|'ofensivo'|'defensivo';individual:{title:string;detail:string}[];team:string[];training:string[];plays:import('./tactics').TacticalPlay[];metricNote:string};
   leagueContext?: import('./tournament').LeagueContext;
   playerId: number; playerName: string; position: Position;
   forecast: { nextRating: number; confidence: number; trend: 'sube' | 'estable' | 'baja'; history: { matchId: number; opponent: string; rating: number }[] };

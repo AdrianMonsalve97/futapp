@@ -2,7 +2,9 @@ import type { Position,LineupSlot } from './entities';
 import type { TacticalStyle,TacticalPlay } from './tactics';
 export interface RolePreparation {
   matchId:number|null;opponent:string|null;format:5|7|8|11;minutes:number;formation:string;publishedAt:string|null;
-  lineup:LineupSlot[];role:Position;assignment:'titular'|'sin_publicar'|'fuera_inicial'|'sin_partido';style:TacticalStyle;
+  lineup:LineupSlot[];trainingLineup:LineupSlot[];trainingScope:'plantel'|'partido';
+  teammates:{playerId:number;playerName:string;avatarUrl:string|null;shirtNumber:number|null;position:Position}[];
+  role:Position;assignment:'titular'|'sin_publicar'|'fuera_inicial'|'sin_partido';style:TacticalStyle;
   individual:{title:string;detail:string}[];team:string[];training:string[];plays:TacticalPlay[];metricNote:string;
 }
 /** Coaching guidance is rule-based and is kept separate from statistical predictions. */
@@ -20,7 +22,7 @@ export function roleCoaching(role:Position,style:TacticalStyle,minutes:number,pe
     DEL:[{title:'Movilidad',detail:'Alterna fijar al defensor y ofrecer apoyo. Ataca el espacio cuando el pasador pueda verte.'},{title:'Finalización',detail:'Prepara el cuerpo antes del pase y busca una solución acorde al ángulo y la posición del portero.'},{title:'Primera presión',detail:'Coordina con el mediocampo y orienta al rival hacia una banda; evita presionar solo.'}],
   };
   const team=role==='POR'?['Portero y defensa acuerdan una señal para subir o replegar el bloque.','Los defensores abren apoyos diagonales; un mediocampista ofrece la tercera opción.','Ante pérdida, protege primero el centro y deja una cobertura antes de intentar recuperar.']:['Coordina tus movimientos con la línea cercana; conserva un apoyo detrás del balón.','Reacciona a la pérdida según la cobertura: presiona acompañado o repliega.','Comunica marcas y relevos antes de cada balón parado.'];
-  const training=role==='POR'?['Pases con ambos pies en triángulo: mirar antes de recibir y elegir dos opciones.','Remate desde distintos ángulos: desplazamiento, equilibrio y recuperación de posición.','Simular pase a la espalda con defensa: practicar juntos la decisión de salir o esperar.']:['Rondo con control orientado y mirada previa.','Situaciones por parejas de presión y cobertura.','Ensayar tu recorrido en la formación publicada.'];
+  const training=role==='POR'?['Pases con ambos pies en triángulo: mirar antes de recibir y elegir dos opciones.','Remate desde distintos ángulos: desplazamiento, equilibrio y recuperación de posición.','Simular pase a la espalda con defensa: practicar juntos la decisión de salir o esperar.']:['Rondo con control orientado y mirada previa.','Situaciones por parejas de presión y cobertura.','Ensayar tu recorrido en el mapa y confirmar los movimientos con el entrenador.'];
   team.push(`${minutes} minutos${periods?` en ${periods} tiempos`:''}. ${unlimited?'Cambios ilimitados: coordina el relevo con el entrenador; verifica si la liga permite reingresar.':'Planifica los relevos según la normativa del partido.'}`);
   return {individual:entries[role],team,training};
 }

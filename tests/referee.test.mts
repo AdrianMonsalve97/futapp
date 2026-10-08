@@ -76,6 +76,10 @@ test('pending and partial payments cannot start; complete late payments appear o
   assert.equal(late.starterEligible,false);assert.equal(late.benchEligible,true);assert.match(late.reason!,/solo suplente/);
   assert.equal(attendance.find(row=>row.playerId===players[6].player.id)!.benchEligible,false);
   const xi=await c.aiService.recommendXi(match.id);assert.equal(xi.lineup.length,8);assert.equal(xi.lineup.filter(row=>row.playerId!==null).length,6);
+  const practice=(await c.aiService.playerInsight(players[0].player.id,match.id)).preparation;
+  assert.equal(practice.trainingScope,'partido');assert.equal(practice.lineup.length,0);
+  assert.deepEqual(practice.trainingLineup.map(slot=>slot.playerId),xi.lineup.map(slot=>slot.playerId));
+  assert(practice.trainingLineup.every(slot=>slot.playerId!==players[7].player.id&&slot.playerId!==players[6].player.id));
   assert(xi.lineup.every(row=>row.playerId!==players[7].player.id&&row.playerId!==players[6].player.id));
   assert(xi.bench?.some(row=>row.playerId===players[7].player.id));assert(!xi.bench?.some(row=>row.playerId===players[6].player.id));
   const slots=getFormation('1-3-3-1',8).slots.map((slot,i)=>({...slot,playerId:players[i].player.id}));

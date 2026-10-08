@@ -20,14 +20,16 @@ export interface AiPlayerCardProps {
   compact?: boolean;
   /** Oculta el gráfico de historial (si la página lo muestra aparte). */
   showHistory?: boolean;
+  showPreparation?: boolean;
 }
 
 /** Tarjeta de IA individual: forecast, confianza, tendencia, fortalezas/debilidades. */
-export function AiPlayerCard({ insight, compact = false, showHistory = true }: AiPlayerCardProps) {
+export function AiPlayerCard({ insight, compact = false, showHistory = true, showPreparation = true }: AiPlayerCardProps) {
   const trend = TREND[insight.forecast.trend] ?? TREND.estable;
 
   return (
     <div className="space-y-4">
+      {!compact && showPreparation?<IndividualPreparation key={`${insight.playerId}:${insight.preparation.role}:${insight.preparation.matchId}:${insight.preparation.publishedAt}`} insight={insight}/>:null}
       <div className="card bg-base-100 border border-base-200 shadow-sm">
         <div className="card-body p-4 gap-3">
           <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -121,7 +123,6 @@ export function AiPlayerCard({ insight, compact = false, showHistory = true }: A
       <Alert tone="info" title="Recomendación del modelo">
         {insight.recommendation}
       </Alert>
-      {!compact?<IndividualPreparation key={`${insight.playerId}:${insight.preparation.matchId}:${insight.preparation.publishedAt}`} insight={insight}/>:null}
     </div>
   );
 }

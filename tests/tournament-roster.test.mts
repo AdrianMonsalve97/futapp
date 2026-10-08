@@ -94,6 +94,10 @@ test('tournament attendance, manual starters, substitutes and tactical AI requir
   assert.equal((await c.matchService.attendance(game.id)).length, 8);
   assert.equal((await request('PUT', `/me/matches/${game.id}/attendance`, {status:'confirmado'}, player)).status, 200);
   assert.equal((await c.aiService.recommendXi(game.id)).lineup.filter(s => s.playerId !== null).length, 8);
+  const practice=(await c.aiService.playerInsight(squad[0].player.id,game.id)).preparation;
+  assert.equal(practice.trainingScope,'partido');assert.equal(practice.trainingLineup.filter(slot=>slot.playerId!==null).length,8);
+  assert(practice.teammates.every(player=>player.playerId!==squad[8].player.id));
+  assert(practice.trainingLineup.every(slot=>slot.playerId!==squad[8].player.id));
   const plan = (await c.aiService.tacticalPlan(game.id));
   for (const formation of plan.formations) assert(formation.slots.every(s => s.playerId === null || s.playerId !== squad[8].player.id));
   assert.equal((await request('PUT', `/matches/${game.id}/lineup`, {slots:slots()})).status, 200);

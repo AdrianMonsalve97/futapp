@@ -495,10 +495,25 @@ export class AiService implements AiPort {
     const configured=(await this.settings.get()).defaultTournamentId,configuredTournament=configured?(await this.tournaments.find(configured)):null;
     const rules=next?.tournamentRules??(configuredTournament?.status==='publicado'&&(await this.tournaments.hasPlayer(configuredTournament.id,playerId))?configuredTournament.rules:null);
     const format=next?.format??rules?.format??(await this.settings.get()).format,formation=next?.publishedFormation??getFormat(format).defaultFormation;
-    const slots=getFormation(formation,format).slots.map(s=>({...s,playerId:null,...published.find(p=>p.slotIndex===s.slotIndex)}));
+    const definition=getFormation(formation,format);
+    // Independent training suggestion: never read or publish the coach's saved draft.
+    // With a match, the same enrollment, attendance, sanctions and payment gates apply.
+    const {candidates}=await this.xiCandidates(next?.id);
+    const byId=new Map(candidates.map(candidate=>[candidate.playerId,candidate]));
+    const selection=selectXi(definition,candidates);
+    const trainingLineup=next?.lineupPublishedAt?[]:definition.slots.map(slot=>{
+      const id=selection.assignments.find(a=>a.slotIndex===slot.slotIndex)?.playerId??null;
+      const candidate=id===null?undefined:byId.get(id);
+      return {...slot,playerId:id,playerName:candidate?.playerName??null,avatarUrl:candidate?.avatarUrl??null,
+        shirtNumber:candidate?.shirtNumber??null,playerPosition:candidate?.position??null};
+    });
+    const visualLineup=next?.lineupPublishedAt?published:trainingLineup;
+    const slots=definition.slots.map(s=>({...s,playerId:null,...visualLineup.find(p=>p.slotIndex===s.slotIndex)}));
     const minutes=next?.minutes??(rules?rules.periods*rules.minutesPerPeriod:getFormat(format).matchMinutes),role=own?.role??row.player.position,style=rules?.tacticalStyle??'equilibrado';
     const coaching=roleCoaching(role,style,minutes,rules?.periods??0,!!rules&&rules.maxSubstitutions===null);
-    const preparation={matchId:next?.id??null,opponent:next?.opponent??null,format,minutes,formation,publishedAt:next?.lineupPublishedAt??null,lineup:published,role,
+    const preparation={matchId:next?.id??null,opponent:next?.opponent??null,format,minutes,formation,publishedAt:next?.lineupPublishedAt??null,lineup:published,
+      trainingLineup,trainingScope:next?'partido' as const:'plantel' as const,
+      teammates:candidates.map(({playerId,playerName,avatarUrl,shirtNumber,position})=>({playerId,playerName,avatarUrl:avatarUrl??null,shirtNumber,position})),role,
       assignment:!next?'sin_partido' as const:!next.lineupPublishedAt?'sin_publicar' as const:own?'titular' as const:'fuera_inicial' as const,style,...coaching,plays:buildPlays(slots,style),
       metricNote:role==='POR'?'La calificación usa el historial general. No se registran atajadas, goles evitados ni salidas, por lo que no mide por completo el rendimiento del portero.':'Las recomendaciones tácticas se adaptan al rol; el pronóstico depende de las estadísticas registradas.'};
     return {

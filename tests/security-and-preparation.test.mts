@@ -82,9 +82,16 @@ test('goalkeeper preparation uses the selected published lineup, protects drafts
   const stale=(await c.matchService.create({opponent:'Fixture antiguo',competition:'Demo',kickOff:'2020-01-01T18:00',isHome:true}));
   const game=(await c.matchService.create({opponent:'Rival actual',competition:'Liga',kickOff:'2099-01-01T18:00',isHome:true,tournamentId:tournament.id}));
   db.prepare('UPDATE match_referee_fees SET total=0 WHERE match_id=?').run(game.id);
-  const draft=getFormation('1-3-3-1',8).slots.map((s,i)=>({...s,playerId:players[i].player.id}));(await c.matchService.setLineup(game.id,draft));
+  const reference=(await c.aiService.playerInsight(players[0].player.id,game.id)).preparation;
+  const draft=getFormation('1-3-3-1',8).slots.map((s,i)=>({...s,playerId:players[i].player.id}));
+  // Deliberately swap two defenders: the player may see the roster, never this private decision.
+  [draft[1].playerId,draft[2].playerId]=[draft[2].playerId,draft[1].playerId];
+  (await c.matchService.setLineup(game.id,draft));
   const before=(await request('GET',`/me/ai?matchId=${game.id}`,undefined,keeper)).data;
-  assert.equal(before.preparation.lineup.length,0);assert(!JSON.stringify(before.preparation).includes('Jugador real 1'));
+  assert.equal(before.preparation.lineup.length,0);
+  assert.deepEqual(before.preparation.trainingLineup,reference.trainingLineup);
+  assert.deepEqual(before.preparation.plays,reference.plays);
+  assert.notDeepEqual(before.preparation.trainingLineup.map((slot:any)=>slot.playerId),draft.map(slot=>slot.playerId));
   assert.equal(before.preparation.assignment,'sin_publicar');
   (await c.matchService.publishLineup(game.id));
   const live=(await request('GET','/me/ai',undefined,keeper)).data;

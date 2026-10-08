@@ -7,6 +7,7 @@ import { Alert } from '../../atoms/Alert';
 import { Card, CardBody, CardTitle } from '../../atoms/Card';
 import { Spinner } from '../../atoms/Spinner';
 import { AiPlayerCard } from '../../organisms/AiPlayerCard';
+import { IndividualPreparation } from '../../organisms/IndividualPreparation';
 import { RatingTrendChart } from '../../organisms/RatingTrendChart';
 import { RateNote } from '../../molecules/RateNote';
 import type { AiPlayerInsight,Match } from '../../types/api';
@@ -20,14 +21,14 @@ export function MyAiPage() {
   /** §12.7.9 — predicciones normalizadas "por partido" (salvo f11: "por 90'"). */
   const profile = useTeamFormat(data?.preparation.format);
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex justify-center py-20">
         <Spinner size="lg" />
       </div>
     );
   }
-  if (error || !data) {
+  if (!data) {
     return (
       <>
         <PageHeader title="Mi rendimiento con IA" subtitle="Predicción de calificación y recomendaciones" />
@@ -47,10 +48,12 @@ export function MyAiPage() {
       <label className="grid gap-2 text-sm mb-5">Partido para mi preparación<select className="select select-bordered w-full" value={matchId} onChange={e=>setMatchId(e.target.value)}><option value="">Próximo partido vigente</option>{matches.data?.map(m=><option key={m.id} value={m.id}>{m.kickOff.slice(0,10)} · {m.opponent} · F{m.format} · {m.minutes} min</option>)}</select></label>
 
       <div className="mb-4"><LeagueContextPanel context={data.leagueContext} /></div>
+      {error?<Alert tone="error" className="mb-4">{error}</Alert>:null}
+      <div className="mb-5"><IndividualPreparation key={`${data.playerId}:${data.preparation.role}:${data.preparation.matchId}:${data.preparation.publishedAt}`} insight={data}/></div>
       <RateNote format={profile.format} minutes={data.preparation.minutes} className="mb-4" />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] items-start">
-        <AiPlayerCard insight={data} showHistory={false} />
+        <AiPlayerCard insight={data} showHistory={false} showPreparation={false}/>
 
         <Card>
           <CardBody className="gap-2">

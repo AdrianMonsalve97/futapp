@@ -228,7 +228,7 @@ main, .auth-form-zone, .modal-box { overflow-wrap: anywhere; }
 .tactical-player-detail > div { flex: 1; min-width: 0; }
 .tactical-player-detail strong { display: block; font-size: .8rem; overflow-wrap: anywhere; }
 .tactical-player-detail span { display: block; font-size: .7rem; color: #d5c18c; margin-top: .2rem; }
-.pitch-player { animation: tactical-arrival .65s ease both; }
+.pitch-player { animation: tactical-arrival .65s ease both; transition: transform .6s ease; }
 .pitch-player .pitch-portrait { transition: filter .2s ease; }
 .pitch-player:hover .pitch-portrait, .pitch-player:focus .pitch-portrait { filter: brightness(1.22) drop-shadow(0 0 1.2px #e9c76e80); }
 .pitch-player:focus-visible { outline: none; }
@@ -239,4 +239,14 @@ main, .auth-form-zone, .modal-box { overflow-wrap: anywhere; }
 @keyframes tactical-arrival { from { opacity: 0; } to { opacity: 1; } }
 @keyframes tactical-focus { 0%,100% { opacity: .55; } 50% { opacity: 1; stroke-width: 1.1; } }
 @media (max-width: 639px) { .tactical-control { min-height: 44px; } .tactical-arena-bar, .tactical-arena-footer { padding: .7rem .8rem; } }
-@media (prefers-reduced-motion: reduce) { .pitch-player, .pitch-own-ring { animation: none !important; } .pitch-player .pitch-portrait, .tactical-ball { transition: none !important; } }
+.preparation-lab { overflow: hidden; border-color: #d8b86a35; }
+.preparation-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; }
+.preparation-objective { display: flex; align-items: center; gap: .65rem; min-height: 44px; padding: .65rem .8rem; border: 1px solid #d8b86a35; border-radius: .8rem; font-size: .8rem; text-align: left; transition: background .2s ease, border-color .2s ease; }
+.preparation-objective span { color: #c5a858; font-weight: 800; }
+.preparation-objective[aria-pressed='true'], .preparation-lab button[data-active='true'] { background: #d8b86a25; border-color: #d8b86a; }
+.preparation-lesson { animation: tactical-arrival .35s ease both; }
+.preparation-scenario { border-left: 3px solid #d8b86a; padding: .75rem 1rem; font-size: .85rem; line-height: 1.6; background: #d8b86a0d; }
+.preparation-teammates { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,180px),1fr)); gap: .6rem; }
+.preparation-task { display: flex; align-items: center; gap: .8rem; min-height: 44px; padding: .75rem; border-radius: .75rem; font-size: .85rem; cursor: pointer; background: #d8b86a0a; }
+.preparation-task:has(input:checked) { background: #45a77820; }
+@media (prefers-reduced-motion: reduce) { .pitch-player, .pitch-own-ring, .preparation-lesson { animation: none !important; } .pitch-player, .pitch-player .pitch-portrait, .tactical-ball, .preparation-objective { transition: none !important; } }
