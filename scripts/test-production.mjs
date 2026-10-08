@@ -36,6 +36,12 @@ try {
   assert(ready, errors);
   const response = await fetch(base + '/admin/partidos/7'); const html = await response.text();
   assert.equal(response.status, 200); assert(html.includes('id="root"'));
+  const policy = new Map(response.headers.get('content-security-policy').split(';').map(directive => {
+    const [name, ...sources] = directive.trim().split(/\s+/); return [name, sources];
+  }));
+  assert.deepEqual(policy.get('img-src'), ["'self'", 'data:', 'blob:'], 'Private photo previews must be allowed as blob images');
+  assert.deepEqual(policy.get('script-src'), ["'self'"], 'Image permissions must not allow blob scripts');
+  assert.deepEqual(policy.get('object-src'), ["'none'"]);
   const css = html.match(/href="(\/assets\/[^\"]+\.css)"/)[1];
   const styles = await fetch(base + css); assert.equal(styles.status, 200); assert((await styles.text()).includes('.matchday-hero'));
   assert(html.includes('name="viewport"'));
@@ -60,6 +66,10 @@ try {
   const upload = await fetch(base + '/api/settings/logo', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body });
   assert.equal(upload.status, 200); const uploaded = await upload.json();
   assert.equal((await fetch(base + uploaded.url)).status, 401);
+  const privateImage = await fetch(base + uploaded.url, { headers: { Cookie: cookie.split(';')[0], 'X-FutApp-Client': 'web' } });
+  assert.equal(privateImage.status, 200);
+  assert(privateImage.headers.get('content-type').includes('image/webp'));
+  assert((await privateImage.blob()).size > 0);
   const logo = await fetch(base + '/api/branding/logo'); assert.equal(logo.status, 200); assert(logo.headers.get('content-type').includes('image/webp'));
   assert(fs.readdirSync(path.join(directory, 'uploads')).length === 1);
   console.log('Producción verificada: administrador inicial, controles de acceso, React y rutas directas, CSS, viewport móvil, escudo y carga persistente de imágenes.');
