@@ -7,10 +7,10 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25*
 export function migrationRoutes(migration: MigrationPort) {
   const router = Router();
   router.use('/migration', requireAuth, requireRole('admin'), (_req,res,next) => { res.setHeader('Cache-Control','private, no-store'); next(); });
-  router.get('/migration', (_req,res) => res.json(migration.status()));
-  router.put('/migration', (req,res) => {
+  router.get('/migration', async (_req,res) => res.json((await migration.status())));
+  router.put('/migration', async (req,res) => {
     if (!req.body || Object.keys(req.body).join() !== 'enabled') throw new ValidationError('Indica enabled');
-    res.json(migration.enable(req.body.enabled));
+    res.json((await migration.enable(req.body.enabled)));
   });
   router.get('/migration/export', async (_req,res) => {
     const file = await migration.exportData();

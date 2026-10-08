@@ -7,42 +7,45 @@ import type {
 } from '../../../../application/ports/out/user.repository';
 import type { User } from '../../../../domain/entities';
 import { mapUser, type UserRow } from '../mappers';
+import { asAsyncDatabase, type ApplicationDatabase } from "../async-database";
 
 export class SqliteUserRepository implements UserRepository {
-  constructor(private readonly db: Database) {}
+  constructor(db: Database | ApplicationDatabase) {
+      this.db = asAsyncDatabase(db);
+  }
 
-  findByEmail(email: string): UserWithPassword | null {
-    const row = this.db
-      .prepare(`SELECT * FROM users WHERE LOWER(email) = LOWER(?)`)
-      .get(email.trim()) as UserRow | undefined;
+  async findByEmail(email: string): Promise<UserWithPassword | null> {
+    const row = (await this.db
+          .prepare(`SELECT * FROM users WHERE LOWER(email) = LOWER(?)`)
+          .get(email.trim())) as UserRow | undefined;
     if (!row) return null;
     return { ...mapUser(row), passwordHash: row.password_hash };
   }
 
-  findById(id: number): User | null {
-    const row = this.db.prepare(`SELECT * FROM users WHERE id = ?`).get(id) as UserRow | undefined;
+  async findById(id: number): Promise<User | null> {
+    const row = (await this.db.prepare(`SELECT * FROM users WHERE id = ?`).get(id)) as UserRow | undefined;
     return row ? mapUser(row) : null;
   }
 
-  create(input: CreateUserInput): User {
-    const result = this.db
-      .prepare(
-        `INSERT INTO users (email, password_hash, full_name, phone, avatar_url, role, active)
+  async create(input: CreateUserInput): Promise<User> {
+    const result = (await this.db
+          .prepare(
+            `INSERT INTO users (email, password_hash, full_name, phone, avatar_url, role, active)
          VALUES (@email, @passwordHash, @fullName, @phone, @avatarUrl, @role, @active)`,
-      )
-      .run({
-        email: input.email.trim().toLowerCase(),
-        passwordHash: input.passwordHash,
-        fullName: input.fullName.trim(),
-        phone: input.phone ?? null,
-        avatarUrl: input.avatarUrl ?? null,
-        role: input.role,
-        active: input.active === false ? 0 : 1,
-      });
-    return this.findById(Number(result.lastInsertRowid)) as User;
+          )
+          .run({
+            email: input.email.trim().toLowerCase(),
+            passwordHash: input.passwordHash,
+            fullName: input.fullName.trim(),
+            phone: input.phone ?? null,
+            avatarUrl: input.avatarUrl ?? null,
+            role: input.role,
+            active: input.active === false ? 0 : 1,
+          }));
+    return (await this.findById(Number(result.lastInsertRowid))) as User;
   }
 
-  update(id: number, input: UpdateUserInput): User {
+  async update(id: number, input: UpdateUserInput): Promise<User> {
     const fields: string[] = [];
     const params: Record<string, unknown> = { id };
     const set = (column: string, key: string, value: unknown) => {
@@ -56,21 +59,23 @@ export class SqliteUserRepository implements UserRepository {
     if (input.active !== undefined) set('active', 'active', input.active ? 1 : 0);
     if (input.passwordHash !== undefined) set('password_hash', 'passwordHash', input.passwordHash);
     if (fields.length > 0) {
-      this.db.transaction(()=>{
-        this.db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = @id`).run(params);
-        if(input.passwordHash!==undefined||input.role!==undefined||input.active!==undefined)this.db.prepare('DELETE FROM auth_sessions WHERE user_id=?').run(id);
-      })();
+      (await this.db.transaction(async ()=>{
+                (await this.db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = @id`).run(params));
+                if(input.passwordHash!==undefined||input.role!==undefined||input.active!==undefined)(await this.db.prepare('DELETE FROM auth_sessions WHERE user_id=?').run(id));
+              })());
     }
-    return this.findById(id) as User;
+    return (await this.findById(id)) as User;
   }
 
-  countActiveAdmins(excludeUserId?: number): number {
-    const row = this.db
-      .prepare(
-        `SELECT COUNT(*) AS total FROM users
+  async countActiveAdmins(excludeUserId?: number): Promise<number> {
+    const row = (await this.db
+          .prepare(
+            `SELECT COUNT(*) AS total FROM users
          WHERE role = 'admin' AND active = 1 AND id <> COALESCE(?, -1)`,
-      )
-      .get(excludeUserId ?? -1) as { total: number };
+          )
+          .get(excludeUserId ?? -1)) as { total: number };
     return row.total;
   }
+
+    private readonly db: ApplicationDatabase;
 }

@@ -35,9 +35,9 @@ export interface UpdateInscriptionInput {
 
 /** Casos de uso de inscripciones (§7.5). */
 export interface InscriptionPort {
-  list(filters?: InscriptionFiltersInput): Inscription[];
-  create(input: CreateInscriptionInput): Inscription;
-  addPayment(id: number, input: AddPaymentInput): Inscription;
-  update(id: number, input: UpdateInscriptionInput): Inscription;
-  remove(id: number): { ok: true };
+  list(filters?: InscriptionFiltersInput): Promise<Inscription[]>;
+  create(input: CreateInscriptionInput): Promise<Inscription>;
+  addPayment(id: number, input: AddPaymentInput): Promise<Inscription>;
+  update(id: number, input: UpdateInscriptionInput): Promise<Inscription>;
+  remove(id: number): Promise<{ ok: true }>;
 }

@@ -10,7 +10,8 @@ import { ValidationError } from '../../../domain/errors';
 
 type Cell = string | number | null;
 type Table = { columns: string[]; rows: Cell[][] };
-type Packet = { format: string; version: number; createdAt: string; tables: Record<string, Table>; files: { name: string; data: string; sha256: string }[] };
+export type MigrationPacket = { format: string; version: number; createdAt: string; tables: Record<string, Table>; files: { name: string; data: string; sha256: string }[] };
+type Packet = MigrationPacket;
 const LIMIT = 25 * 1024 * 1024, EXPANDED = 64 * 1024 * 1024;
 const TRANSIENT = new Set(['auth_sessions', 'registration_invitation', 'notification_jobs', 'notification_match_versions']);
 const counted = ['users', 'players', 'tournaments', 'tournament_players', 'matches', 'inscriptions', 'payments', 'payment_receipts', 'media_assets'];
@@ -141,6 +142,15 @@ export class FileMigrationStore implements MigrationPort {
     this.allowed();
     if (this.working) throw new ValidationError('Hay una migración en curso');
     for (const [id, entry] of this.previews) if (entry.expires < Date.now()) this.previews.delete(id);
+    const packet = this.validateForImport(file);
+    this.previews.clear(); // One bounded preview; packages contain private personal data.
+    const id = randomUUID(), expires = Date.now() + 10 * 60 * 1000;
+    this.previews.set(id, { userId, packet, expires });
+    setTimeout(() => this.previews.delete(id), 10 * 60 * 1000).unref();
+    return { id, createdAt: packet.createdAt, counts: this.counts(packet), files: packet.files.length, expiresAt: new Date(expires).toISOString() };
+  }
+  /** Shared read-only validation for a PostgreSQL destination; executes only our trusted schema. */
+  validateForImport(file: Buffer): MigrationPacket {
     const packet = this.validate(file);
     const trial = new Database(':memory:');
     try {
@@ -149,11 +159,7 @@ export class FileMigrationStore implements MigrationPort {
       this.apply(trial, packet);
     } catch (err) { if (err instanceof ValidationError) throw err; throw new ValidationError('Los datos no cumplen las reglas de la aplicación'); }
     finally { trial.close(); }
-    this.previews.clear(); // One bounded preview; packages contain private personal data.
-    const id = randomUUID(), expires = Date.now() + 10 * 60 * 1000;
-    this.previews.set(id, { userId, packet, expires });
-    setTimeout(() => this.previews.delete(id), 10 * 60 * 1000).unref();
-    return { id, createdAt: packet.createdAt, counts: this.counts(packet), files: packet.files.length, expiresAt: new Date(expires).toISOString() };
+    return packet;
   }
   async commit(userId: number, id: string, confirmation: string) {
     this.allowed();

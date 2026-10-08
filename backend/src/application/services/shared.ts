@@ -76,3 +76,9 @@ export function todayIso(): string {
 export function nowIso(): string {
   return new Date().toISOString();
 }
+/** Preserve predicate order while awaiting database-backed eligibility checks. */
+export async function asyncFilter<T>(values: T[], predicate: (value: T, index: number, values: T[]) => unknown | Promise<unknown>): Promise<T[]> {
+  const result: T[] = [];
+  for (let index = 0; index < values.length; index++) if (await predicate(values[index], index, values)) result.push(values[index]);
+  return result;
+}

@@ -51,20 +51,20 @@ export interface MatchView extends Match {
 
 /** Casos de uso "yo" (§7.2). */
 export interface MePort {
-  getMe(userId: number): MeResponse;
-  updateProfile(userId: number, input: ProfileInput): { user: User; player: Player };
-  changePassword(userId: number, currentPassword: string, newPassword: string): { ok: true };
-  getInscription(userId: number): { inscription: Inscription | null; payments: Payment[] };
-  getUniforms(userId: number): {
-    issued: UniformIssue[];
-    requests: UniformRequest[];
-    catalog: Uniform[];
-  };
+  getMe(userId: number): Promise<MeResponse>;
+  updateProfile(userId: number, input: ProfileInput): Promise<{ user: User; player: Player }>;
+  changePassword(userId: number, currentPassword: string, newPassword: string): Promise<{ ok: true }>;
+  getInscription(userId: number): Promise<{ inscription: Inscription | null; payments: Payment[] }>;
+  getUniforms(userId: number): Promise<{
+              issued: UniformIssue[];
+              requests: UniformRequest[];
+              catalog: Uniform[];
+            }>;
   createUniformRequest(
     userId: number,
     input: { uniformId: number; size: string; reason?: string | null },
-  ): { request: UniformRequest };
-  getMatches(userId: number): { upcoming: MatchView[]; finished: MatchView[] };
-  getStats(userId: number): { summary: StatsSummary; matches: MatchStat[] };
-  getAi(userId: number,matchId?:number): AiPlayerInsight;
+  ): Promise<{ request: UniformRequest }>;
+  getMatches(userId: number): Promise<{ upcoming: MatchView[]; finished: MatchView[] }>;
+  getStats(userId: number): Promise<{ summary: StatsSummary; matches: MatchStat[] }>;
+  getAi(userId: number,matchId?:number): Promise<AiPlayerInsight>;
 }

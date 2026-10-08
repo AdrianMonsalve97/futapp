@@ -10,11 +10,11 @@ const upload = multer({ storage: multer.memoryStorage(), limits: {fileSize:8*102
 
 export function qrPaymentRoutes(service: QrPaymentService): Router {
   const router = Router();
-  router.get('/me/payment-receipts',requireAuth,(req,res) => res.json(service.view(getAuth(req).userId,false)));
-  router.get('/payment-receipts',requireAuth,requireRole('admin'),(req,res) => res.json(service.view(getAuth(req).userId,true)));
-  router.put('/payment-receipts/:id/review',requireAuth,requireRole('admin'),(req,res) => {
+  router.get('/me/payment-receipts',requireAuth,async (req,res) => res.json((await service.view(getAuth(req).userId,false))));
+  router.get('/payment-receipts',requireAuth,requireRole('admin'),async (req,res) => res.json((await service.view(getAuth(req).userId,true))));
+  router.put('/payment-receipts/:id/review',requireAuth,requireRole('admin'),async (req,res) => {
     const body = jsonBody<{status:'aprobado'|'rechazado';notes:string}>(req);
-    res.json(service.review(paramId(req),getAuth(req).userId,body.status,body.notes));
+    res.json((await service.review(paramId(req),getAuth(req).userId,body.status,body.notes)));
   });
   for (const route of ['/me/payment-receipts','/settings/payment-qr']) {
     const guards = route.includes('/settings') ? [requireAuth,requireRole('admin')] : [requireAuth];

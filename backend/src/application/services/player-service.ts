@@ -35,141 +35,141 @@ export class PlayerService implements PlayerPort {
     private readonly uow: UnitOfWork,
   ) {}
 
-  list(): PlayerListItem[] {
-    return this.players.list().map((row) => {
-      const stats = this.stats.list({ playerId: row.player.id });
-      const inscription = this.inscriptions.findByPlayer(row.player.id)[0] ?? null;
-      return {
-        user: row.user,
-        player: row.player,
-        inscription: inscription
-          ? {
-              season: inscription.season,
-              status: deriveInscriptionStatus(inscription.paid, inscription.amount),
-              amount: inscription.amount,
-              paid: inscription.paid,
-              dueDate: inscription.dueDate,
-            }
-          : null,
-        stats: summarizeStats(stats),
-        activeSanctions: this.sanctions.list({ playerId: row.player.id, status: 'activa' }).length,
-      };
-    });
+  async list(): Promise<PlayerListItem[]> {
+    return (await Promise.all((await this.players.list()).map(async (row) => {
+                                                                                                                                              const stats = (await this.stats.list({ playerId: row.player.id }));
+                                                                                                                                              const inscription = (await this.inscriptions.findByPlayer(row.player.id))[0] ?? null;
+                                                                                                                                              return {
+                                                                                                                                                user: row.user,
+                                                                                                                                                player: row.player,
+                                                                                                                                                inscription: inscription
+                                                                                                                                                  ? {
+                                                                                                                                                      season: inscription.season,
+                                                                                                                                                      status: deriveInscriptionStatus(inscription.paid, inscription.amount),
+                                                                                                                                                      amount: inscription.amount,
+                                                                                                                                                      paid: inscription.paid,
+                                                                                                                                                      dueDate: inscription.dueDate,
+                                                                                                                                                    }
+                                                                                                                                                  : null,
+                                                                                                                                                stats: summarizeStats(stats),
+                                                                                                                                                activeSanctions: (await this.sanctions.list({ playerId: row.player.id, status: 'activa' })).length,
+                                                                                                                                              };
+                                                                                                                                            })));
   }
 
-  get(id: number): PlayerDetail {
-    const row = this.requirePlayer(id);
-    const stats = this.stats.list({ playerId: id });
+  async get(id: number): Promise<PlayerDetail> {
+    const row = (await this.requirePlayer(id));
+    const stats = (await this.stats.list({ playerId: id }));
     return {
       user: row.user,
       player: row.player,
-      inscriptions: this.inscriptions
-        .findByPlayer(id)
+      inscriptions: (await this.inscriptions
+              .findByPlayer(id))
         .map((i) => ({ ...i, status: deriveInscriptionStatus(i.paid, i.amount) })),
-      uniformIssues: this.issues.list(id),
-      sanctions: this.sanctions.list({ playerId: id }),
+      uniformIssues: (await this.issues.list(id)),
+      sanctions: (await this.sanctions.list({ playerId: id })),
       stats,
       summary: summarizeStats(stats),
-      ai: this.ai.playerInsight(id),
+      ai: (await this.ai.playerInsight(id)),
     };
   }
 
-  create(input: CreatePlayerInput): { user: User; player: Player } {
-    return this.uow.run(() => {
-      const email = (input.email ?? '').trim().toLowerCase();
-      const fullName = (input.fullName ?? '').trim();
-      if (!EMAIL_RE.test(email)) throw new ValidationError('El email no es válido');
-      if (!fullName) throw new ValidationError('El nombre completo es obligatorio');
-      validatePassword(input.password??'');
-      if (!input.position || !POSITIONS.includes(input.position)) {
-        throw new ValidationError(`Posición inválida. Opciones: ${POSITIONS.join(', ')}`);
-      }
-      if (input.secondaryPosition && !POSITIONS.includes(input.secondaryPosition)) {
-        throw new ValidationError(`Posición secundaria inválida. Opciones: ${POSITIONS.join(', ')}`);
-      }
-      if (this.users.findByEmail(email)) {
-        throw new ValidationError('El email ya está registrado');
-      }
-      const user = this.users.create({
-        email,
-        passwordHash: bcrypt.hashSync(input.password, 10),
-        fullName,
-        phone: input.phone ?? null,
-        role: 'player',
-      });
-      const player = this.players.create({
-        userId: user.id,
-        dni: input.dni ?? null,
-        birthDate: input.birthDate ?? null,
-        position: input.position,
-        secondaryPosition: input.secondaryPosition ?? null,
-        shirtNumber: input.shirtNumber ?? null,
-        heightCm: input.heightCm ?? null,
-        weightKg: input.weightKg ?? null,
-        foot: input.foot ?? null,
-        emergencyContact: input.emergencyContact ?? null,
-        eps: input.eps ?? null,
-        prepaidHealth: input.prepaidHealth ?? null,
-      });
-      return { user, player };
-    });
+  async create(input: CreatePlayerInput): Promise<{ user: User; player: Player }> {
+    return (await this.uow.run(async () => {
+          const email = (input.email ?? '').trim().toLowerCase();
+          const fullName = (input.fullName ?? '').trim();
+          if (!EMAIL_RE.test(email)) throw new ValidationError('El email no es válido');
+          if (!fullName) throw new ValidationError('El nombre completo es obligatorio');
+          validatePassword(input.password??'');
+          if (!input.position || !POSITIONS.includes(input.position)) {
+            throw new ValidationError(`Posición inválida. Opciones: ${POSITIONS.join(', ')}`);
+          }
+          if (input.secondaryPosition && !POSITIONS.includes(input.secondaryPosition)) {
+            throw new ValidationError(`Posición secundaria inválida. Opciones: ${POSITIONS.join(', ')}`);
+          }
+          if ((await this.users.findByEmail(email))) {
+            throw new ValidationError('El email ya está registrado');
+          }
+          const user = (await this.users.create({
+                  email,
+                  passwordHash: bcrypt.hashSync(input.password, 10),
+                  fullName,
+                  phone: input.phone ?? null,
+                  role: 'player',
+                }));
+          const player = (await this.players.create({
+                  userId: user.id,
+                  dni: input.dni ?? null,
+                  birthDate: input.birthDate ?? null,
+                  position: input.position,
+                  secondaryPosition: input.secondaryPosition ?? null,
+                  shirtNumber: input.shirtNumber ?? null,
+                  heightCm: input.heightCm ?? null,
+                  weightKg: input.weightKg ?? null,
+                  foot: input.foot ?? null,
+                  emergencyContact: input.emergencyContact ?? null,
+                  eps: input.eps ?? null,
+                  prepaidHealth: input.prepaidHealth ?? null,
+                }));
+          return { user, player };
+        }));
   }
 
-  update(id: number, input: UpdatePlayerInput): { user: User; player: Player } {
-    return this.uow.run(() => {
-      const row = this.requirePlayer(id);
-      if (input.position !== undefined && !POSITIONS.includes(input.position)) {
-        throw new ValidationError(`Posición inválida. Opciones: ${POSITIONS.join(', ')}`);
-      }
-      if (input.secondaryPosition && !POSITIONS.includes(input.secondaryPosition)) {
-        throw new ValidationError(`Posición secundaria inválida. Opciones: ${POSITIONS.join(', ')}`);
-      }
-      // Protección: no degradar al último administrador activo.
-      if (
-        (input.role === 'player' || input.active === false) &&
-        row.user.role === 'admin' &&
-        this.users.countActiveAdmins(row.user.id) === 0
-      ) {
-        throw new ValidationError('No se puede quitar el rol al último administrador activo');
-      }
+  async update(id: number, input: UpdatePlayerInput): Promise<{ user: User; player: Player }> {
+    return (await this.uow.run(async () => {
+          const row = (await this.requirePlayer(id));
+          if (input.position !== undefined && !POSITIONS.includes(input.position)) {
+            throw new ValidationError(`Posición inválida. Opciones: ${POSITIONS.join(', ')}`);
+          }
+          if (input.secondaryPosition && !POSITIONS.includes(input.secondaryPosition)) {
+            throw new ValidationError(`Posición secundaria inválida. Opciones: ${POSITIONS.join(', ')}`);
+          }
+          // Protección: no degradar al último administrador activo.
+          if (
+            (input.role === 'player' || input.active === false) &&
+            row.user.role === 'admin' &&
+            (await this.users.countActiveAdmins(row.user.id)) === 0
+          ) {
+            throw new ValidationError('No se puede quitar el rol al último administrador activo');
+          }
 
-      const userUpdate: UpdateUserInput = {};
-      if (input.fullName !== undefined) userUpdate.fullName = input.fullName;
-      if (input.phone !== undefined) userUpdate.phone = input.phone;
-      if (input.role !== undefined) userUpdate.role = input.role;
-      if (input.active !== undefined) userUpdate.active = input.active;
-      const user = Object.keys(userUpdate).length > 0 ? this.users.update(row.user.id, userUpdate) : row.user;
+          const userUpdate: UpdateUserInput = {};
+          if (input.fullName !== undefined) userUpdate.fullName = input.fullName;
+          if (input.phone !== undefined) userUpdate.phone = input.phone;
+          if (input.role !== undefined) userUpdate.role = input.role;
+          if (input.active !== undefined) userUpdate.active = input.active;
+          const user = Object.keys(userUpdate).length > 0 ? (await this.users.update(row.user.id, userUpdate)) : row.user;
 
-      const playerUpdate: PlayerRepoUpdateInput = {};
-      if (input.dni !== undefined) playerUpdate.dni = input.dni;
-      if (input.birthDate !== undefined) playerUpdate.birthDate = input.birthDate;
-      if (input.position !== undefined) playerUpdate.position = input.position;
-      if (input.secondaryPosition !== undefined) playerUpdate.secondaryPosition = input.secondaryPosition;
-      if (input.shirtNumber !== undefined) playerUpdate.shirtNumber = input.shirtNumber;
-      if (input.heightCm !== undefined) playerUpdate.heightCm = input.heightCm;
-      if (input.weightKg !== undefined) playerUpdate.weightKg = input.weightKg;
-      if (input.foot !== undefined) playerUpdate.foot = input.foot;
-      if (input.emergencyContact !== undefined) playerUpdate.emergencyContact = input.emergencyContact;
-      if (input.eps !== undefined) playerUpdate.eps = input.eps;
-      if (input.prepaidHealth !== undefined) playerUpdate.prepaidHealth = input.prepaidHealth;
-      const player =
-        Object.keys(playerUpdate).length > 0 ? this.players.update(id, playerUpdate) : row.player;
+          const playerUpdate: PlayerRepoUpdateInput = {};
+          if (input.dni !== undefined) playerUpdate.dni = input.dni;
+          if (input.birthDate !== undefined) playerUpdate.birthDate = input.birthDate;
+          if (input.position !== undefined) playerUpdate.position = input.position;
+          if (input.secondaryPosition !== undefined) playerUpdate.secondaryPosition = input.secondaryPosition;
+          if (input.shirtNumber !== undefined) playerUpdate.shirtNumber = input.shirtNumber;
+          if (input.heightCm !== undefined) playerUpdate.heightCm = input.heightCm;
+          if (input.weightKg !== undefined) playerUpdate.weightKg = input.weightKg;
+          if (input.foot !== undefined) playerUpdate.foot = input.foot;
+          if (input.emergencyContact !== undefined) playerUpdate.emergencyContact = input.emergencyContact;
+          if (input.eps !== undefined) playerUpdate.eps = input.eps;
+          if (input.prepaidHealth !== undefined) playerUpdate.prepaidHealth = input.prepaidHealth;
+          const player =
+            Object.keys(playerUpdate).length > 0 ? (await this.players.update(id, playerUpdate)) : row.player;
 
-      return { user, player };
-    });
+          return { user, player };
+        }));
   }
 
-  remove(id: number): { ok: true } {
-    const row = this.requirePlayer(id);
-    if (row.user.role === 'admin' && row.user.active && this.users.countActiveAdmins(row.user.id) === 0) {
+  async remove(id: number): Promise<{ ok: true }> {
+    const row = (await this.requirePlayer(id));
+    if (row.user.role === 'admin' && row.user.active && (await this.users.countActiveAdmins(row.user.id)) === 0) {
       throw new ValidationError('No se puede dar de baja al último administrador activo');
     }
-    this.users.update(row.user.id, { active: false });
+    (await this.users.update(row.user.id, { active: false }));
     return { ok: true };
   }
 
-  private requirePlayer(id: number): PlayerWithUser {
-    const row = this.players.findWithUser(id);
+  private async requirePlayer(id: number): Promise<PlayerWithUser> {
+    const row = (await this.players.findWithUser(id));
     if (!row) throw new NotFoundError('Jugador no encontrado');
     return row;
   }

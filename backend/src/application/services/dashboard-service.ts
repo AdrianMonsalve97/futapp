@@ -33,18 +33,18 @@ export class DashboardService implements DashboardPort {
     private readonly settings: SettingsRepository,
   ) {}
 
-  admin(): DashboardAdmin {
-    const playerRows = this.players.list();
-    const allInscriptions = this.inscriptions.list();
+  async admin(): Promise<DashboardAdmin> {
+    const playerRows = (await this.players.list());
+    const allInscriptions = (await this.inscriptions.list());
     const derived = allInscriptions.map((i) => ({
       ...i,
       status: deriveInscriptionStatus(i.paid, i.amount),
     }));
 
-    const season = this.settings.get().season;
+    const season = (await this.settings.get()).season;
     const seasonRows = derived.filter((i) => i.season === season);
 
-    const upcoming = this.nextMatch();
+    const upcoming = (await this.nextMatch());
     const seen = new Set<number>();
     const pendingInscriptionPlayers = seasonRows
       .filter((i) => i.status !== 'pagada')
@@ -73,23 +73,23 @@ export class DashboardService implements DashboardPort {
         pendingCount: seasonRows.filter((i) => i.status !== 'pagada').length,
       },
       nextMatch: upcoming,
-      recentSanctions: this.sanctions.list().slice(0, 5),
-      pendingUniformRequests: this.uniformRequests.list('pendiente').length,
-      lowStockUniforms: this.uniforms.list().filter((u) => u.stock <= u.minStock),
-      teamStats: this.teamStatsService.teamStats(),
+      recentSanctions: (await this.sanctions.list()).slice(0, 5),
+      pendingUniformRequests: (await this.uniformRequests.list('pendiente')).length,
+      lowStockUniforms: (await this.uniforms.list()).filter((u) => u.stock <= u.minStock),
+      teamStats: (await this.teamStatsService.teamStats()),
       pendingInscriptionPlayers,
     };
   }
 
-  player(userId: number): DashboardPlayer {
-    const user = this.users.findById(userId);
+  async player(userId: number): Promise<DashboardPlayer> {
+    const user = (await this.users.findById(userId));
     if (!user) throw new NotFoundError('Usuario no encontrado');
-    const player = this.players.findByUserId(userId);
+    const player = (await this.players.findByUserId(userId));
 
     if (!player) {
       return {
         inscription: null,
-        upcomingMatch: this.upcomingMatchWithSlot(null),
+        upcomingMatch: (await this.upcomingMatchWithSlot(null)),
         myStats: emptyStatsSummary(),
         myRecentStats: [],
         mySanctions: [],
@@ -98,21 +98,21 @@ export class DashboardService implements DashboardPort {
       };
     }
 
-    const stats = this.stats.list({ playerId: player.id });
-    const inscription = this.inscriptions.findByPlayer(player.id)[0] ?? null;
-    const insight = this.ai.playerInsight(player.id);
+    const stats = (await this.stats.list({ playerId: player.id }));
+    const inscription = (await this.inscriptions.findByPlayer(player.id))[0] ?? null;
+    const insight = (await this.ai.playerInsight(player.id));
 
     return {
       inscription: inscription
         ? { ...inscription, status: deriveInscriptionStatus(inscription.paid, inscription.amount) }
         : null,
-      upcomingMatch: this.upcomingMatchWithSlot(player.id),
+      upcomingMatch: (await this.upcomingMatchWithSlot(player.id)),
       myStats: summarizeStats(stats),
       myRecentStats: stats.slice(-5),
-      mySanctions: this.sanctions.list({ playerId: player.id }),
+      mySanctions: (await this.sanctions.list({ playerId: player.id })),
       uniforms: {
-        issued: this.uniformIssues.list(player.id),
-        pendingRequests: this.uniformRequests.list('pendiente', player.id).length,
+        issued: (await this.uniformIssues.list(player.id)),
+        pendingRequests: (await this.uniformRequests.list('pendiente', player.id)).length,
       },
       forecast:
         insight.forecast.history.length > 0
@@ -125,19 +125,19 @@ export class DashboardService implements DashboardPort {
     };
   }
 
-  private nextMatch() {
+  private async nextMatch() {
     return (
-      this.matches
-        .list()
+      (await this.matches
+                .list())
         .filter((m) => UPCOMING.has(m.status))
         .sort((a, b) => a.kickOff.localeCompare(b.kickOff))[0] ?? null
     );
   }
 
-  private upcomingMatchWithSlot(playerId: number | null) {
-    const match = this.nextMatch();
+  private async upcomingMatchWithSlot(playerId: number | null) {
+    const match = (await this.nextMatch());
     if (!match) return null;
-    const lineup = this.matches.getPublishedLineup(match.id);
+    const lineup = (await this.matches.getPublishedLineup(match.id));
     const lineupSlot = playerId !== null ? lineup.find((s) => s.playerId === playerId) ?? null : null;
     return { ...match, formation: match.publishedFormation ?? match.formation, lineupSlot };
   }

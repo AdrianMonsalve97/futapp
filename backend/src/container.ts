@@ -39,9 +39,13 @@ import { SqliteQrPaymentRepository } from './adapters/out/persistence/repositori
 import { SqliteNotificationRepository } from './adapters/out/persistence/repositories/notification.repository';
 import { ProviderNotificationTransport } from './adapters/out/notifications/provider-transport';
 import { NotificationService } from './application/services/notification-service';
+import type { ApplicationDatabase } from './adapters/out/persistence/async-database';
+import type { MediaStorage } from './application/ports/out/media.storage';
+import type { ModelStore } from './application/ports/out/model-store';
+import type { MigrationPort } from './application/ports/in/migration.port';
 
 export interface Container {
-  migrationService: FileMigrationStore;
+  migrationService: MigrationPort;
   notificationService: NotificationService;
   qrPaymentService: QrPaymentService;
   tournamentService: TournamentService;
@@ -59,8 +63,8 @@ export interface Container {
   settingsService: SettingsService;
 }
 
-export function createContainer(): Container {
-  const db = getDb();
+export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaStorage; model:ModelStore; migration:MigrationPort }): Container {
+  const db = cloud?.db ?? getDb();
   const uow = new SqliteUnitOfWork(db);
 
   // Adaptadores de salida (repositorios)
@@ -76,8 +80,9 @@ export function createContainer(): Container {
   const settings = new SqliteSettingsRepository(db);
   const tournaments = new SqliteTournamentRepository(db);
   const tournamentService = new TournamentService(tournaments, players, matches, uow);
-  const mediaService = new MediaService(new FileMediaStorage(db), users, uniforms, settings, tournaments, uow);
-  const modelStore = new FileModelStore();
+  const mediaStorage = cloud?.media ?? new FileMediaStorage(db);
+  const mediaService = new MediaService(mediaStorage, users, uniforms, settings, tournaments, uow);
+  const modelStore = cloud?.model ?? new FileModelStore();
   const qrRepository = new SqliteQrPaymentRepository(db);
   const notificationService = new NotificationService(new SqliteNotificationRepository(db), new ProviderNotificationTransport(),
     matches, users, players, settings, qrRepository, uow, Date.now, tournaments);
@@ -122,7 +127,7 @@ export function createContainer(): Container {
     uow,
   );
   const inscriptionService = new InscriptionService(inscriptions, players, uow);
-  const qrPaymentService = new QrPaymentService(qrRepository, new FileMediaStorage(db), players, inscriptionService, uow, notificationService);
+  const qrPaymentService = new QrPaymentService(qrRepository, mediaStorage, players, inscriptionService, uow, notificationService);
   const uniformService = new UniformService(uniforms, uniformIssues, uniformRequests, players, uow);
   const matchService = new MatchService(matches, players, stats, aiService, settings, sanctions, uow, tournaments, notificationService);
   const sanctionService = new SanctionService(sanctions, players);
@@ -142,7 +147,7 @@ export function createContainer(): Container {
   );
 
   return {
-    migrationService: new FileMigrationStore(db, path.dirname(path.resolve(env.dbPath)), env.publicAppUrl),
+    migrationService: cloud?.migration ?? new FileMigrationStore(getDb(), path.dirname(path.resolve(env.dbPath)), env.publicAppUrl),
     notificationService,
     qrPaymentService,
     tournamentService, mediaService,

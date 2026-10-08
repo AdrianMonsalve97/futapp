@@ -17,8 +17,8 @@ export interface FormationCatalog {
 
 /** Casos de uso de configuración global y catálogo (§12.4). */
 export interface SettingsPort {
-  get(): TeamSettings;
-  update(input: SettingsUpdateInput): TeamSettings;
+  get(): Promise<TeamSettings>;
+  update(input: SettingsUpdateInput): Promise<TeamSettings>;
   /** Catálogo completo: 4 perfiles de formato y 14 formaciones (§12.2). */
-  catalog(): FormationCatalog;
+  catalog(): Promise<FormationCatalog>;
 }

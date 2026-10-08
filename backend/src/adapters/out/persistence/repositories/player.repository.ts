@@ -8,6 +8,7 @@ import type {
 import type { Player } from '../../../../domain/entities';
 import { ValidationError } from '../../../../domain/errors';
 import { mapPlayer, mapUser, type PlayerRow, type UserRow } from '../mappers';
+import { asAsyncDatabase, type ApplicationDatabase } from "../async-database";
 
 const SELECT_WITH_USER = `
   SELECT p.*, u.email, u.password_hash, u.full_name, u.phone, u.avatar_url, u.role, u.active, u.created_at
@@ -42,67 +43,69 @@ function toWithUser(row: JoinedRow): PlayerWithUser {
 }
 
 export class SqlitePlayerRepository implements PlayerRepository {
-  constructor(private readonly db: Database) {}
+  constructor(db: Database | ApplicationDatabase) {
+      this.db = asAsyncDatabase(db);
+  }
 
-  list(): PlayerWithUser[] {
-    const rows = this.db
-      .prepare(`${SELECT_WITH_USER} ORDER BY u.full_name COLLATE NOCASE ASC`)
-      .all() as JoinedRow[];
+  async list(): Promise<PlayerWithUser[]> {
+    const rows = (await this.db
+          .prepare(`${SELECT_WITH_USER} ORDER BY u.full_name COLLATE NOCASE ASC`)
+          .all()) as JoinedRow[];
     return rows.map(toWithUser);
   }
 
-  listAll(): Player[] {
-    const rows = this.db.prepare(`SELECT * FROM players ORDER BY id ASC`).all() as PlayerRow[];
+  async listAll(): Promise<Player[]> {
+    const rows = (await this.db.prepare(`SELECT * FROM players ORDER BY id ASC`).all()) as PlayerRow[];
     return rows.map(mapPlayer);
   }
 
-  findById(id: number): Player | null {
-    const row = this.db.prepare(`SELECT * FROM players WHERE id = ?`).get(id) as PlayerRow | undefined;
+  async findById(id: number): Promise<Player | null> {
+    const row = (await this.db.prepare(`SELECT * FROM players WHERE id = ?`).get(id)) as PlayerRow | undefined;
     return row ? mapPlayer(row) : null;
   }
 
-  findByUserId(userId: number): Player | null {
-    const row = this.db.prepare(`SELECT * FROM players WHERE user_id = ?`).get(userId) as
+  async findByUserId(userId: number): Promise<Player | null> {
+    const row = (await this.db.prepare(`SELECT * FROM players WHERE user_id = ?`).get(userId)) as
       | PlayerRow
       | undefined;
     return row ? mapPlayer(row) : null;
   }
 
-  findWithUser(id: number): PlayerWithUser | null {
-    const row = this.db.prepare(`${SELECT_WITH_USER} WHERE p.id = ?`).get(id) as
+  async findWithUser(id: number): Promise<PlayerWithUser | null> {
+    const row = (await this.db.prepare(`${SELECT_WITH_USER} WHERE p.id = ?`).get(id)) as
       | JoinedRow
       | undefined;
     return row ? toWithUser(row) : null;
   }
 
-  create(input: CreatePlayerInput): Player {
-    this.validateShirtNumber(input.shirtNumber ?? null);
-    const result = this.write(() => this.db
-      .prepare(
-        `INSERT INTO players (user_id, dni, birth_date, position, secondary_position, shirt_number,
+  async create(input: CreatePlayerInput): Promise<Player> {
+    (await this.validateShirtNumber(input.shirtNumber ?? null));
+    const result = (await this.write(async () => (await this.db
+              .prepare(
+                `INSERT INTO players (user_id, dni, birth_date, position, secondary_position, shirt_number,
                               height_cm, weight_kg, foot, emergency_contact, eps, prepaid_health)
          VALUES (@userId, @dni, @birthDate, @position, @secondaryPosition, @shirtNumber,
                  @heightCm, @weightKg, @foot, @emergencyContact, @eps, @prepaidHealth)`,
-      )
-      .run({
-        userId: input.userId,
-        dni: input.dni ?? null,
-        birthDate: input.birthDate ?? null,
-        position: input.position,
-        secondaryPosition: input.secondaryPosition ?? null,
-        shirtNumber: input.shirtNumber ?? null,
-        heightCm: input.heightCm ?? null,
-        weightKg: input.weightKg ?? null,
-        foot: input.foot ?? null,
-        emergencyContact: input.emergencyContact ?? null,
-        eps: input.eps?.trim() || null,
-        prepaidHealth: input.prepaidHealth?.trim() || null,
-      }), input.shirtNumber);
-    return this.findById(Number(result.lastInsertRowid)) as Player;
+              )
+              .run({
+                userId: input.userId,
+                dni: input.dni ?? null,
+                birthDate: input.birthDate ?? null,
+                position: input.position,
+                secondaryPosition: input.secondaryPosition ?? null,
+                shirtNumber: input.shirtNumber ?? null,
+                heightCm: input.heightCm ?? null,
+                weightKg: input.weightKg ?? null,
+                foot: input.foot ?? null,
+                emergencyContact: input.emergencyContact ?? null,
+                eps: input.eps?.trim() || null,
+                prepaidHealth: input.prepaidHealth?.trim() || null,
+              })), input.shirtNumber));
+    return (await this.findById(Number(result.lastInsertRowid))) as Player;
   }
 
-  update(id: number, input: UpdatePlayerInput): Player {
-    if (input.shirtNumber !== undefined) this.validateShirtNumber(input.shirtNumber, id);
+  async update(id: number, input: UpdatePlayerInput): Promise<Player> {
+    if (input.shirtNumber !== undefined) (await this.validateShirtNumber(input.shirtNumber, id));
     const fields: string[] = [];
     const params: Record<string, unknown> = { id };
     const set = (column: string, key: string, value: unknown) => {
@@ -125,18 +128,18 @@ export class SqlitePlayerRepository implements PlayerRepository {
       set('emergency_contact', 'emergencyContact', input.emergencyContact);
     }
     if (fields.length > 0) {
-      this.write(() => this.db.prepare(`UPDATE players SET ${fields.join(', ')} WHERE id = @id`).run(params), input.shirtNumber);
+      (await this.write(async () => (await this.db.prepare(`UPDATE players SET ${fields.join(', ')} WHERE id = @id`).run(params)), input.shirtNumber));
     }
-    return this.findById(id) as Player;
+    return (await this.findById(id)) as Player;
   }
 
-  private validateShirtNumber(number: number | null, exceptId = -1): void {
+  private async validateShirtNumber(number: number | null, exceptId = -1): Promise<void> {
     if (number === null) return;
     if (!Number.isInteger(number) || number < 0 || number > 999) {
       throw new ValidationError('El dorsal debe ser un número entero entre 0 y 999.');
     }
-    if (this.db.prepare('SELECT id FROM players WHERE shirt_number = ? AND id <> ?').get(number, exceptId)) {
-      throw this.occupiedNumber(number);
+    if ((await this.db.prepare('SELECT id FROM players WHERE shirt_number = ? AND id <> ?').get(number, exceptId))) {
+      throw (await this.occupiedNumber(number));
     }
   }
 
@@ -144,12 +147,14 @@ export class SqlitePlayerRepository implements PlayerRepository {
     return new ValidationError(`El dorsal ${number} ya está asignado. Elige otro número o déjalo sin asignar.`, 'SHIRT_NUMBER_TAKEN');
   }
 
-  private write<T>(action: () => T, number: number | null | undefined): T {
+  private async write<T>(action: () => T, number: number | null | undefined): Promise<T> {
     try { return action(); }
     catch (error) {
       // The unique index also protects concurrent writes from another process.
-      if (error instanceof Error && error.message.includes('UNIQUE constraint failed: players.shirt_number')) throw this.occupiedNumber(number);
+      if (error instanceof Error && error.message.includes('UNIQUE constraint failed: players.shirt_number')) throw (await this.occupiedNumber(number));
       throw error;
     }
   }
+
+    private readonly db: ApplicationDatabase;
 }

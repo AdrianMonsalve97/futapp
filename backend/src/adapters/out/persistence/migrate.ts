@@ -83,8 +83,7 @@ function ensureFormatSupport(db: Database): void {
  * la tabla `users` no existe (§4) y aplica la migración de formatos (§12.3)
  * tanto en BDs nuevas como en existentes.
  */
-export function migrate(): void {
-  const db = getDb();
+export function migrate(db: Database = getDb()): void {
   const table = db
     .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'`)
     .get();

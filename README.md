@@ -12,7 +12,7 @@ En Mi inscripción y Mis uniformes el jugador ve el QR protegido del equipo (amp
 |---|---|
 | Frontend | **React 19 + TypeScript + Vite 8**, **DaisyUI 5 / Tailwind CSS 4**, arquitectura **Atomic Design** |
 | Backend | **Node.js + TypeScript + Express 5**, **arquitectura hexagonal** (puertos y adaptadores) |
-| Base de datos | **SQLite** (`better-sqlite3`), archivo en `backend/data/portal.db` |
+| Base de datos | **SQLite** para desarrollo y Docker; **PostgreSQL / Supabase** para Render Free |
 | Auth | JWT (HS256) + bcryptjs, roles `admin` y `player` |
 | IA | Regresión lineal entrenada con gradiente descenso sobre las estadísticas del plantel + XI recomendado (greedy + mejora local) + probabilidad de resultado (logística) |
 
@@ -28,7 +28,7 @@ En Mi inscripción y Mis uniformes el jugador ve el QR protegido del equipo (amp
 - **Partidos:** seleccionar un torneo usa su formato y duración real. Cada partido conserva una copia de las reglas; las modificaciones posteriores se aplican a nuevos partidos o al seleccionar otra vez el torneo en un encuentro pendiente. Los partidos jugados conservan su torneo. Para amistosos independientes la duración es editable.
 - **IA:** compara las formaciones habilitadas según el encaje de posiciones principales y secundarias, disponibilidad, rendimiento y enfoque táctico; sugiere titulares y suplentes dentro del cupo. El análisis muestra reglas, indicaciones y extractos de los documentos. Las estadísticas se normalizan por la duración real de cada partido. Los jugadores ven el contexto de liga en su análisis personal, sin revelar el borrador de alineación.
 
-Los archivos se guardan en `uploads/`, junto a la base definida por `DB_PATH`; en Render quedan en el mismo disco persistente. `npm run backup` incluye la base, el modelo y los archivos. Las fotos y los documentos se descargan con sesión autenticada; solo el escudo vigente y la identidad del club tienen acceso público. Los archivos cargados no se incluyen en Git.
+En modo SQLite, los archivos se guardan en `uploads/`, junto a la base definida por `DB_PATH`; `npm run backup` incluye la base, el modelo y los archivos. En Render Free, los datos y el modelo quedan en PostgreSQL y los archivos en Supabase Storage; el apartado de migración permite exportar los datos y archivos. Las fotos y los documentos se descargan con sesión autenticada; solo el escudo vigente y la identidad del club tienen acceso público. Los archivos cargados no se incluyen en Git.
 
 El descanso, el límite de convocatoria y el reingreso pueden quedar **por confirmar**. La IA distingue cambios ilimitados de reingreso permitido, y no impone un cupo de liga cuando aún no está confirmado.
 
@@ -84,7 +84,7 @@ futbol-portal/
 │       │   └── services/       # lógica de negocio (sin Express ni SQL)
 │       └── adapters/
 │           ├── in/rest/        # Express: rutas, middlewares, error handler
-│           └── out/persistence/ # SQLite: schema.sql, migrate, seed, repositorios
+│           └── out/persistence/ # SQLite / PostgreSQL, archivos locales / Supabase
 └── frontend/             # React + Atomic Design
     └── src/
         ├── atoms/        # botón, input, card, badge, modal…
@@ -197,43 +197,17 @@ node scripts/prepare-team.mjs --apply  # respaldo previo y limpieza solicitada
 
 Detén el backend antes de aplicar. El comando elimina plantel, partidos, pagos, soportes, sanciones, asignaciones y sesiones; pone el inventario en cero y deja notificaciones desactivadas. Crea un administrador con `TEAM_ADMIN_EMAIL` y `TEAM_ADMIN_NAME` opcionales; por defecto usa `admin@futapp.local`. Guarda una contraseña aleatoria en `.local/admin-inicial.txt`, excluida de Git. Rechaza sobrescribir un archivo de credenciales existente. El respaldo previo queda junto a la base en `backups/inicio-equipo-*`. No ejecutes seed sobre el equipo real.
 
-## Preparación para Render
+## Publicación gratuita: Render + Supabase
 
-Para trasladar las cuentas, pagos y archivos al Mac mini o a Render, sigue la [guía de traslado y respaldos](docs/TRASLADO-Y-RESPALDOS.md). Los datos no viajan al clonar GitHub; el túnel no modifica su persistencia.
+La ruta elegida permite apagar el Mac: un servicio **Render Free** sirve React y la API; **Supabase Free** guarda PostgreSQL y los archivos en un bucket privado. [Guía de configuración, GitHub Actions e ingesta](docs/RENDER-FREE-SUPABASE.md).
 
-[`render.yaml`](render.yaml) configura un único servicio Node 24 que sirve React y la API
-en el mismo dominio, con disco persistente de 1 GB para SQLite y el modelo. El plan de cómputo
-`0.5c-512mb` y el disco son recursos de pago. Consulta la
-[referencia de Blueprints](https://render.com/docs/blueprint-spec) y los
-[discos persistentes](https://render.com/docs/disks). Este archivo prepara el despliegue;
-crear el servicio en Render sigue siendo un paso aparte.
+El archivo [render.yaml](render.yaml) usa una instancia Free, sin disco ni base de Render. La tarea YAML genera las claves de arranque una sola vez y configura los secretos de Supabase. Solo publica el commit que pasó tipos, pruebas, build, Docker y PostgreSQL real. Los secretos permanecen en el servidor.
 
-El build es `npm ci --include=dev && npm run build`; el inicio es `npm run start`.
-Render genera `JWT_SECRET`, configura `NODE_ENV=production` y usa `DB_PATH=/var/data/portal.db`.
-El servidor rechaza un secreto ausente, de ejemplo o menor a 32 caracteres en producción.
-El endpoint de salud es `/api/health` y las rutas React admiten recarga directa.
+La ingesta de Configuración acepta el archivo privado del equipo, conserva las contraseñas, valida referencias y archivos, y aplica las tablas en una transacción. Un fallo conserva la base anterior. El destino debe estar nuevo; no se sobrescriben jugadores o pagos existentes.
 
-Para la primera cuenta, define temporalmente `ADMIN_EMAIL`, `ADMIN_PASSWORD` (mínimo 15 caracteres)
-y opcionalmente `ADMIN_NAME` en el entorno del servicio. Ejecuta desde la raíz en la consola de Render:
+Para desarrollo y Docker sigue disponible **SQLite**. Los comandos de consola de respaldo, restauración y limpieza se aplican a ese modo; [guía de traslado SQLite](docs/TRASLADO-Y-RESPALDOS.md). La copia local no sincroniza automáticamente con la nube.
 
-```bash
-npm run admin:create
-```
-
-Después elimina esas variables del entorno. El comando solo crea el administrador inicial,
-sin datos de demostración, y rechaza ejecutarse si ya hay uno activo.
-`seed` y `reset` están bloqueados en producción; en desarrollo, `seed` rechaza una base existente
-y `npm run reset -w backend` requiere una decisión explícita para borrar los datos demo.
-
-`npm run backup` usa el mecanismo de copia de SQLite, compatible con WAL y con la API en marcha.
-Guarda `portal.db` y, si existe, `model.json` en una carpeta fechada junto a la base (`backups/`).
-Descarga una copia fuera del disco del servicio cuando necesites protegerte frente a su pérdida.
-Para restaurar, detén la aplicación, conserva los archivos actuales, sustituye la base por la copia
-y retira los archivos `portal.db-wal` y `portal.db-shm` del estado anterior antes de iniciar.
-El modelo se reentrena automáticamente si su historial o formato ya no coincide.
-
-GitHub Actions ejecuta tipos, pruebas y build al recibir cambios o pull requests.
-Las pruebas crean su propia base temporal y no modifican la base demo ni la de producción.
+Las capas gratuitas tienen cuotas y pausas. Render puede necesitar alrededor de un minuto para despertar; el bot de recordatorios no tiene ejecución continua garantizada. Exporta los datos y conserva una copia independiente.
 
 ## 📄 Licencia
 
@@ -259,7 +233,7 @@ Para **mensajes individuales** mediante el adaptador de Meta, selecciona Meta y 
 
 Correo es opcional y usa SMTP con TLS: `SMTP_HOST`, `SMTP_PORT` (465, 587 o 2525), `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`. Conecta un proveedor que permita SMTP en tu hosting; luego activa correo y configura el destinatario administrativo. En modo individual, los jugadores activos que aceptaron avisos deportivos reciben en el correo de su propia cuenta; en modo grupo, todos los avisos deportivos van al grupo de WhatsApp. Los avisos administrativos siempre van solo al destinatario privado configurado. Nunca se incluyen soportes adjuntos, datos de salud, contraseñas o alineaciones en borrador; los enlaces a pagos requieren iniciar sesión con permisos de administrador.
 
-La cola persiste en SQLite y se procesa cada 30 segundos mientras el backend esté encendido. Las fechas existentes de partidos se interpretan en **America/Bogota (UTC−05:00)** independientemente de la zona horaria del servidor. Los avisos del mismo evento se deduplican. Cambiar la hora, cancha o estado cancela mensajes pendientes con datos anteriores; un partido pospuesto o cancelado no genera recordatorios. Guardar preferencias cancela mensajes pendientes del jugador. Cambiar al modo grupo descarta avisos individuales pendientes. El botón **Notificar partido al equipo** permite anunciar encuentros existentes al destino configurado.
+La cola persiste en la base de datos configurada y se procesa cada 30 segundos mientras el backend esté encendido. Las fechas existentes de partidos se interpretan en **America/Bogota (UTC−05:00)** independientemente de la zona horaria del servidor. Los avisos del mismo evento se deduplican. Cambiar la hora, cancha o estado cancela mensajes pendientes con datos anteriores; un partido pospuesto o cancelado no genera recordatorios. Guardar preferencias cancela mensajes pendientes del jugador. Cambiar al modo grupo descarta avisos individuales pendientes. El botón **Notificar partido al equipo** permite anunciar encuentros existentes al destino configurado.
 
 El historial distingue en cola, aceptado por el proveedor, bloqueado, fallido, incierto y cancelado. **Aceptado no significa entregado ni leído**; comprueba entrega/lectura en el proveedor. Los límites explícitos permiten reintentos automáticos acotados. Una desconexión o interrupción durante un envío queda incierta y necesita revisión del proveedor antes de reenviar, para evitar duplicados. La cola se guarda en la misma transacción que el partido o soporte. El bot envía avisos; la confirmación de asistencia y revisión de pagos se hacen en FutApp, no mediante respuestas conversacionales a WhatsApp.
 
@@ -271,12 +245,12 @@ En **Torneos → ficha del torneo → Jugadores inscritos**, el administrador se
 
 Cada partido con torneo usa exclusivamente sus inscritos para asistencia, alineaciones manuales, titulares, suplentes y análisis táctico de la IA. También se filtran los avisos individuales y se descartan avisos pendientes cuando el jugador pierde la inscripción; los avisos deportivos al grupo mantienen el destino compartido configurado. Los partidos sin torneo usan el plantel activo completo. El límite de convocatoria se aplica a cada partido, no al número de inscritos en el torneo. La inscripción deportiva no genera automáticamente una deuda ni acredita pagos.
 
-Quitar un inscrito libera sus posiciones en borradores de partidos pendientes y retira la publicación si contenía a ese jugador, para que el administrador complete y publique de nuevo. Los partidos jugados y sus estadísticas se conservan. Al cambiar el torneo de un partido pendiente, se retira la publicación y se liberan posiciones de jugadores no inscritos en el nuevo torneo. La tabla `tournament_players` se guarda dentro de SQLite y forma parte de los respaldos existentes.
+Quitar un inscrito libera sus posiciones en borradores de partidos pendientes y retira la publicación si contenía a ese jugador, para que el administrador complete y publique de nuevo. Los partidos jugados y sus estadísticas se conservan. Al cambiar el torneo de un partido pendiente, se retira la publicación y se liberan posiciones de jugadores no inscritos en el nuevo torneo. La tabla `tournament_players` se conserva en la base de datos configurada y en las exportaciones de migración.
 
 ## Migración a Render y CI/CD
 
-**Ruta gratuita elegida: Mac mini con Docker.** `Dockerfile`, `compose.yaml` y `scripts/docker-init.sh` conservan SQLite y uploads en una carpeta externa al contenedor. El archivo `.futapp` se ingiere desde Configuración en la instalación nueva. GitHub Actions construye y verifica la persistencia de los contenedores AMD64 y ARM64; [instalación, ingesta, túnel y respaldos en el Mac](docs/MAC-MINI-DOCKER.md).
+**Ruta elegida: Render Free + Supabase Free.** La app funciona aunque el Mac esté apagado. PostgreSQL conserva las cuentas y los datos; un bucket privado guarda fotos, documentos y comprobantes. [Instalación e ingesta en la nube](docs/RENDER-FREE-SUPABASE.md).
 
-Como alternativa de pago, el despliegue está preparado en `render.yaml` y `.github/workflows/check.yml`. GitHub Actions valida el código, genera/configura variables de entorno mediante una tarea YAML y despliega el commit validado por la API de Render. Requiere elegir `DEPLOY_TARGET=render`, el secreto `RENDER_API_KEY` y la variable `RENDER_SERVICE_ID` configurados directamente en GitHub; el servicio usa SQLite en un disco persistente de pago.
+El despliegue está preparado en `render.yaml` y `.github/workflows/check.yml`. GitHub Actions valida el código, genera/configura variables mediante una tarea YAML y despliega el commit validado por la API de Render. Requiere `DEPLOY_TARGET=render`, `RENDER_SERVICE_ID` y los secretos privados de Render y Supabase. El script rechaza planes de pago y discos. Para pruebas locales sigue disponible [Mac mini con Docker y SQLite](docs/MAC-MINI-DOCKER.md).
 
 **Configuración → Migración de datos** permite exportar la información real como archivo privado `.futapp` e ingerirla una sola vez en la instalación nueva. Incluye cuentas, fotos, normativa y comprobantes, sin publicar datos en GitHub. [Pasos completos de publicación, ingesta y respaldos](docs/TRASLADO-Y-RESPALDOS.md).

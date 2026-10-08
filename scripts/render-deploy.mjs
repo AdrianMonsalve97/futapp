@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-export function createRenderClient({ apiKey, serviceId, request = fetch }) {
+export function createRenderClient({ apiKey, serviceId, request = fetch, cloud = {} }) {
   if (!apiKey || !/^srv-[a-z0-9]+$/.test(serviceId ?? '')) throw new Error('Configura RENDER_API_KEY como secreto y RENDER_SERVICE_ID como variable de GitHub Actions');
   const mask = value => { if (process.env.GITHUB_ACTIONS === 'true') process.stdout.write(`::add-mask::${String(value).replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A')}\n`); };
   mask(apiKey);
@@ -16,7 +16,7 @@ export function createRenderClient({ apiKey, serviceId, request = fetch }) {
   async function service() {
     const value = await api('');
     const details = value.serviceDetails;
-    if (value.type !== 'web_service' || value.repo?.replace(/\.git$/,'').toLowerCase() !== 'https://github.com/adrianmonsalve97/futapp' || value.branch !== 'main' || value.rootDir || details?.runtime !== 'node' || details?.numInstances !== 1 || details?.plan === 'free' || details?.disk?.mountPath !== '/var/data') throw new Error('El servicio debe ser futapp/main, Node, una instancia y un disco persistente en /var/data. Créalo desde render.yaml.');
+    if (value.type !== 'web_service' || value.repo?.replace(/\.git$/,'').toLowerCase() !== 'https://github.com/adrianmonsalve97/futapp' || value.branch !== 'main' || value.rootDir || details?.runtime !== 'node' || details?.numInstances !== 1 || details?.plan !== 'free' || details?.disk) throw new Error('El servicio debe ser futapp/main, Node, una instancia Free y sin disco de pago. Créalo desde render.yaml.');
     const url = new URL(details.url);
     if (url.protocol !== 'https:' || !url.hostname.endsWith('.onrender.com') || url.username || url.password) throw new Error('URL de Render no válida');
     return { ...value, url:url.origin };
@@ -39,12 +39,26 @@ export function createRenderClient({ apiKey, serviceId, request = fetch }) {
       const password = existing.get('ADMIN_PASSWORD') || randomBytes(24).toString('base64url');
       mask(jwt); mask(password);
       if (jwt.length < 32 || jwt.includes('cambiame') || password.length < 15 || Buffer.byteLength(password)>72) throw new Error('Los secretos existentes no cumplen los requisitos. Corrígelos en Render.');
+      const databaseUrl=cloud.databaseUrl || existing.get('DATABASE_URL'),supabaseUrl=cloud.supabaseUrl || existing.get('SUPABASE_URL'),serverKey=cloud.serverKey || existing.get('SUPABASE_SECRET_KEY') || existing.get('SUPABASE_SERVICE_ROLE_KEY');
+      if(!databaseUrl||!supabaseUrl||!serverKey)throw new Error('Configura DATABASE_URL, SUPABASE_URL y SUPABASE_SECRET_KEY como secretos de GitHub Actions');
+      let database,storage;
+      try{database=new URL(databaseUrl);storage=new URL(supabaseUrl);}catch{throw new Error('Revisa las conexiones privadas de Supabase');}
+      if(!['postgres:','postgresql:'].includes(database.protocol)||!database.hostname.endsWith('.pooler.supabase.com')||database.port!=='5432'||!database.username||!database.password||storage.protocol!=='https:'||!storage.hostname.endsWith('.supabase.co')||storage.pathname!=='/'||storage.search||storage.hash)throw new Error('Usa Session pooler de Supabase (5432) y la URL HTTPS del proyecto');
+      let serviceRole=false;
+      try{serviceRole=JSON.parse(Buffer.from(serverKey.split('.')[1]||'','base64url').toString()).role==='service_role';}catch{}
+      if(!serverKey.startsWith('sb_secret_')&&!serviceRole)throw new Error('Usa una clave secreta del servidor; nunca una clave publishable');
+      mask(databaseUrl);mask(supabaseUrl);mask(serverKey);
       const variables = {
-        NODE_VERSION:'24.19.0',NODE_ENV:'production',TZ:'America/Bogota',DB_PATH:'/var/data/portal.db',
+        NODE_VERSION:'24.19.0',NODE_ENV:'production',TZ:'America/Bogota',DB_DRIVER:'postgres',
+        DATABASE_URL:databaseUrl,SUPABASE_URL:storage.origin,SUPABASE_SECRET_KEY:serverKey,SUPABASE_STORAGE_BUCKET:cloud.bucket||existing.get('SUPABASE_STORAGE_BUCKET')||'futapp-media',
         JWT_EXPIRES_IN:'8h',JWT_SECRET:jwt,BOOTSTRAP_ADMIN:'1',
         ADMIN_EMAIL:existing.get('ADMIN_EMAIL') || 'admin@futapp.local',ADMIN_NAME:existing.get('ADMIN_NAME') || 'Administrador de migración',ADMIN_PASSWORD:password,
         PUBLIC_APP_URL:target.url,CORS_ORIGIN:target.url,
       };
+      if(cloud.ca||existing.get('SUPABASE_DB_CA'))variables.SUPABASE_DB_CA=cloud.ca||existing.get('SUPABASE_DB_CA');
+      if(variables.SUPABASE_DB_CA)mask(variables.SUPABASE_DB_CA);
+      // Delete obsolete local persistence and SSL bypass settings before switching to the cloud.
+      for(const key of ['DB_PATH','PG_SSL'])if(existing.has(key))await api(`/env-vars/${key}`,'DELETE');
       // Individual PUT preserves unrelated provider variables. Secrets persist across deployments.
       for (const [key,value] of Object.entries(variables)) if (existing.get(key)!==value) await api(`/env-vars/${key}`,'PUT',{value});
       if (target.autoDeployTrigger !== 'off') await api('','PATCH',{autoDeployTrigger:'off'});
@@ -75,7 +89,7 @@ export function createRenderClient({ apiKey, serviceId, request = fetch }) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    const client = createRenderClient({apiKey:process.env.RENDER_API_KEY,serviceId:process.env.RENDER_SERVICE_ID});
+    const client = createRenderClient({apiKey:process.env.RENDER_API_KEY,serviceId:process.env.RENDER_SERVICE_ID,cloud:{databaseUrl:process.env.DATABASE_URL,supabaseUrl:process.env.SUPABASE_URL,serverKey:process.env.SUPABASE_SECRET_KEY,ca:process.env.SUPABASE_DB_CA}});
     const mode = process.argv[2];
     if (!['configure','deploy'].includes(mode)) throw new Error('Usa configure o deploy');
     const result = mode==='configure' ? await client.configure() : await client.deploy(process.env.GITHUB_SHA);

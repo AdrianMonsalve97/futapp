@@ -10,6 +10,7 @@ let instance: Database.Database | null = null;
  * `journal_mode = WAL` y `foreign_keys = ON`.
  */
 export function getDb(): Database.Database {
+  if (env.databaseDriver === 'postgres') throw new Error('Esta herramienta usa SQLite; para PostgreSQL usa la ingesta o los respaldos de la nube');
   if (instance) return instance;
   const filePath = path.isAbsolute(env.dbPath) ? env.dbPath : path.resolve(process.cwd(), env.dbPath);
   if (fs.existsSync(path.join(path.dirname(filePath), '.restore-in-progress'))) throw new Error('La restauración de datos no ha finalizado. Selecciona una copia completa antes de iniciar');

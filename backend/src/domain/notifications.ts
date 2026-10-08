@@ -39,7 +39,7 @@ export class NotificationDeliveryError extends Error {
   constructor(message: string, public readonly outcome: 'blocked' | 'retry' | 'failed' | 'uncertain') { super(message); }
 }
 export interface NotificationEvents {
-  matchChanged(match: import('./entities').Match, previous?: import('./entities').Match): void;
-  receiptUploaded(receipt: import('./payments').PaymentReceipt): void;
-  receiptReviewed(receipt: import('./payments').PaymentReceipt): void;
+  matchChanged(match: import('./entities').Match, previous?: import('./entities').Match): Promise<void>;
+  receiptUploaded(receipt: import('./payments').PaymentReceipt): Promise<void>;
+  receiptReviewed(receipt: import('./payments').PaymentReceipt): Promise<void>;
 }

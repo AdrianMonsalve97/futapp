@@ -47,12 +47,12 @@ function aggregateByPlayer(stats: MatchStat[]): PlayerAggregate[] {
 export class StatsService implements StatsPort {
   constructor(private readonly stats: StatsRepository) {}
 
-  list(filter: { matchId?: number; playerId?: number } = {}): MatchStat[] {
-    return this.stats.list(filter);
+  async list(filter: { matchId?: number; playerId?: number } = {}): Promise<MatchStat[]> {
+    return (await this.stats.list(filter));
   }
 
-  teamStats(): TeamStats {
-    const all = this.stats.listAll();
+  async teamStats(): Promise<TeamStats> {
+    const all = (await this.stats.listAll());
     const aggregates = aggregateByPlayer(all);
 
     const ranked = (pick: (entry: PlayerAggregate) => number) =>

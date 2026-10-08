@@ -52,25 +52,25 @@ export interface LineupSlotInput {
 
 /** Puerto de salida para partidos, estrategias y alineaciones. */
 export interface MatchRepository {
-  getPublishedLineup(matchId: number): LineupSlot[];
-  publishLineup(matchId: number): Match;
-  unpublishLineup(matchId: number): void;
-  listAttendance(matchId: number): import('../../../domain/entities').MatchAttendance[];
-  setAttendance(matchId: number, playerId: number, status: import('../../../domain/entities').AttendanceStatus): void;
-  list(): Match[];
-  findById(id: number): Match | null;
-  create(input: CreateMatchInput): Match;
-  update(id: number, input: UpdateMatchInput): Match;
-  remove(id: number): void;
+  getPublishedLineup(matchId: number): Promise<LineupSlot[]>;
+  publishLineup(matchId: number): Promise<Match>;
+  unpublishLineup(matchId: number): Promise<void>;
+  listAttendance(matchId: number): Promise<import('../../../domain/entities').MatchAttendance[]>;
+  setAttendance(matchId: number, playerId: number, status: import('../../../domain/entities').AttendanceStatus): Promise<void>;
+  list(): Promise<Match[]>;
+  findById(id: number): Promise<Match | null>;
+  create(input: CreateMatchInput): Promise<Match>;
+  update(id: number, input: UpdateMatchInput): Promise<Match>;
+  remove(id: number): Promise<void>;
 
-  listStrategies(matchId: number): Strategy[];
-  findStrategy(id: number): Strategy | null;
-  createStrategy(input: CreateStrategyInput): Strategy;
-  updateStrategy(id: number, input: UpdateStrategyInput): Strategy;
-  removeStrategy(id: number): void;
+  listStrategies(matchId: number): Promise<Strategy[]>;
+  findStrategy(id: number): Promise<Strategy | null>;
+  createStrategy(input: CreateStrategyInput): Promise<Strategy>;
+  updateStrategy(id: number, input: UpdateStrategyInput): Promise<Strategy>;
+  removeStrategy(id: number): Promise<void>;
 
   /** Slots del partido con datos del jugador (nombre, dorsal, posición). */
-  getLineup(matchId: number): LineupSlot[];
+  getLineup(matchId: number): Promise<LineupSlot[]>;
   /** Reemplaza por completo la alineación del partido. */
-  replaceLineup(matchId: number, slots: LineupSlotInput[]): LineupSlot[];
+  replaceLineup(matchId: number, slots: LineupSlotInput[]): Promise<LineupSlot[]>;
 }

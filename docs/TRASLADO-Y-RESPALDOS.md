@@ -36,35 +36,12 @@ El respaldo contiene datos privados y hashes de contraseñas. Transfiérelo por 
 
 No ejecutes `seed`, `reset` ni `prepare-team.mjs --apply` al restaurar datos reales. Las notificaciones deben seguir desactivadas en el servidor de pruebas para evitar avisos duplicados.
 
-## Publicar en Render
+## Publicar en Render Free con Supabase
 
-Para la ruta gratuita elegida, usa [Mac mini con Docker](MAC-MINI-DOCKER.md). La alternativa de esta sección requiere un servicio de pago en Render y solo se activa en Actions con la variable de repositorio `DEPLOY_TARGET=render`.
+La publicación elegida usa PostgreSQL y archivos privados en Supabase. Consulta la [guía completa de Render Free + Supabase Free](RENDER-FREE-SUPABASE.md). `render.yaml` no crea discos ni bases de pago.
 
-El archivo `render.yaml` prepara un servicio Node con un disco persistente en `/var/data` y `DB_PATH=/var/data/portal.db`. La base, los archivos en `/var/data/uploads` y el modelo quedan en ese disco. El servicio y el disco requieren un plan de pago; la configuración no crea recursos hasta que se despliega.
+El paquete `.futapp` de **Configuración → Migración de datos → Exportar datos para migración** permite trasladar las cuentas y los archivos desde SQLite a PostgreSQL. El destino debe estar nuevo y la ingesta requiere un administrador, previsualización y confirmación **IMPORTAR**. Se conservan contraseñas y datos; las sesiones antiguas se invalidan y los envíos quedan desactivados.
 
-### Crear el servicio y conectar GitHub Actions
+Para el traslado final, deja de escribir en el origen, exporta nuevamente y comprueba las cantidades y archivos después de importar. Las instalaciones no se sincronizan. Usa la nube como origen principal una vez verificada.
 
-1. En Render, elige **New → Blueprint**, conecta `AdrianMonsalve97/futapp`, rama `main`, y usa `render.yaml`. Revisa el precio mostrado por Render antes de crear los recursos: esta app con SQLite necesita el servicio de pago y el disco persistente. Mantén una sola instancia, raíz del repositorio vacía y disco en `/var/data`.
-2. La creación inicial desde Blueprint construye el servicio. Los despliegues posteriores los controla **GitHub Actions**; `autoDeployTrigger: off` evita un segundo despliegue por cada push. Los cambios del Blueprint deben sincronizarse deliberadamente desde Render cuando se cambie su infraestructura.
-3. En Render → Account Settings → API Keys, crea una clave para esta automatización. Guárdala **directamente** como secreto `RENDER_API_KEY` en [GitHub → Settings → Secrets and variables → Actions](https://github.com/AdrianMonsalve97/futapp/settings/secrets/actions). No la pegues en chats ni en archivos versionados. Guarda el ID `srv-…` del servicio como variable de repositorio `RENDER_SERVICE_ID` en la pestaña **Variables**. Si todavía no está esa variable, el workflow valida el código y omite el despliegue.
-4. En [Actions → FutApp CI/CD](https://github.com/AdrianMonsalve97/futapp/actions), ejecuta **Run workflow** sobre `main`. El job `verify` comprueba tipos, pruebas, build y ejecución de producción. El job `render` usa el entorno `production`; la tarea **Generar y configurar variables de entorno en Render** crea los secretos que falten y configura Node, zona horaria, base persistente y URL. Conserva JWT, contraseña inicial y variables de proveedores existentes; nunca imprime sus valores. La siguiente tarea publica exactamente `GITHUB_SHA`, espera `live`, verifica el commit y consulta `/api/health`.
-5. Revisa que Actions esté verde y abre el dominio HTTPS del servicio. La contraseña del administrador inicial se consulta privadamente en Render → servicio → **Environment → ADMIN_PASSWORD**; correo `admin@futapp.local` salvo que hayas personalizado `ADMIN_EMAIL`. Este administrador se crea únicamente si la base no contiene usuarios, y nunca reemplaza las cuentas después de un redeploy o una importación. Después de importar, puedes eliminar `BOOTSTRAP_ADMIN` y las variables `ADMIN_*` de Render si desactivas también su generación en la automatización.
-
-### Ingesta de los datos reales desde Configuración
-
-1. En la app de origen, entra como administrador a **Configuración → Migración de datos → Exportar datos para migración**. Descarga el archivo `.futapp` privado. Para el traslado final, pausa el ingreso de nuevos datos en el origen y exporta de nuevo; las dos instalaciones no se sincronizan.
-2. En la app nueva de Render, entra con el administrador inicial. Sin agregar jugadores o archivos todavía, abre **Configuración → Migración de datos → Activar ingesta de semilla**. La ingesta solo se habilita con una única cuenta administrativa y sin datos deportivos, archivos o inscripciones.
-3. Selecciona el archivo `.futapp` (máximo 25 MB comprimido y 64 MB expandido). Revisa las cantidades mostradas y escribe **IMPORTAR**. La previsualización vence a los diez minutos y pertenece al administrador que la solicitó. Ambas apps deben usar la misma versión del esquema; el orden histórico de las columnas puede diferir.
-4. Se valida el formato, los archivos y sus hashes, los dorsales únicos y las referencias entre tablas. Antes de importar se guarda el estado inicial de la base en `/var/data/backups/antes-de-ingesta-…/portal.db`. La copia se aplica en una transacción usando las reglas del esquema instalado; ningún SQL del archivo se ejecuta. Un fallo conserva la base anterior y retira los archivos nuevos de ese intento.
-5. Pulsa **Ingresar con las cuentas importadas** e inicia sesión con tu administrador habitual. Se conservan usuarios, contraseñas, salud, torneos, inscritos, partidos, alineaciones, uniformes, pagos, QR, reglamentos, fotos y comprobantes. Las sesiones e invitaciones antiguas se invalidan; genera una nueva invitación para registrar jugadores. Los envíos quedan apagados y no se trasladan colas de notificaciones pendientes. La IA vuelve a entrenar con las estadísticas importadas.
-6. Comprueba la información y los archivos en Render antes de que todos continúen registrando datos allí. Conserva una copia privada fuera de Render. La ingesta se desactiva al terminar y no puede repetirse sobre el equipo existente. Para recuperaciones posteriores, usa un respaldo y una carpeta nueva con el servidor detenido.
-
-La exportación excluye `.env` y claves de proveedores. El archivo contiene datos personales, de salud, pagos y hashes de contraseñas; está comprimido, **no cifrado**. No lo subas al repositorio público. La ingesta es exclusiva de administradores autenticados y se realiza a través del dominio HTTPS de la app.
-
-Si el equipo supera los límites de ingesta, usa `npm run backup` y el restaurador por consola con el destino detenido. El disco solo está disponible en ejecución; no se restaura desde el build o un pre-deploy. El traslado por SSH/SFTP usa la conexión real del servicio y debe comprobar el fingerprint del servidor antes de transferir.
-
-`PUBLIC_APP_URL` se configura en la tarea YAML; el servidor también reconoce `RENDER_EXTERNAL_URL` automáticamente. Si restauras una base con administrador, conserva esa cuenta y no ejecutes `admin:create`. `.env` y las claves de proveedores se configuran aparte.
-
-Una vez publicada, usa Render como la base principal para todos los integrantes. Una copia local restaurada no sincroniza sus cambios con Render. Repite los respaldos después de incorporar datos importantes y guarda una copia externa del servicio.
-
-Referencias oficiales: [discos persistentes](https://render.com/docs/disks) y [limitaciones de servicios gratuitos](https://render.com/docs/free).
+El archivo contiene datos privados y hashes de contraseñas. Está comprimido, no cifrado: no lo subas a GitHub ni a una URL pública. Conserva una copia externa. Las herramientas SQLite descritas arriba no restauran una base PostgreSQL.

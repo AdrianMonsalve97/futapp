@@ -39,13 +39,13 @@ export interface CreatePaymentInput {
 /** Puerto de salida para inscripciones y sus pagos. */
 export interface InscriptionRepository {
   /** Con `playerName`; ordenadas por temporada desc y vencimiento asc. */
-  list(filters?: InscriptionFilters): Inscription[];
-  findById(id: number): Inscription | null;
-  findByPlayer(playerId: number): Inscription[];
-  create(input: CreateInscriptionInput): Inscription;
-  update(id: number, input: UpdateInscriptionInput): Inscription;
-  remove(id: number): void;
-  listPayments(inscriptionId: number): Payment[];
-  addPayment(input: CreatePaymentInput): Payment;
-  findPaymentByKey(inscriptionId: number, key: string): Payment | null;
+  list(filters?: InscriptionFilters): Promise<Inscription[]>;
+  findById(id: number): Promise<Inscription | null>;
+  findByPlayer(playerId: number): Promise<Inscription[]>;
+  create(input: CreateInscriptionInput): Promise<Inscription>;
+  update(id: number, input: UpdateInscriptionInput): Promise<Inscription>;
+  remove(id: number): Promise<void>;
+  listPayments(inscriptionId: number): Promise<Payment[]>;
+  addPayment(input: CreatePaymentInput): Promise<Payment>;
+  findPaymentByKey(inscriptionId: number, key: string): Promise<Payment | null>;
 }

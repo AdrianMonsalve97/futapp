@@ -10,10 +10,10 @@ export interface XiSuggestion {
 
 /** Casos de uso de IA (§7.10 y §8). */
 export interface AiPort {
-  tacticalPlan(matchId: number, style?: import('../../../domain/tactics').TacticalStyle, formation?: string): import('../../../domain/tactics').TacticalPlan;
-  getModelInfo(): ModelInfo;
-  train(): ModelInfo;
-  insights(): AiInsights;
-  playerInsight(playerId: number,matchId?:number): AiPlayerInsight;
-  recommendXi(matchId: number, formation?: string): XiSuggestion;
+  tacticalPlan(matchId: number, style?: import('../../../domain/tactics').TacticalStyle, formation?: string): Promise<import('../../../domain/tactics').TacticalPlan>;
+  getModelInfo(): Promise<ModelInfo>;
+  train(): Promise<ModelInfo>;
+  insights(): Promise<AiInsights>;
+  playerInsight(playerId: number,matchId?:number): Promise<AiPlayerInsight>;
+  recommendXi(matchId: number, formation?: string): Promise<XiSuggestion>;
 }

@@ -15,37 +15,37 @@ interface RecommendXiBody {
 export function aiRoutes(ai: AiPort): Router {
   const router = Router();
 
-  router.get('/ai/insights', requireAuth, requireRole('admin'), (_req, res) => {
-    res.json(ai.insights());
+  router.get('/ai/insights', requireAuth, requireRole('admin'), async (_req, res) => {
+    res.json((await ai.insights()));
   });
 
-  router.get('/ai/players/:id', requireAuth, requireRole('admin'), (req, res) => {
-    res.json(ai.playerInsight(paramId(req)));
+  router.get('/ai/players/:id', requireAuth, requireRole('admin'), async (req, res) => {
+    res.json((await ai.playerInsight(paramId(req))));
   });
 
-  router.get('/ai/model', requireAuth, (_req, res) => {
-    res.json(ai.getModelInfo());
+  router.get('/ai/model', requireAuth, async (_req, res) => {
+    res.json((await ai.getModelInfo()));
   });
 
-  router.post('/ai/model/train', requireAuth, requireRole('admin'), (_req, res) => {
-    res.json(ai.train());
+  router.post('/ai/model/train', requireAuth, requireRole('admin'), async (_req, res) => {
+    res.json((await ai.train()));
   });
 
-  router.post('/ai/recommend-xi', requireAuth, requireRole('admin'), (req, res) => {
+  router.post('/ai/recommend-xi', requireAuth, requireRole('admin'), async (req, res) => {
     const body = jsonBody<RecommendXiBody>(req);
     if (!Number.isInteger(body.matchId)) {
       throw new ValidationError('Debes indicar el partido para sugerir la alineación');
     }
-    res.json(ai.recommendXi(body.matchId as number, body.formation));
+    res.json((await ai.recommendXi(body.matchId as number, body.formation)));
   });
 
-  router.post('/ai/tactical-plan',requireAuth,requireRole('admin'),(req,res) => {
+  router.post('/ai/tactical-plan',requireAuth,requireRole('admin'),async (req,res) => {
     const body = jsonBody<{matchId:number;style?:TacticalStyle;formation?:string}>(req);
-    res.json(ai.tacticalPlan(body.matchId,body.style,body.formation));
+    res.json((await ai.tacticalPlan(body.matchId,body.style,body.formation)));
   });
   router.post('/ai/research',requireAuth,requireRole('admin'),async(req,res) => {
     const body = jsonBody<{matchId:number;style?:TacticalStyle}>(req);
-    const plan = ai.tacticalPlan(body.matchId,body.style);
+    const plan = (await ai.tacticalPlan(body.matchId,body.style));
     res.json(await researchCoaching(plan.style));
   });
 

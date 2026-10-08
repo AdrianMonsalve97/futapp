@@ -26,10 +26,10 @@ export interface UpdateUserInput {
 
 /** Puerto de salida para la entidad User. */
 export interface UserRepository {
-  findByEmail(email: string): UserWithPassword | null;
-  findById(id: number): User | null;
-  create(input: CreateUserInput): User;
-  update(id: number, input: UpdateUserInput): User;
+  findByEmail(email: string): Promise<UserWithPassword | null>;
+  findById(id: number): Promise<User | null>;
+  create(input: CreateUserInput): Promise<User>;
+  update(id: number, input: UpdateUserInput): Promise<User>;
   /** Cuenta administradores activos (opcionalmente excluyendo uno). */
-  countActiveAdmins(excludeUserId?: number): number;
+  countActiveAdmins(excludeUserId?: number): Promise<number>;
 }

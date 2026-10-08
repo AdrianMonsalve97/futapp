@@ -6,6 +6,7 @@ import type {
 } from '../../../../application/ports/out/stats.repository';
 import type { MatchStat } from '../../../../domain/entities';
 import { mapMatchStat, type MatchStatRow } from '../mappers';
+import { asAsyncDatabase, type ApplicationDatabase } from "../async-database";
 
 const SELECT_STAT = `
   SELECT ms.*, u.full_name AS player_name, p.shirt_number, p.position AS player_position
@@ -18,9 +19,11 @@ const SELECT_STAT = `
 const ORDER = `ORDER BY m.kick_off ASC, m.id ASC, p.shirt_number ASC, ms.player_id ASC`;
 
 export class SqliteStatsRepository implements StatsRepository {
-  constructor(private readonly db: Database) {}
+  constructor(db: Database | ApplicationDatabase) {
+      this.db = asAsyncDatabase(db);
+  }
 
-  list(filter: StatFilter = {}): MatchStat[] {
+  async list(filter: StatFilter = {}): Promise<MatchStat[]> {
     const conditions: string[] = [];
     const params: unknown[] = [];
     if (filter.matchId !== undefined) {
@@ -32,18 +35,18 @@ export class SqliteStatsRepository implements StatsRepository {
       params.push(filter.playerId);
     }
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const rows = this.db
-      .prepare(`${SELECT_STAT} ${where} ${ORDER}`)
-      .all(...params) as MatchStatRow[];
+    const rows = (await this.db
+          .prepare(`${SELECT_STAT} ${where} ${ORDER}`)
+          .all(...params)) as MatchStatRow[];
     return rows.map(mapMatchStat);
   }
 
-  listAll(): MatchStat[] {
-    const rows = this.db.prepare(`${SELECT_STAT} ${ORDER}`).all() as MatchStatRow[];
+  async listAll(): Promise<MatchStat[]> {
+    const rows = (await this.db.prepare(`${SELECT_STAT} ${ORDER}`).all()) as MatchStatRow[];
     return rows.map(mapMatchStat);
   }
 
-  upsert(matchId: number, entries: StatEntryInput[]): MatchStat[] {
+  async upsert(matchId: number, entries: StatEntryInput[]): Promise<MatchStat[]> {
     const fields = [
       'minutes',
       'goals',
@@ -62,42 +65,44 @@ export class SqliteStatsRepository implements StatsRepository {
       'rating',
     ] as const;
 
-    const tx = this.db.transaction(() => {
+    const tx = this.db.transaction(async () => {
       for (const entry of entries) {
-        const existing = this.db
-          .prepare(`SELECT id FROM match_stats WHERE match_id = ? AND player_id = ?`)
-          .get(matchId, entry.playerId) as { id: number } | undefined;
+        const existing = (await this.db
+                  .prepare(`SELECT id FROM match_stats WHERE match_id = ? AND player_id = ?`)
+                  .get(matchId, entry.playerId)) as { id: number } | undefined;
         const values: Record<string, unknown> = { matchId, playerId: entry.playerId };
         for (const field of fields) {
           const camel = field.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase()) as keyof StatEntryInput;
           const value = entry[camel];
-          values[field] = typeof value === 'number' ? value : this.readDefault(field, existing, matchId, entry.playerId);
+          values[field] = typeof value === 'number' ? value : (await this.readDefault(field, existing, matchId, entry.playerId));
         }
         if (existing) {
           const setSql = fields.map((f) => `${f} = @${f}`).join(', ');
-          this.db
-            .prepare(`UPDATE match_stats SET ${setSql} WHERE id = @id`)
-            .run({ ...values, id: existing.id });
+          (await this.db
+                        .prepare(`UPDATE match_stats SET ${setSql} WHERE id = @id`)
+                        .run({ ...values, id: existing.id }));
         } else {
           const cols = ['match_id', 'player_id', ...fields].join(', ');
           const params = ['matchId', 'playerId', ...fields].map((f) => `@${f}`).join(', ');
-          this.db.prepare(`INSERT INTO match_stats (${cols}) VALUES (${params})`).run(values);
+          (await this.db.prepare(`INSERT INTO match_stats (${cols}) VALUES (${params})`).run(values));
         }
       }
     });
-    tx();
-    return this.list({ matchId });
+    (await tx());
+    return (await this.list({ matchId }));
   }
 
   /** Cuando el payload no trae un campo numérico: conserva el valor previo o el default del DDL. */
-  private readDefault(field: string, existing: { id: number } | undefined, matchId: number, playerId: number): number {
+  private async readDefault(field: string, existing: { id: number } | undefined, matchId: number, playerId: number): Promise<number> {
     if (existing) {
-      const row = this.db
-        .prepare(`SELECT ${field} AS value FROM match_stats WHERE id = ?`)
-        .get(existing.id) as { value: number };
+      const row = (await this.db
+              .prepare(`SELECT ${field} AS value FROM match_stats WHERE id = ?`)
+              .get(existing.id)) as { value: number };
       return row.value;
     }
     if (field === 'rating') return 6.0;
     return 0;
   }
+
+    private readonly db: ApplicationDatabase;
 }

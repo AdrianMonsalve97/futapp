@@ -12,7 +12,7 @@ export class FileModelStore implements ModelStore {
     this.filePath = path.join(baseDir, 'model.json');
   }
 
-  load(): ModelArtifact | null {
+  async load(): Promise<ModelArtifact | null> {
     if (!fs.existsSync(this.filePath)) return null;
     try {
       const raw = fs.readFileSync(this.filePath, 'utf8');
@@ -24,7 +24,7 @@ export class FileModelStore implements ModelStore {
     }
   }
 
-  save(artifact: ModelArtifact): void {
+  async save(artifact: ModelArtifact): Promise<void> {
     fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
     const temporary = `${this.filePath}.tmp`;
     fs.writeFileSync(temporary, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');

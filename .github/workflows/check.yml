@@ -24,7 +24,7 @@ jobs:
       - run: npm run build
       - run: npm run test:production
   render:
-    needs: [verify, containers]
+    needs: [verify, containers, postgres]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_TARGET == 'render' && vars.RENDER_SERVICE_ID != ''
     runs-on: ubuntu-latest
     environment: production
@@ -32,6 +32,10 @@ jobs:
     env:
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      SUPABASE_DB_CA: ${{ secrets.SUPABASE_DB_CA }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,6 +45,31 @@ jobs:
         run: node scripts/render-deploy.mjs configure
       - name: Publicar el commit validado y comprobar salud
         run: node scripts/render-deploy.mjs deploy
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: futapp_test
+          POSTGRES_PASSWORD: disposable-ci-password
+          POSTGRES_DB: futapp_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U futapp_test -d futapp_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgres://futapp_test:disposable-ci-password@127.0.0.1:5432/futapp_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Verificar ingesta y operaciones contra PostgreSQL real
+        run: node --import tsx --test tests/postgres.test.mts
   containers:
     strategy:
       fail-fast: false

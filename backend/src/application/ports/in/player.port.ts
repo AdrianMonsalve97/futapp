@@ -62,9 +62,9 @@ export interface PlayerDetail {
 
 /** Casos de uso de jugadores (§7.4). */
 export interface PlayerPort {
-  list(): PlayerListItem[];
-  get(id: number): PlayerDetail;
-  create(input: CreatePlayerInput): { user: User; player: Player };
-  update(id: number, input: UpdatePlayerInput): { user: User; player: Player };
-  remove(id: number): { ok: true };
+  list(): Promise<PlayerListItem[]>;
+  get(id: number): Promise<PlayerDetail>;
+  create(input: CreatePlayerInput): Promise<{ user: User; player: Player }>;
+  update(id: number, input: UpdatePlayerInput): Promise<{ user: User; player: Player }>;
+  remove(id: number): Promise<{ ok: true }>;
 }

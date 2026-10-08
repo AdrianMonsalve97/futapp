@@ -15,36 +15,36 @@ export function authRoutes(auth: AuthPort): Router {
     const {token:_token,...safe}=payload;res.json(safe);
   };
 
-  router.post('/auth/login', (req, res) => {
+  router.post('/auth/login', async (req, res) => {
     const body = jsonBody<Partial<LoginInput>>(req);
     respond(req,res,
-      auth.login({
-        email: String(body.email ?? ''),
-        password: String(body.password ?? ''),
-      }),
+      (await auth.login({
+                email: String(body.email ?? ''),
+                password: String(body.password ?? ''),
+              })),
     );
   });
 
-  router.post('/auth/register', (req, res) => {
+  router.post('/auth/register', async (req, res) => {
     const body = jsonBody<Partial<RegisterInput>>(req);
     respond(req,res,
-      auth.register({
-        email: String(body.email ?? ''),
-        password: String(body.password ?? ''),
-        fullName: String(body.fullName ?? ''),
-        phone: body.phone ?? null,
-        position: body.position,
-        shirtNumber: body.shirtNumber ?? null,
-        invitationCode:body.invitationCode,
-      }),
+      (await auth.register({
+                email: String(body.email ?? ''),
+                password: String(body.password ?? ''),
+                fullName: String(body.fullName ?? ''),
+                phone: body.phone ?? null,
+                position: body.position,
+                shirtNumber: body.shirtNumber ?? null,
+                invitationCode:body.invitationCode,
+              })),
     );
   });
 
-  router.post('/auth/logout',(req,res)=>{const token=requestToken(req);if(token)auth.logout(token);res.clearCookie(SESSION_COOKIE,{httpOnly:true,secure:env.production||req.get('origin')?.startsWith('https://'),sameSite:'strict',path:'/'});res.json({ok:true});});
-  router.post('/auth/invitation',requireAuth,requireRole('admin'),(req,res)=>{jsonBody(req);res.json(auth.createInvitation());});
+  router.post('/auth/logout',async (req,res)=>{const token=requestToken(req);if(token)(await auth.logout(token));res.clearCookie(SESSION_COOKIE,{httpOnly:true,secure:env.production||req.get('origin')?.startsWith('https://'),sameSite:'strict',path:'/'});res.json({ok:true});});
+  router.post('/auth/invitation',requireAuth,requireRole('admin'),async (req,res)=>{jsonBody(req);res.json((await auth.createInvitation()));});
 
-  router.get('/auth/me', requireAuth, (req, res) => {
-    res.json(auth.me(getAuth(req).userId));
+  router.get('/auth/me', requireAuth, async (req, res) => {
+    res.json((await auth.me(getAuth(req).userId)));
   });
 
   return router;

@@ -6,22 +6,22 @@ import { ValidationError } from '../../../../domain/errors';
 import { getAuth, requireAuth, requireRole } from '../middleware/auth';
 import { paramId } from '../route-helpers';
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024, files: 1, fields: 1, parts: 2, fieldSize: 500 } }).single('file');
-function sendAsset(res: Response, media: MediaService, asset: MediaAsset) {
+async function sendAsset(res: Response, media: MediaService, asset: MediaAsset) {
   res.setHeader('Content-Type', asset.mimeType);
   res.setHeader('Cache-Control', 'private, no-store');
   if (asset.purpose === 'tournament' || asset.purpose === 'receipt') res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(asset.fileName)}`);
-  res.sendFile(media.filePath(asset));
+  res.send(await media.content(asset));
 }
 export function brandingRoutes(media: MediaService): Router {
   const router = Router();
-  router.get('/branding', (_req, res) => res.json(media.branding()));
-  router.get('/branding/logo', (_req, res) => sendAsset(res, media, media.publicLogo()));
+  router.get('/branding', async (_req, res) => res.json((await media.branding())));
+  router.get('/branding/logo', async (_req, res) => (await sendAsset(res, media, (await media.publicLogo()))));
   return router;
 }
 export function mediaRoutes(media: MediaService): Router {
   const router = Router();
-  router.get('/media/:assetId', requireAuth, (req, res) => {
-    const auth = getAuth(req); sendAsset(res, media, media.read(String(req.params.assetId), auth.userId, auth.role === 'admin'));
+  router.get('/media/:assetId', requireAuth, async (req, res) => {
+    const auth = getAuth(req); await sendAsset(res, media, (await media.read(String(req.params.assetId), auth.userId, auth.role === 'admin')));
   });
   for (const [route, purpose] of [['/settings/logo', 'logo'], ['/me/avatar', 'avatar'], ['/uniforms/:id/image', 'uniform'], ['/tournaments/:id/image', 'tournament_image'], ['/tournaments/:id/documents', 'tournament']] as const) {
     const guards = purpose === 'avatar' ? [requireAuth] : [requireAuth, requireRole('admin')];
@@ -36,7 +36,7 @@ export function mediaRoutes(media: MediaService): Router {
         } catch (err) { next(err); }
       });
     });
-    if (purpose !== 'tournament') router.delete(route, ...guards, (req, res) => res.json(media.clear(getAuth(req).userId, purpose, purpose === 'uniform' || purpose === 'tournament_image' ? paramId(req) : undefined)));
+    if (purpose !== 'tournament') router.delete(route, ...guards, async (req, res) => res.json((await media.clear(getAuth(req).userId, purpose, purpose === 'uniform' || purpose === 'tournament_image' ? paramId(req) : undefined))));
   }
   return router;
 }

@@ -26,13 +26,13 @@ function destination(name:string) {
   ensureInitialAdmin(db,{BOOTSTRAP_ADMIN:'1',ADMIN_EMAIL:'initial@destination.test',ADMIN_PASSWORD:password});db.pragma('foreign_keys=ON');
   return {db,directory,store:new FileMigrationStore(db,directory,'https://destination.onrender.com')};
 }
-const player=c.playerService.create({email:'player@source.test',password,fullName:'Portero migrado',position:'POR',shirtNumber:5,eps:'EPS privada',prepaidHealth:'Plan privado'});
+const player=(await c.playerService.create({email:'player@source.test',password,fullName:'Portero migrado',position:'POR',shirtNumber:5,eps:'EPS privada',prepaidHealth:'Plan privado'}));
 source.prepare("INSERT INTO tournaments(name,league_name,season,status,rules_json,updated_at) VALUES('Liga real','NLS','2026','publicado',?,datetime('now'))").run(JSON.stringify({format:8,periods:2,minutesPerPeriod:25,rollingSubstitutions:true}));
 source.prepare('INSERT INTO tournament_players(tournament_id,player_id) VALUES(1,?)').run(player.player.id);
 fs.mkdirSync(path.join(dir,'uploads'));fs.writeFileSync(path.join(dir,'uploads','test.txt'),'archivo real');
 source.prepare("INSERT INTO media_assets(id,owner_id,purpose,file_name,stored_name,mime_type,size) VALUES('asset',1,'tournament','norma.txt','test.txt','text/plain',12)").run();
 source.prepare("INSERT INTO registration_invitation(id,digest,expires_at) VALUES(1,'old-invitation',9999999999999)").run();
-const admin=c.authService.login({email:'admin@source.test',password}).token, token=c.authService.login({email:player.user.email,password}).token;
+const admin=(await c.authService.login({email:'admin@source.test',password})).token, token=(await c.authService.login({email:player.user.email,password})).token;
 const app=createHttpServer({migration:c.migrationService,notifications:c.notificationService,qrPayments:c.qrPaymentService,tournaments:c.tournamentService,media:c.mediaService,auth:c.authService,me:c.meService,players:c.playerService,inscriptions:c.inscriptionService,uniforms:c.uniformService,matches:c.matchService,sanctions:c.sanctionService,stats:c.statsService,ai:c.aiService,dashboard:c.dashboardService,settings:c.settingsService});
 const server=app.listen(0,'127.0.0.1');await new Promise<void>(resolve=>server.once('listening',resolve));const address=server.address();assert(address&&typeof address!=='string');
 const opened:Database.Database[]=[];

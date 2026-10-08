@@ -25,8 +25,8 @@ export interface UpdateSanctionInput {
 
 /** Casos de uso de sanciones (§7.7). */
 export interface SanctionPort {
-  list(filters?: SanctionFiltersInput): Sanction[];
-  create(input: CreateSanctionInput): Sanction;
-  update(id: number, input: UpdateSanctionInput): Sanction;
-  remove(id: number): { ok: true };
+  list(filters?: SanctionFiltersInput): Promise<Sanction[]>;
+  create(input: CreateSanctionInput): Promise<Sanction>;
+  update(id: number, input: UpdateSanctionInput): Promise<Sanction>;
+  remove(id: number): Promise<{ ok: true }>;
 }

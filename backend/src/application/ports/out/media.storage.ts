@@ -5,7 +5,7 @@ export interface MediaAsset {
 }
 export interface MediaStorage {
   store(ownerId: number, purpose: MediaPurpose, name: string, data: Uint8Array): Promise<MediaAsset>;
-  find(id: string): MediaAsset | null;
-  filePath(asset: MediaAsset): string;
+  find(id: string): Promise<MediaAsset | null>;
+  content(asset: MediaAsset): Promise<Buffer>;
   discard(asset: MediaAsset): Promise<void>;
 }

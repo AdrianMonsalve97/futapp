@@ -48,13 +48,13 @@ export interface UpdateRequestInput {
 
 /** Casos de uso de uniformes (§7.6). */
 export interface UniformPort {
-  listUniforms(): Uniform[];
-  createUniform(input: CreateUniformInput): Uniform;
-  updateUniform(id: number, input: UpdateUniformInput): Uniform;
-  removeUniform(id: number): { ok: true };
-  listIssues(playerId?: number): UniformIssue[];
-  createIssue(input: CreateIssueInput): UniformIssue;
-  updateIssue(id: number, input: UpdateIssueInput): UniformIssue;
-  listRequests(status?: UniformRequestStatus): UniformRequest[];
-  updateRequest(id: number, input: UpdateRequestInput): UniformRequest;
+  listUniforms(): Promise<Uniform[]>;
+  createUniform(input: CreateUniformInput): Promise<Uniform>;
+  updateUniform(id: number, input: UpdateUniformInput): Promise<Uniform>;
+  removeUniform(id: number): Promise<{ ok: true }>;
+  listIssues(playerId?: number): Promise<UniformIssue[]>;
+  createIssue(input: CreateIssueInput): Promise<UniformIssue>;
+  updateIssue(id: number, input: UpdateIssueInput): Promise<UniformIssue>;
+  listRequests(status?: UniformRequestStatus): Promise<UniformRequest[]>;
+  updateRequest(id: number, input: UpdateRequestInput): Promise<UniformRequest>;
 }

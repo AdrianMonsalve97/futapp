@@ -44,10 +44,10 @@ export class MeService implements MePort {
     private readonly uow: UnitOfWork,
   ) {}
 
-  getMe(userId: number): MeResponse {
-    const { user, player } = this.requireUser(userId);
-    const stats = player ? this.stats.list({ playerId: player.id }) : [];
-    const inscription = player ? this.inscriptions.findByPlayer(player.id)[0] ?? null : null;
+  async getMe(userId: number): Promise<MeResponse> {
+    const { user, player } = (await this.requireUser(userId));
+    const stats = player ? (await this.stats.list({ playerId: player.id })) : [];
+    const inscription = player ? (await this.inscriptions.findByPlayer(player.id))[0] ?? null : null;
     return {
       user,
       player,
@@ -55,102 +55,102 @@ export class MeService implements MePort {
       inscription: inscription
         ? { ...inscription, status: deriveInscriptionStatus(inscription.paid, inscription.amount) }
         : null,
-      sanctions: player ? this.sanctions.list({ playerId: player.id }) : [],
-      issuedUniforms: player ? this.issues.list(player.id) : [],
-      pendingRequests: player ? this.requests.list('pendiente', player.id).length : 0,
-      forecast: player ? this.forecastOf(player) : null,
+      sanctions: player ? (await this.sanctions.list({ playerId: player.id })) : [],
+      issuedUniforms: player ? (await this.issues.list(player.id)) : [],
+      pendingRequests: player ? (await this.requests.list('pendiente', player.id)).length : 0,
+      forecast: player ? (await this.forecastOf(player)) : null,
     };
   }
 
-  updateProfile(userId: number, input: ProfileInput): { user: User; player: Player } {
-    return this.uow.run(() => {
-      const { user, player } = this.requireUser(userId);
-      if (!player) {
-        throw new ValidationError('Este usuario no tiene ficha de jugador');
-      }
-      const phone = input.phone !== undefined ? input.phone : user.phone;
-      const updatedUser = this.users.update(userId, { phone });
+  async updateProfile(userId: number, input: ProfileInput): Promise<{ user: User; player: Player }> {
+    return (await this.uow.run(async () => {
+          const { user, player } = (await this.requireUser(userId));
+          if (!player) {
+            throw new ValidationError('Este usuario no tiene ficha de jugador');
+          }
+          const phone = input.phone !== undefined ? input.phone : user.phone;
+          const updatedUser = (await this.users.update(userId, { phone }));
 
-      const update: Parameters<PlayerRepository['update']>[1] = {};
-      if (input.dni !== undefined) update.dni = input.dni;
-      if (input.birthDate !== undefined) update.birthDate = input.birthDate;
-      if (input.position !== undefined) update.position = input.position;
-      if (input.secondaryPosition !== undefined) update.secondaryPosition = input.secondaryPosition;
-      if (input.shirtNumber !== undefined) update.shirtNumber = input.shirtNumber;
-      if (input.heightCm !== undefined) update.heightCm = input.heightCm;
-      if (input.weightKg !== undefined) update.weightKg = input.weightKg;
-      if (input.foot !== undefined) update.foot = input.foot;
-      if (input.emergencyContact !== undefined) update.emergencyContact = input.emergencyContact;
-      if (input.eps !== undefined) update.eps = input.eps;
-      if (input.prepaidHealth !== undefined) update.prepaidHealth = input.prepaidHealth;
-      const updatedPlayer = Object.keys(update).length > 0 ? this.players.update(player.id, update) : player;
+          const update: Parameters<PlayerRepository['update']>[1] = {};
+          if (input.dni !== undefined) update.dni = input.dni;
+          if (input.birthDate !== undefined) update.birthDate = input.birthDate;
+          if (input.position !== undefined) update.position = input.position;
+          if (input.secondaryPosition !== undefined) update.secondaryPosition = input.secondaryPosition;
+          if (input.shirtNumber !== undefined) update.shirtNumber = input.shirtNumber;
+          if (input.heightCm !== undefined) update.heightCm = input.heightCm;
+          if (input.weightKg !== undefined) update.weightKg = input.weightKg;
+          if (input.foot !== undefined) update.foot = input.foot;
+          if (input.emergencyContact !== undefined) update.emergencyContact = input.emergencyContact;
+          if (input.eps !== undefined) update.eps = input.eps;
+          if (input.prepaidHealth !== undefined) update.prepaidHealth = input.prepaidHealth;
+          const updatedPlayer = Object.keys(update).length > 0 ? (await this.players.update(player.id, update)) : player;
 
-      return { user: updatedUser, player: updatedPlayer };
-    });
+          return { user: updatedUser, player: updatedPlayer };
+        }));
   }
 
-  changePassword(userId: number, currentPassword: string, newPassword: string): { ok: true } {
-    const stored = this.users.findByEmail(this.requireUser(userId).user.email);
+  async changePassword(userId: number, currentPassword: string, newPassword: string): Promise<{ ok: true }> {
+    const stored = (await this.users.findByEmail((await this.requireUser(userId)).user.email));
     if (!stored) throw new NotFoundError('Usuario no encontrado');
     if (!currentPassword || !bcrypt.compareSync(currentPassword, stored.passwordHash)) {
       throw new ValidationError('La contraseña actual no es correcta');
     }
     validatePassword(newPassword);
-    this.users.update(userId, { passwordHash: bcrypt.hashSync(newPassword, 10) });
+    (await this.users.update(userId, { passwordHash: bcrypt.hashSync(newPassword, 10) }));
     return { ok: true };
   }
 
-  getInscription(userId: number): {
-    inscription: ReturnType<InscriptionRepository['findById']>;
-    payments: ReturnType<InscriptionRepository['listPayments']>;
-  } {
-    const player = this.requirePlayer(userId);
-    const inscription = this.inscriptions.findByPlayer(player.id)[0] ?? null;
+  async getInscription(userId: number): Promise<{
+              inscription: Awaited<ReturnType<InscriptionRepository['findById']>>;
+              payments: Awaited<ReturnType<InscriptionRepository['listPayments']>>;
+            }> {
+    const player = (await this.requirePlayer(userId));
+    const inscription = (await this.inscriptions.findByPlayer(player.id))[0] ?? null;
     if (!inscription) return { inscription: null, payments: [] };
     return {
       inscription: {
         ...inscription,
         status: deriveInscriptionStatus(inscription.paid, inscription.amount),
       },
-      payments: this.inscriptions.listPayments(inscription.id),
+      payments: (await this.inscriptions.listPayments(inscription.id)),
     };
   }
 
-  getUniforms(userId: number) {
-    const player = this.requirePlayer(userId);
+  async getUniforms(userId: number) {
+    const player = (await this.requirePlayer(userId));
     return {
-      issued: this.issues.list(player.id),
-      requests: this.requests.list(undefined, player.id),
-      catalog: this.uniforms.list(),
+      issued: (await this.issues.list(player.id)),
+      requests: (await this.requests.list(undefined, player.id)),
+      catalog: (await this.uniforms.list()),
     };
   }
 
-  createUniformRequest(
+  async createUniformRequest(
     userId: number,
     input: { uniformId: number; size: string; reason?: string | null },
-  ): { request: ReturnType<UniformRequestRepository['create']> } {
-    const player = this.requirePlayer(userId);
+  ): Promise<{ request: Awaited<ReturnType<UniformRequestRepository['create']>> }> {
+    const player = (await this.requirePlayer(userId));
     if (!Number.isInteger(input.uniformId)) {
       throw new ValidationError('Debes indicar un uniforme válido');
     }
-    const uniform = this.uniforms.findById(input.uniformId);
+    const uniform = (await this.uniforms.findById(input.uniformId));
     if (!uniform) throw new NotFoundError('Uniforme no encontrado');
     if (!uniform.active) throw new ValidationError('El uniforme no está disponible para solicitud');
     if (!input.size || !input.size.trim()) {
       throw new ValidationError('La talla es obligatoria');
     }
-    const request = this.requests.create({
-      playerId: player.id,
-      uniformId: uniform.id,
-      size: input.size.trim(),
-      reason: input.reason ?? null,
-    });
+    const request = (await this.requests.create({
+          playerId: player.id,
+          uniformId: uniform.id,
+          size: input.size.trim(),
+          reason: input.reason ?? null,
+        }));
     return { request };
   }
 
-  getMatches(userId: number): { upcoming: MatchView[]; finished: MatchView[] } {
-    const player = this.requirePlayer(userId);
-    const views = this.matches.list().map((match) => this.toMatchView(match, player.id));
+  async getMatches(userId: number): Promise<{ upcoming: MatchView[]; finished: MatchView[] }> {
+    const player = (await this.requirePlayer(userId));
+    const views = (await Promise.all((await this.matches.list()).map(async (match) => (await this.toMatchView(match, player.id)))));
     return {
       upcoming: views
         .filter((m) => UPCOMING.has(m.status))
@@ -161,32 +161,32 @@ export class MeService implements MePort {
     };
   }
 
-  getStats(userId: number): { summary: ReturnType<typeof summarizeStats>; matches: MatchStat[] } {
-    const player = this.players.findByUserId(userId);
+  async getStats(userId: number): Promise<{ summary: ReturnType<typeof summarizeStats>; matches: MatchStat[] }> {
+    const player = (await this.players.findByUserId(userId));
     if (!player) return { summary: emptyStatsSummary(), matches: [] };
-    const matches = this.stats.list({ playerId: player.id });
+    const matches = (await this.stats.list({ playerId: player.id }));
     return { summary: summarizeStats(matches), matches };
   }
 
-  getAi(userId: number,matchId?:number) {
-    const player = this.requirePlayer(userId);
-    return this.ai.playerInsight(player.id,matchId);
+  async getAi(userId: number,matchId?:number) {
+    const player = (await this.requirePlayer(userId));
+    return (await this.ai.playerInsight(player.id,matchId));
   }
 
-  private toMatchView(match: Match, playerId: number): MatchView {
-    const lineup = this.matches.getPublishedLineup(match.id);
+  private async toMatchView(match: Match, playerId: number): Promise<MatchView> {
+    const lineup = (await this.matches.getPublishedLineup(match.id));
     const mySlot: LineupSlot | null = lineup.find((slot) => slot.playerId === playerId) ?? null;
     return {
       ...match,
       formation: match.publishedFormation ?? match.formation,
       mySlot,
-      strategiesCount: this.matches.listStrategies(match.id).length,
+      strategiesCount: (await this.matches.listStrategies(match.id)).length,
       lineupFilled: lineup.filter((slot) => slot.playerId !== null).length,
     };
   }
 
-  private forecastOf(player: Player): { nextRating: number; confidence: number; trend: string } | null {
-    const insight = this.ai.playerInsight(player.id);
+  private async forecastOf(player: Player): Promise<{ nextRating: number; confidence: number; trend: string } | null> {
+    const insight = (await this.ai.playerInsight(player.id));
     if (insight.forecast.history.length === 0) return null;
     return {
       nextRating: insight.forecast.nextRating,
@@ -195,14 +195,14 @@ export class MeService implements MePort {
     };
   }
 
-  private requireUser(userId: number): { user: User; player: Player | null } {
-    const user = this.users.findById(userId);
+  private async requireUser(userId: number): Promise<{ user: User; player: Player | null }> {
+    const user = (await this.users.findById(userId));
     if (!user) throw new NotFoundError('Usuario no encontrado');
-    return { user, player: this.players.findByUserId(userId) };
+    return { user, player: (await this.players.findByUserId(userId)) };
   }
 
-  private requirePlayer(userId: number): Player {
-    const player = this.players.findByUserId(userId);
+  private async requirePlayer(userId: number): Promise<Player> {
+    const player = (await this.players.findByUserId(userId));
     if (!player) throw new NotFoundError('No tienes ficha de jugador');
     return player;
   }

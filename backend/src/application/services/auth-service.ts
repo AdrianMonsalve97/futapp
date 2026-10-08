@@ -25,13 +25,13 @@ export class AuthService implements AuthPort {
     private readonly security:SecurityRepository,
   ) {}
 
-  login(input: LoginInput): AuthPayload {
+  async login(input: LoginInput): Promise<AuthPayload> {
     const email = (input.email ?? '').trim();
     const password = input.password ?? '';
     if (!email || !password) {
       throw new ValidationError('El email y la contraseña son obligatorios');
     }
-    const user = this.users.findByEmail(email);
+    const user = (await this.users.findByEmail(email));
     const matches=bcrypt.compareSync(password,user?.passwordHash??dummyHash);
     if (!user || !matches) {
       throw new UnauthorizedError('Credenciales inválidas', 'INVALID_CREDENTIALS');
@@ -39,72 +39,72 @@ export class AuthService implements AuthPort {
     if (!user.active) {
       throw new UnauthorizedError('La cuenta está inactiva', 'ACCOUNT_DISABLED');
     }
-    return this.buildPayload(user);
+    return (await this.buildPayload(user));
   }
 
-  register(input: RegisterInput): AuthPayload {
-    return this.uow.run(() => {
-      const email = (input.email ?? '').trim().toLowerCase();
-      const password = input.password ?? '';
-      const fullName = (input.fullName ?? '').trim();
-      if (!EMAIL_RE.test(email)) throw new ValidationError('El email no es válido');
-      validatePassword(password);
-      const invitation=this.security.invitation();
-      if(!invitation||invitation.expiresAt<=Date.now()||!equal(invitation.digest,digest(input.invitationCode??'')))throw new ValidationError('Necesitas una invitación vigente del administrador para unirte al equipo.');
-      if (!fullName) throw new ValidationError('El nombre completo es obligatorio');
-      const position = input.position ?? 'MED';
-      if (!VALID_POSITIONS.includes(position)) {
-        throw new ValidationError(`Posición inválida. Opciones: ${VALID_POSITIONS.join(', ')}`);
-      }
-      if (this.users.findByEmail(email)) {
-        throw new ValidationError('El email ya está registrado');
-      }
-      const user = this.users.create({
-        email,
-        passwordHash: bcrypt.hashSync(password, 10),
-        fullName,
-        phone: input.phone ?? null,
-        role: 'player',
-      });
-      this.players.create({
-        userId: user.id,
-        position,
-        shirtNumber: input.shirtNumber ?? null,
-      });
-      return this.buildPayload(user);
-    });
+  async register(input: RegisterInput): Promise<AuthPayload> {
+    return (await this.uow.run(async () => {
+          const email = (input.email ?? '').trim().toLowerCase();
+          const password = input.password ?? '';
+          const fullName = (input.fullName ?? '').trim();
+          if (!EMAIL_RE.test(email)) throw new ValidationError('El email no es válido');
+          validatePassword(password);
+          const invitation=(await this.security.invitation());
+          if(!invitation||invitation.expiresAt<=Date.now()||!equal(invitation.digest,digest(input.invitationCode??'')))throw new ValidationError('Necesitas una invitación vigente del administrador para unirte al equipo.');
+          if (!fullName) throw new ValidationError('El nombre completo es obligatorio');
+          const position = input.position ?? 'MED';
+          if (!VALID_POSITIONS.includes(position)) {
+            throw new ValidationError(`Posición inválida. Opciones: ${VALID_POSITIONS.join(', ')}`);
+          }
+          if ((await this.users.findByEmail(email))) {
+            throw new ValidationError('El email ya está registrado');
+          }
+          const user = (await this.users.create({
+                  email,
+                  passwordHash: bcrypt.hashSync(password, 10),
+                  fullName,
+                  phone: input.phone ?? null,
+                  role: 'player',
+                }));
+          (await this.players.create({
+                    userId: user.id,
+                    position,
+                    shirtNumber: input.shirtNumber ?? null,
+                  }));
+          return (await this.buildPayload(user));
+        }));
   }
 
-  me(userId: number): AuthUserView {
-    const user = this.users.findById(userId);
+  async me(userId: number): Promise<AuthUserView> {
+    const user = (await this.users.findById(userId));
     if (!user) throw new NotFoundError('Usuario no encontrado');
-    const player = this.players.findByUserId(userId);
+    const player = (await this.players.findByUserId(userId));
     return { user, player };
   }
 
-  private stamp(user:User){const stored=this.users.findByEmail(user.email);return createHmac('sha256',env.jwtSecret).update(stored?.passwordHash??'').digest('hex');}
-  verifySession(token:string):AuthUserView {
+  private async stamp(user:User){const stored=(await this.users.findByEmail(user.email));return createHmac('sha256',env.jwtSecret).update(stored?.passwordHash??'').digest('hex');}
+  async verifySession(token:string):Promise<AuthUserView> {
     try {
       const payload=jwt.verify(token,env.jwtSecret,{algorithms:['HS256'],issuer:'futapp',audience:'futapp-client'}) as jwt.JwtPayload;
-      const session=typeof payload.jti==='string'?this.security.session(payload.jti):null;
+      const session=typeof payload.jti==='string'?(await this.security.session(payload.jti)):null;
       const userId=Number(payload.sub);if(!session||session.userId!==userId||session.expiresAt<=Date.now())throw new Error();
-      const view=this.me(userId);
-      if(!view.user.active||view.user.role!==payload.role||!equal(session.stamp,this.stamp(view.user)))throw new Error();
+      const view=(await this.me(userId));
+      if(!view.user.active||view.user.role!==payload.role||!equal(session.stamp,(await this.stamp(view.user))))throw new Error();
       return view;
     }catch{throw new UnauthorizedError('Sesión inválida, expirada o revocada');}
   }
-  logout(token:string){try{const payload=jwt.verify(token,env.jwtSecret,{algorithms:['HS256'],issuer:'futapp',audience:'futapp-client'}) as jwt.JwtPayload;if(payload.jti)this.security.revokeSession(payload.jti);}catch{}}
-  createInvitation(){const code=randomBytes(24).toString('base64url'),expiresAt=Date.now()+7*86400000;this.security.setInvitation(digest(code),expiresAt);return {code,expiresAt:new Date(expiresAt).toISOString()};}
+  async logout(token:string){try{const payload=jwt.verify(token,env.jwtSecret,{algorithms:['HS256'],issuer:'futapp',audience:'futapp-client'}) as jwt.JwtPayload;if(payload.jti)(await this.security.revokeSession(payload.jti));}catch{}}
+  async createInvitation(){const code=randomBytes(24).toString('base64url'),expiresAt=Date.now()+7*86400000;(await this.security.setInvitation(digest(code),expiresAt));return {code,expiresAt:new Date(expiresAt).toISOString()};}
 
-  private buildPayload(user: User): AuthPayload {
+  private async buildPayload(user: User): Promise<AuthPayload> {
     const id=randomUUID();
     const token = jwt.sign(
       { sub: String(user.id), role: user.role, email: user.email },
       env.jwtSecret,
       { algorithm: 'HS256', issuer:'futapp',audience:'futapp-client',jwtid:id,expiresIn: env.jwtExpiresIn as jwt.SignOptions['expiresIn'] },
     );
-    this.security.createSession(id,user.id,this.stamp(user),(jwt.decode(token) as jwt.JwtPayload).exp!*1000);
-    const player = this.players.findByUserId(user.id);
+    (await this.security.createSession(id,user.id,(await this.stamp(user)),(jwt.decode(token) as jwt.JwtPayload).exp!*1000));
+    const player = (await this.players.findByUserId(user.id));
     // Nunca se expone el hash de la contraseña en la respuesta.
     const safeUser: User = {
       id: user.id,

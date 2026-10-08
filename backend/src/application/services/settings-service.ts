@@ -17,11 +17,11 @@ const MAX_NAME_LENGTH = 80;
 export class SettingsService implements SettingsPort {
   constructor(private readonly settings: SettingsRepository, private readonly tournaments: TournamentRepository) {}
 
-  get(): TeamSettings {
-    return this.toResponse();
+  async get(): Promise<TeamSettings> {
+    return (await this.toResponse());
   }
 
-  update(input: SettingsUpdateInput): TeamSettings {
+  async update(input: SettingsUpdateInput): Promise<TeamSettings> {
     const patch: Parameters<SettingsRepository['update']>[0] = {};
 
     if (input.teamName !== undefined) {
@@ -52,26 +52,26 @@ export class SettingsService implements SettingsPort {
       patch.brandColor = input.brandColor;
     }
     if (input.defaultTournamentId !== undefined) {
-      if (input.defaultTournamentId !== null && this.tournaments.find(input.defaultTournamentId)?.status !== 'publicado') throw new ValidationError('El torneo predeterminado debe estar publicado');
+      if (input.defaultTournamentId !== null && (await this.tournaments.find(input.defaultTournamentId))?.status !== 'publicado') throw new ValidationError('El torneo predeterminado debe estar publicado');
       patch.defaultTournamentId = input.defaultTournamentId;
     }
     if (Object.keys(patch).length === 0) {
       throw new ValidationError('Debes indicar al menos un campo a actualizar');
     }
 
-    this.settings.update(patch);
-    return this.toResponse();
+    (await this.settings.update(patch));
+    return (await this.toResponse());
   }
 
-  catalog(): FormationCatalog {
+  async catalog(): Promise<FormationCatalog> {
     return {
       formats: FORMAT_LIST,
       formations: FORMATION_LIST,
     };
   }
 
-  private toResponse(): TeamSettings {
-    const data = this.settings.get();
+  private async toResponse(): Promise<TeamSettings> {
+    const data = (await this.settings.get());
     return {
       logoUrl: data.logoUrl, brandColor: data.brandColor, defaultTournamentId: data.defaultTournamentId,
       teamName: data.teamName,

@@ -25,11 +25,11 @@ export type UpdatePlayerInput = Partial<Omit<CreatePlayerInput, 'userId'>>;
 /** Puerto de salida para la entidad Player. */
 export interface PlayerRepository {
   /** Todas las fichas con su usuario, ordenadas alfabéticamente. */
-  list(): PlayerWithUser[];
-  listAll(): Player[];
-  findById(id: number): Player | null;
-  findByUserId(userId: number): Player | null;
-  findWithUser(id: number): PlayerWithUser | null;
-  create(input: CreatePlayerInput): Player;
-  update(id: number, input: UpdatePlayerInput): Player;
+  list(): Promise<PlayerWithUser[]>;
+  listAll(): Promise<Player[]>;
+  findById(id: number): Promise<Player | null>;
+  findByUserId(userId: number): Promise<Player | null>;
+  findWithUser(id: number): Promise<PlayerWithUser | null>;
+  create(input: CreatePlayerInput): Promise<Player>;
+  update(id: number, input: UpdatePlayerInput): Promise<Player>;
 }

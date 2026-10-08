@@ -7,12 +7,12 @@ import { queryNum } from '../route-helpers';
 export function statsRoutes(stats: StatsPort): Router {
   const router = Router();
 
-  router.get('/stats', requireAuth, (req, res) => {
-    res.json(stats.list({ matchId: queryNum(req, 'matchId'), playerId: queryNum(req, 'playerId') }));
+  router.get('/stats', requireAuth, async (req, res) => {
+    res.json((await stats.list({ matchId: queryNum(req, 'matchId'), playerId: queryNum(req, 'playerId') })));
   });
 
-  router.get('/team/stats', requireAuth, (_req, res) => {
-    res.json(stats.teamStats());
+  router.get('/team/stats', requireAuth, async (_req, res) => {
+    res.json((await stats.teamStats()));
   });
 
   return router;

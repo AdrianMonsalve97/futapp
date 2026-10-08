@@ -17,8 +17,8 @@ export interface UpdateUniformIssueInput {
 
 /** Puerto de salida para entregas de uniformes. */
 export interface UniformIssueRepository {
-  list(playerId?: number): UniformIssue[];
-  findById(id: number): UniformIssue | null;
-  create(input: CreateUniformIssueInput): UniformIssue;
-  update(id: number, input: UpdateUniformIssueInput): UniformIssue;
+  list(playerId?: number): Promise<UniformIssue[]>;
+  findById(id: number): Promise<UniformIssue | null>;
+  create(input: CreateUniformIssueInput): Promise<UniformIssue>;
+  update(id: number, input: UpdateUniformIssueInput): Promise<UniformIssue>;
 }

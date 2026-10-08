@@ -13,6 +13,7 @@
     "admin:create": "tsx src/adapters/out/persistence/bootstrap-admin.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.3",
     "cors": "^2.8.6",
@@ -23,10 +24,12 @@
     "multer": "^2.4.0",
     "nodemailer": "^10.0.16",
     "pdf-parse": "^2.4.5",
+    "pg": "^8.23.1",
     "qrcode": "^1.5.4",
     "sharp": "^0.35.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/better-sqlite3": "^9.6.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
@@ -34,6 +37,7 @@
     "@types/multer": "^2.3.0",
     "@types/node": "^26.6.4",
     "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
     "@types/qrcode": "^1.5.6",
     "tsx": "^4.23.15",
     "typescript": "~5.9.3"

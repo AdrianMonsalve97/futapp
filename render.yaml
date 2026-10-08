@@ -2,7 +2,7 @@ services:
   - type: web
     name: futapp
     runtime: node
-    plan: 0.5c-512mb
+    plan: free
     numInstances: 1
     autoDeployTrigger: off
     buildCommand: npm ci --include=dev && npm run build
@@ -27,9 +27,13 @@ services:
         value: Administrador de migración
       - key: ADMIN_PASSWORD
         generateValue: true
-      - key: DB_PATH
-        value: /var/data/portal.db
-    disk:
-      name: futapp-data
-      mountPath: /var/data
-      sizeGB: 1
+      - key: DB_DRIVER
+        value: postgres
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: futapp-media

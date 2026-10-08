@@ -13,6 +13,7 @@ import type { PaymentReceipt } from '../../domain/payments';
 import { NotificationDeliveryError, GROUP_JID } from '../../domain/notifications';
 import type { NotificationSettings, NotificationPreferences, NotificationKind, NotificationMessage, NotificationJob, NotificationEvents, NotificationChannel, NotificationRecipient } from '../../domain/notifications';
 import { NotFoundError, ValidationError } from '../../domain/errors';
+import { asyncFilter } from "./shared";
 
 const phone=/^\+[1-9]\d{7,14}$/;
 const email=/^[^\s@<>\r\n]+@[^\s@<>\r\n]+\.[^\s@<>\r\n]+$/;
@@ -26,18 +27,18 @@ export class NotificationService implements NotificationEvents {
     private readonly matches: MatchRepository, private readonly users: UserRepository, private readonly players: PlayerRepository,
     private readonly team: SettingsRepository, private readonly receipts: QrPaymentRepository, private readonly uow: UnitOfWork,
     private readonly clock: ()=>number=Date.now, private readonly tournaments?: TournamentRepository) {}
-  private enrolled(match: Match, userId: number): boolean {
+  private async enrolled(match: Match, userId: number): Promise<boolean> {
     if (!match.tournamentId) return true;
-    const player = this.players.findByUserId(userId);
-    return !!player && !!this.tournaments?.hasPlayer(match.tournamentId, player.id);
+    const player = (await this.players.findByUserId(userId));
+    return !!player && !!(await this.tournaments?.hasPlayer(match.tournamentId, player.id));
   }
-  view() {
-    const settings=this.repository.settings();
+  async view() {
+    const settings=(await this.repository.settings());
     return {settings,providers:{whatsapp:this.transport.status('whatsapp',settings.whatsappProvider),email:this.transport.status('email')},
-      history:this.repository.history(),recipients:this.repository.recipients().length};
+      history:(await this.repository.history()),recipients:(await this.repository.recipients()).length};
   }
-  configure(input: NotificationSettings) {
-    const draft={...this.repository.settings(),...input};
+  async configure(input: NotificationSettings) {
+    const draft={...(await this.repository.settings()),...input};
     const config={...draft,matchGroupId:draft.matchGroupId.trim(),matchGroupName:draft.matchGroupName.trim(),adminWhatsapp:input.adminWhatsapp.trim(),adminEmail:input.adminEmail.trim(),publicBaseUrl:input.publicBaseUrl.trim().replace(/\/$/,''),
       matchTemplate:input.matchTemplate.trim(),paymentTemplate:input.paymentTemplate.trim(),templateLanguage:input.templateLanguage.trim()};
     if (config.adminWhatsapp && !phone.test(config.adminWhatsapp)) throw new ValidationError('WhatsApp debe incluir el indicativo, por ejemplo +573001234567');
@@ -54,10 +55,10 @@ export class NotificationService implements NotificationEvents {
     if (config.emailEnabled && !this.transport.status('email').ready) throw new ValidationError('Configura primero las credenciales SMTP en el servidor');
     if (config.paymentAlerts && ((config.whatsappEnabled && !config.adminWhatsapp) || (config.emailEnabled && !config.adminEmail))) throw new ValidationError('Indica tu destinatario para las alertas de comprobantes o desactiva esa alerta');
     if (!/^[a-z0-9_]{1,100}$/.test(config.matchTemplate) || !/^[a-z0-9_]{1,100}$/.test(config.paymentTemplate) || !/^[a-z]{2,3}(_[A-Z]{2})?$/.test(config.templateLanguage)) throw new ValidationError('Nombre de plantilla o idioma inválidos');
-    return this.uow.run(()=>{this.repository.setSettings(config);return this.view();});
+    return (await this.uow.run(async ()=>{(await this.repository.setSettings(config));return (await this.view());}));
   }
   async configureVerified(input:NotificationSettings) {
-    input={...this.repository.settings(),...input};
+    input={...(await this.repository.settings()),...input};
     if(input.whatsappEnabled && input.matchDestination==='group') {
       if(input.whatsappProvider!=='evolution')throw new ValidationError('Selecciona Evolution para el grupo existente');
       const groups=await this.groups();
@@ -65,7 +66,7 @@ export class NotificationService implements NotificationEvents {
       if(!group)throw new ValidationError('El bot debe pertenecer al grupo seleccionado');
       input={...input,matchGroupName:group.name};
     }
-    return this.configure(input);
+    return (await this.configure(input));
   }
   async groups() {
     if(!this.transport.groups)throw new ValidationError('La conexión a grupos no está disponible');
@@ -79,108 +80,108 @@ export class NotificationService implements NotificationEvents {
     if(!this.transport.connect)throw new ValidationError('La conexión vinculada no está disponible');
     try{return await this.transport.connect();}catch(error){throw new ValidationError(error instanceof NotificationDeliveryError?error.message:'No se pudo generar el QR de conexión');}
   }
-  preferences(userId: number) { if (!this.users.findById(userId)) throw new NotFoundError('Usuario no encontrado'); return this.repository.preferences(userId); }
-  savePreferences(userId: number, input: NotificationPreferences) {
-    this.preferences(userId); const prefs={...input,whatsappNumber:input.whatsappNumber.trim()};
+  async preferences(userId: number) { if (!(await this.users.findById(userId))) throw new NotFoundError('Usuario no encontrado'); return (await this.repository.preferences(userId)); }
+  async savePreferences(userId: number, input: NotificationPreferences) {
+    (await this.preferences(userId)); const prefs={...input,whatsappNumber:input.whatsappNumber.trim()};
     if ((prefs.whatsapp || prefs.whatsappNumber) && !phone.test(prefs.whatsappNumber)) throw new ValidationError('Indica tu WhatsApp completo con + e indicativo');
-    return this.uow.run(()=>{this.repository.cancelUser(userId,this.clock());this.repository.setPreferences(userId,prefs);return prefs;});
+    return (await this.uow.run(async ()=>{(await this.repository.cancelUser(userId,this.clock()));(await this.repository.setPreferences(userId,prefs));return prefs;}));
   }
-  private enqueue(kind: NotificationKind, event: string, message: NotificationMessage, recipient: string, channel: NotificationChannel,
+  private async enqueue(kind: NotificationKind, event: string, message: NotificationMessage, recipient: string, channel: NotificationChannel,
     userId: number|null, matchId: number|null, receiptId: number|null, now=this.clock()) {
-    return this.repository.enqueue({kind,eventKey:`${event}:${channel}:${userId??recipient}`,message,recipient,channel,userId,matchId,receiptId,nextAttemptAt:now},now);
+    return (await this.repository.enqueue({kind,eventKey:`${event}:${channel}:${userId??recipient}`,message,recipient,channel,userId,matchId,receiptId,nextAttemptAt:now},now));
   }
-  private forPlayer(recipient: NotificationRecipient, kind: NotificationKind, event: string, message: NotificationMessage, matchId: number|null, receiptId: number|null) {
-    const config=this.repository.settings(); let count=0;
-    if (config.whatsappEnabled && recipient.whatsapp) count+=this.enqueue(kind,event,message,recipient.whatsappNumber,'whatsapp',recipient.userId,matchId,receiptId);
-    if (config.emailEnabled && recipient.email) count+=this.enqueue(kind,event,message,recipient.emailAddress,'email',recipient.userId,matchId,receiptId);
+  private async forPlayer(recipient: NotificationRecipient, kind: NotificationKind, event: string, message: NotificationMessage, matchId: number|null, receiptId: number|null) {
+    const config=(await this.repository.settings()); let count=0;
+    if (config.whatsappEnabled && recipient.whatsapp) count+=(await this.enqueue(kind,event,message,recipient.whatsappNumber,'whatsapp',recipient.userId,matchId,receiptId));
+    if (config.emailEnabled && recipient.email) count+=(await this.enqueue(kind,event,message,recipient.emailAddress,'email',recipient.userId,matchId,receiptId));
     return count;
   }
-  private matchMessage(match: Match, title: string): NotificationMessage {
+  private async matchMessage(match: Match, title: string): Promise<NotificationMessage> {
     const when=new Intl.DateTimeFormat('es-CO',{timeZone:'America/Bogota',dateStyle:'full',timeStyle:'short'}).format(kickoffTime(match));
-    return {club:this.team.get().teamName,title,detail:`${match.opponent} · ${match.competition || 'Partido del equipo'} · ${when} (Colombia) · ${match.venue || 'Cancha por confirmar'} · F${match.format} · ${match.minutes} minutos · ${match.status}. Revisa el partido y confirma tu asistencia.`,
+    return {club:(await this.team.get()).teamName,title,detail:`${match.opponent} · ${match.competition || 'Partido del equipo'} · ${when} (Colombia) · ${match.venue || 'Cancha por confirmar'} · F${match.format} · ${match.minutes} minutos · ${match.status}. Revisa el partido y confirma tu asistencia.`,
       path:`/jugador/partidos/${match.id}`,matchRevision:matchRevision(match)};
   }
-  private announce(match: Match, kind: NotificationKind, title: string) {
-    const event=`${kind}:${match.id}:${this.repository.revisionKey(match.id,matchRevision(match))}`; let count=0;
-    const config=this.repository.settings();
+  private async announce(match: Match, kind: NotificationKind, title: string) {
+    const event=`${kind}:${match.id}:${(await this.repository.revisionKey(match.id,matchRevision(match)))}`; let count=0;
+    const config=(await this.repository.settings());
     if(config.matchDestination==='group') {
-      if(config.whatsappEnabled && config.whatsappProvider==='evolution' && config.matchGroupId)count+=this.enqueue(kind,event,{...this.matchMessage(match,title),audience:'group'},config.matchGroupId,'whatsapp',null,match.id,null);
+      if(config.whatsappEnabled && config.whatsappProvider==='evolution' && config.matchGroupId)count+=(await this.enqueue(kind,event,{...(await this.matchMessage(match,title)),audience:'group'},config.matchGroupId,'whatsapp',null,match.id,null));
       return count;
     }
-    for (const recipient of this.repository.recipients().filter(p=>p.matchAlerts && this.enrolled(match,p.userId))) count+=this.forPlayer(recipient,kind,event,this.matchMessage(match,title),match.id,null);
+    for (const recipient of (await asyncFilter((await this.repository.recipients()),async p=>p.matchAlerts && (await this.enrolled(match,p.userId))))) count+=(await this.forPlayer(recipient,kind,event,(await this.matchMessage(match,title)),match.id,null));
     return count;
   }
-  matchChanged(match: Match, previous?: Match) {
+  async matchChanged(match: Match, previous?: Match) {
     if (previous && matchRevision(previous)===matchRevision(match)) return;
-    this.repository.cancelMatch(match.id,this.clock());
-    this.repository.revisionKey(match.id,matchRevision(match));
-    if (!this.repository.settings().matchAnnouncements) return;
+    (await this.repository.cancelMatch(match.id,this.clock()));
+    (await this.repository.revisionKey(match.id,matchRevision(match)));
+    if (!(await this.repository.settings()).matchAnnouncements) return;
     if (match.status==='jugado' || kickoffTime(match)<=this.clock()) return;
-    this.announce(match,'match',match.status==='cancelado'?'Partido cancelado':match.status==='pospuesto'?'Partido pospuesto':previous?'Cambio en el partido':'Nuevo partido programado');
+    (await this.announce(match,'match',match.status==='cancelado'?'Partido cancelado':match.status==='pospuesto'?'Partido pospuesto':previous?'Cambio en el partido':'Nuevo partido programado'));
   }
-  notifyMatch(id: number) {
-    const match=this.matches.findById(id);
+  async notifyMatch(id: number) {
+    const match=(await this.matches.findById(id));
     if (!match) throw new NotFoundError('Partido no encontrado');
     if (match.status!=='programado' || kickoffTime(match)<=this.clock()) throw new ValidationError('Solo se notifican partidos futuros programados');
-    if (!this.repository.settings().matchAnnouncements) throw new ValidationError('Activa los avisos de partidos en Notificaciones');
-    return this.uow.run(()=>({queued:this.announce(match,'match','Partido programado'),message:this.repository.settings().matchDestination==='group'?'El aviso va al grupo deportivo configurado. Los avisos existentes no se duplican.':'Se agregaron avisos para jugadores que activaron este canal. Los avisos existentes no se duplican.'}));
+    if (!(await this.repository.settings()).matchAnnouncements) throw new ValidationError('Activa los avisos de partidos en Notificaciones');
+    return (await this.uow.run(async ()=>({queued:(await this.announce(match,'match','Partido programado')),message:(await this.repository.settings()).matchDestination==='group'?'El aviso va al grupo deportivo configurado. Los avisos existentes no se duplican.':'Se agregaron avisos para jugadores que activaron este canal. Los avisos existentes no se duplican.'})));
   }
-  receiptUploaded(receipt: PaymentReceipt) {
-    const config=this.repository.settings(); if (!config.paymentAlerts) return;
-    const player=this.players.findById(receipt.playerId), user=player?this.users.findById(player.userId):null;
+  async receiptUploaded(receipt: PaymentReceipt) {
+    const config=(await this.repository.settings()); if (!config.paymentAlerts) return;
+    const player=(await this.players.findById(receipt.playerId)), user=player?(await this.users.findById(player.userId)):null;
     const concept=receipt.kind==='inscription'?'inscripción':'uniforme';
-    const message: NotificationMessage={club:this.team.get().teamName,title:'Nuevo comprobante pendiente de revisión',
+    const message: NotificationMessage={club:(await this.team.get()).teamName,title:'Nuevo comprobante pendiente de revisión',
       detail:`${user?.fullName || 'Jugador'} subió el soporte #${receipt.id} de ${concept} por ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:2}).format(receipt.amount)}. Referencia: ${receipt.reference}. Esto confirma la carga del soporte; el abono necesita tu aprobación.`,path:'/admin/pagos-qr',audience:'admin'};
-    if (config.whatsappEnabled && config.adminWhatsapp) this.enqueue('receipt_uploaded',`receipt_uploaded:${receipt.id}`,message,config.adminWhatsapp,'whatsapp',null,null,receipt.id);
-    if (config.emailEnabled && config.adminEmail) this.enqueue('receipt_uploaded',`receipt_uploaded:${receipt.id}`,message,config.adminEmail,'email',null,null,receipt.id);
+    if (config.whatsappEnabled && config.adminWhatsapp) (await this.enqueue('receipt_uploaded',`receipt_uploaded:${receipt.id}`,message,config.adminWhatsapp,'whatsapp',null,null,receipt.id));
+    if (config.emailEnabled && config.adminEmail) (await this.enqueue('receipt_uploaded',`receipt_uploaded:${receipt.id}`,message,config.adminEmail,'email',null,null,receipt.id));
   }
-  receiptReviewed(receipt: PaymentReceipt) {
-    const config=this.repository.settings();if(!config.paymentAlerts)return;
-    const player=this.players.findById(receipt.playerId),user=player?this.users.findById(player.userId):null;
+  async receiptReviewed(receipt: PaymentReceipt) {
+    const config=(await this.repository.settings());if(!config.paymentAlerts)return;
+    const player=(await this.players.findById(receipt.playerId)),user=player?(await this.users.findById(player.userId)):null;
     const message:NotificationMessage={
-      club:this.team.get().teamName,title:`Comprobante ${receipt.status}`,
+      club:(await this.team.get()).teamName,title:`Comprobante ${receipt.status}`,
       detail:`El soporte #${receipt.id} de ${user?.fullName || 'Jugador'} fue ${receipt.status}. ${receipt.status==='aprobado'?'El abono ya está registrado.':'No se registró un abono.'}`,
       path:'/admin/pagos-qr',audience:'admin'};
     const event=`receipt_reviewed:${receipt.id}:${receipt.status}`;
-    if(config.whatsappEnabled&&config.adminWhatsapp)this.enqueue('receipt_reviewed',event,message,config.adminWhatsapp,'whatsapp',null,null,receipt.id);
-    if(config.emailEnabled&&config.adminEmail)this.enqueue('receipt_reviewed',event,message,config.adminEmail,'email',null,null,receipt.id);
+    if(config.whatsappEnabled&&config.adminWhatsapp)(await this.enqueue('receipt_reviewed',event,message,config.adminWhatsapp,'whatsapp',null,null,receipt.id));
+    if(config.emailEnabled&&config.adminEmail)(await this.enqueue('receipt_reviewed',event,message,config.adminEmail,'email',null,null,receipt.id));
   }
-  test(channel: NotificationChannel) {
-    const config=this.repository.settings();
+  async test(channel: NotificationChannel) {
+    const config=(await this.repository.settings());
     const recipient=channel==='whatsapp'?config.adminWhatsapp:config.adminEmail;
     if (!recipient || !(channel==='whatsapp'?config.whatsappEnabled:config.emailEnabled)) throw new ValidationError('Activa el canal y configura tu destinatario antes de probar');
-    return {queued:this.enqueue('test',`test:${Math.floor(this.clock()/60000)}`,{club:this.team.get().teamName,title:'Prueba privada del bot de FutApp',detail:'Las alertas administrativas están dirigidas únicamente a tu contacto privado.',path:'/admin/notificaciones',audience:'admin'},recipient,channel,null,null,null)};
+    return {queued:(await this.enqueue('test',`test:${Math.floor(this.clock()/60000)}`,{club:(await this.team.get()).teamName,title:'Prueba privada del bot de FutApp',detail:'Las alertas administrativas están dirigidas únicamente a tu contacto privado.',path:'/admin/notificaciones',audience:'admin'},recipient,channel,null,null,null))};
   }
-  testGroup() {
-    const config=this.repository.settings();
+  async testGroup() {
+    const config=(await this.repository.settings());
     if(!config.whatsappEnabled||config.whatsappProvider!=='evolution'||config.matchDestination!=='group'||!config.matchGroupId)throw new ValidationError('Conecta y guarda el grupo deportivo antes de probar');
-    return {queued:this.enqueue('test',`test_group:${Math.floor(this.clock()/60000)}`,{club:this.team.get().teamName,title:'Bot deportivo conectado',detail:'En este grupo recibirán avisos de partidos, cambios de horario y recordatorios. La asistencia se confirma en FutApp.',path:'/jugador/partidos',audience:'group'},config.matchGroupId,'whatsapp',null,null,null)};
+    return {queued:(await this.enqueue('test',`test_group:${Math.floor(this.clock()/60000)}`,{club:(await this.team.get()).teamName,title:'Bot deportivo conectado',detail:'En este grupo recibirán avisos de partidos, cambios de horario y recordatorios. La asistencia se confirma en FutApp.',path:'/jugador/partidos',audience:'group'},config.matchGroupId,'whatsapp',null,null,null))};
   }
-  retry(id: number) {
-    if (!this.repository.find(id)) throw new NotFoundError('Aviso no encontrado');
-    if (!this.repository.retry(id,this.clock())) throw new ValidationError('Solo se reintentan avisos fallidos, bloqueados o inciertos');
+  async retry(id: number) {
+    if (!(await this.repository.find(id))) throw new NotFoundError('Aviso no encontrado');
+    if (!(await this.repository.retry(id,this.clock()))) throw new ValidationError('Solo se reintentan avisos fallidos, bloqueados o inciertos');
     return {ok:true};
   }
-  private eligible(job: NotificationJob, config: NotificationSettings): boolean {
+  private async eligible(job: NotificationJob, config: NotificationSettings): Promise<boolean> {
     const group=job.message.audience==='group';
     if (job.kind==='test') return group?config.matchDestination==='group'&&config.whatsappProvider==='evolution'&&job.recipient===config.matchGroupId&&job.receiptId===null:job.userId===null&&job.recipient===(job.channel==='whatsapp'?config.adminWhatsapp:config.adminEmail);
     if (job.kind==='receipt_uploaded'||job.kind==='receipt_reviewed') {
-      const receipt=this.receipts.find(job.receiptId!);
+      const receipt=(await this.receipts.find(job.receiptId!));
       return !group&&job.userId===null&&config.paymentAlerts && !!receipt && (job.kind==='receipt_uploaded'?receipt.status==='pendiente':receipt.status!=='pendiente') && job.recipient===(job.channel==='whatsapp'?config.adminWhatsapp:config.adminEmail);
     }
-    const match=job.matchId?this.matches.findById(job.matchId):null;
+    const match=job.matchId?(await this.matches.findById(job.matchId)):null;
     if(group) {
       if(config.matchDestination!=='group'||config.whatsappProvider!=='evolution'||job.channel!=='whatsapp'||job.userId!==null||job.receiptId!==null||job.recipient!==config.matchGroupId)return false;
-      return this.matchEligible(job,match,config);
+      return (await this.matchEligible(job,match,config));
     }
     if(config.matchDestination==='group')return false;
-    const user=job.userId?this.users.findById(job.userId):null;
+    const user=job.userId?(await this.users.findById(job.userId)):null;
     if (!user?.active || user.role!=='player') return false;
-    const prefs=this.repository.preferences(user.id);
+    const prefs=(await this.repository.preferences(user.id));
     if (job.channel==='whatsapp' ? !prefs.whatsapp || job.recipient!==prefs.whatsappNumber : !prefs.email || job.recipient!==user.email) return false;
     if (!prefs.matchAlerts) return false;
-    if (match && !this.enrolled(match,user.id)) return false;
-    return this.matchEligible(job,match,config);
+    if (match && !(await this.enrolled(match,user.id))) return false;
+    return (await this.matchEligible(job,match,config));
   }
   private matchEligible(job:NotificationJob,match:Match|null,config:NotificationSettings) {
     if (!match || kickoffTime(match)<=this.clock() || matchRevision(match)!==job.message.matchRevision) return false;
@@ -190,32 +191,32 @@ export class NotificationService implements NotificationEvents {
   async tick() {
     if (this.busy) return; this.busy=true;
     try {
-      const now=this.clock(),config=this.repository.settings();
-      this.uow.run(()=>{
-        this.repository.recoverInterrupted(now);
-        for (const match of this.matches.list().filter(m=>m.status==='programado')) {
-          const hours=(kickoffTime(match)-now)/3600000;
-          if (hours<=0) continue;
-          // A late restart sends only the nearest reminder, never both together.
-          if (config.reminder2h && hours<=2) this.announce(match,'reminder_2h','Tu partido comienza en menos de 2 horas');
-          else if (config.reminder24h && hours<=24 && hours>2) this.announce(match,'reminder_24h','Tu partido es en las próximas 24 horas');
-        }
-      });
+      const now=this.clock(),config=(await this.repository.settings());
+      (await this.uow.run(async ()=>{
+                (await this.repository.recoverInterrupted(now));
+                for (const match of (await this.matches.list()).filter(m=>m.status==='programado')) {
+                  const hours=(kickoffTime(match)-now)/3600000;
+                  if (hours<=0) continue;
+                  // A late restart sends only the nearest reminder, never both together.
+                  if (config.reminder2h && hours<=2) (await this.announce(match,'reminder_2h','Tu partido comienza en menos de 2 horas'));
+                  else if (config.reminder24h && hours<=24 && hours>2) (await this.announce(match,'reminder_24h','Tu partido es en las próximas 24 horas'));
+                }
+              }));
       for (let i=0;i<20;i++) {
-        let job=this.repository.claim(this.clock()); if (!job) break;
-        const current=this.repository.settings();
-        if (!this.eligible(job,current)) {this.repository.finish(job.id,'cancelado',this.clock(),'El aviso ya no corresponde a las preferencias o al estado actual');continue;}
+        let job=(await this.repository.claim(this.clock())); if (!job) break;
+        const current=(await this.repository.settings());
+        if (!(await this.eligible(job,current))) {(await this.repository.finish(job.id,'cancelado',this.clock(),'El aviso ya no corresponde a las preferencias o al estado actual'));continue;}
         if (!(job.channel==='whatsapp'?current.whatsappEnabled:current.emailEnabled) || !this.transport.status(job.channel,current.whatsappProvider).ready || !current.publicBaseUrl) {
-          this.repository.finish(job.id,'bloqueado',this.clock(),'Canal desactivado o proveedor sin configurar',null,this.clock()+60000);continue;
+          (await this.repository.finish(job.id,'bloqueado',this.clock(),'Canal desactivado o proveedor sin configurar',null,this.clock()+60000));continue;
         }
-        job=this.repository.beginAttempt(job.id,this.clock());
+        job=(await this.repository.beginAttempt(job.id,this.clock()));
         try {
           const id=await this.transport.send(job,current);
-          this.repository.finish(job.id,'aceptado',this.clock(),null,id);
+          (await this.repository.finish(job.id,'aceptado',this.clock(),null,id));
         } catch(error) {
           const delivery=error instanceof NotificationDeliveryError?error:new NotificationDeliveryError('Respuesta del proveedor no confirmada','uncertain');
           const status=delivery.outcome==='blocked'?'bloqueado':delivery.outcome==='retry' && job.attempts<3?'pendiente':delivery.outcome==='uncertain'?'incierto':'fallido';
-          this.repository.finish(job.id,status,this.clock(),delivery.message,null,this.clock()+60000*2**Math.min(job.attempts,4));
+          (await this.repository.finish(job.id,status,this.clock(),delivery.message,null,this.clock()+60000*2**Math.min(job.attempts,4)));
         }
       }
     } finally {this.busy=false;}

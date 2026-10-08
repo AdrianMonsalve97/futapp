@@ -18,14 +18,14 @@ export function requestToken(req:Request):string|null {
 
 /** Resolve identity against the database on every authenticated request. */
 export function sessionMiddleware(authService: AuthPort) {
-  return (req: Request, _res: Response, next: NextFunction): void => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     const token=requestToken(req);
     if (req.path === '/auth/login' || req.path === '/auth/register' || !token) {
       next();
       return;
     }
     try {
-      const {user}=authService.verifySession(token);
+      const {user}=(await authService.verifySession(token));
       (req as Request & { auth?: AuthContext }).auth = { userId:user.id, role: user.role, email: user.email };
       next();
     } catch {

@@ -6,6 +6,7 @@ import type {
 } from '../../../../application/ports/out/uniform-request.repository';
 import type { UniformRequest, UniformRequestStatus } from '../../../../domain/entities';
 import { mapUniformRequest, type UniformRequestRow } from '../mappers';
+import { asAsyncDatabase, type ApplicationDatabase } from "../async-database";
 
 const SELECT_REQUEST = `
   SELECT r.*, u.full_name AS player_name, f.name AS uniform_name
@@ -16,9 +17,11 @@ const SELECT_REQUEST = `
 `;
 
 export class SqliteUniformRequestRepository implements UniformRequestRepository {
-  constructor(private readonly db: Database) {}
+  constructor(db: Database | ApplicationDatabase) {
+      this.db = asAsyncDatabase(db);
+  }
 
-  list(status?: UniformRequestStatus, playerId?: number): UniformRequest[] {
+  async list(status?: UniformRequestStatus, playerId?: number): Promise<UniformRequest[]> {
     const conditions: string[] = [];
     const params: unknown[] = [];
     if (status) {
@@ -30,35 +33,35 @@ export class SqliteUniformRequestRepository implements UniformRequestRepository 
       params.push(playerId);
     }
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const rows = this.db
-      .prepare(`${SELECT_REQUEST} ${where} ORDER BY r.created_at DESC, r.id DESC`)
-      .all(...params) as UniformRequestRow[];
+    const rows = (await this.db
+          .prepare(`${SELECT_REQUEST} ${where} ORDER BY r.created_at DESC, r.id DESC`)
+          .all(...params)) as UniformRequestRow[];
     return rows.map(mapUniformRequest);
   }
 
-  findById(id: number): UniformRequest | null {
-    const row = this.db.prepare(`${SELECT_REQUEST} WHERE r.id = ?`).get(id) as
+  async findById(id: number): Promise<UniformRequest | null> {
+    const row = (await this.db.prepare(`${SELECT_REQUEST} WHERE r.id = ?`).get(id)) as
       | UniformRequestRow
       | undefined;
     return row ? mapUniformRequest(row) : null;
   }
 
-  create(input: CreateUniformRequestInput): UniformRequest {
-    const result = this.db
-      .prepare(
-        `INSERT INTO uniform_requests (player_id, uniform_id, size, reason, quoted_price)
+  async create(input: CreateUniformRequestInput): Promise<UniformRequest> {
+    const result = (await this.db
+          .prepare(
+            `INSERT INTO uniform_requests (player_id, uniform_id, size, reason, quoted_price)
          VALUES (@playerId, @uniformId, @size, @reason, (SELECT price FROM uniforms WHERE id=@uniformId))`,
-      )
-      .run({
-        playerId: input.playerId,
-        uniformId: input.uniformId,
-        size: input.size,
-        reason: input.reason ?? null,
-      });
-    return this.findById(Number(result.lastInsertRowid)) as UniformRequest;
+          )
+          .run({
+            playerId: input.playerId,
+            uniformId: input.uniformId,
+            size: input.size,
+            reason: input.reason ?? null,
+          }));
+    return (await this.findById(Number(result.lastInsertRowid))) as UniformRequest;
   }
 
-  update(id: number, input: UpdateUniformRequestInput): UniformRequest {
+  async update(id: number, input: UpdateUniformRequestInput): Promise<UniformRequest> {
     const fields: string[] = [];
     const params: Record<string, unknown> = { id };
     const set = (column: string, key: string, value: unknown) => {
@@ -70,8 +73,10 @@ export class SqliteUniformRequestRepository implements UniformRequestRepository 
     if (input.reviewNotes !== undefined) set('review_notes', 'reviewNotes', input.reviewNotes);
     if (input.reviewedAt !== undefined) set('reviewed_at', 'reviewedAt', input.reviewedAt);
     if (fields.length > 0) {
-      this.db.prepare(`UPDATE uniform_requests SET ${fields.join(', ')} WHERE id = @id`).run(params);
+      (await this.db.prepare(`UPDATE uniform_requests SET ${fields.join(', ')} WHERE id = @id`).run(params));
     }
-    return this.findById(id) as UniformRequest;
+    return (await this.findById(id)) as UniformRequest;
   }
+
+    private readonly db: ApplicationDatabase;
 }

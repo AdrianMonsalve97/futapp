@@ -16,8 +16,8 @@ export interface UpdateUniformRequestInput {
 
 /** Puerto de salida para solicitudes de uniformes. */
 export interface UniformRequestRepository {
-  list(status?: UniformRequestStatus, playerId?: number): UniformRequest[];
-  findById(id: number): UniformRequest | null;
-  create(input: CreateUniformRequestInput): UniformRequest;
-  update(id: number, input: UpdateUniformRequestInput): UniformRequest;
+  list(status?: UniformRequestStatus, playerId?: number): Promise<UniformRequest[]>;
+  findById(id: number): Promise<UniformRequest | null>;
+  create(input: CreateUniformRequestInput): Promise<UniformRequest>;
+  update(id: number, input: UpdateUniformRequestInput): Promise<UniformRequest>;
 }

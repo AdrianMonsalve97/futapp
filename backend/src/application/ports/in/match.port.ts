@@ -72,20 +72,20 @@ export interface XiSuggestion {
 
 /** Casos de uso de partidos (§7.3). */
 export interface MatchPort {
-  list(): Match[];
-  get(id: number, playerView?: boolean): MatchDetail;
-  publishLineup(id: number): Match;
-  attendance(id: number, userId?: number): import('../../../domain/entities').MatchAttendance[];
-  setAttendance(id: number, userId: number, status: import('../../../domain/entities').AttendanceStatus): import('../../../domain/entities').MatchAttendance;
-  create(input: CreateMatchInput): Match;
-  update(id: number, input: UpdateMatchInput): Match;
-  remove(id: number): { ok: true };
-  setFormation(id: number, formation: string): { match: Match; lineup: LineupSlot[] };
-  addStrategy(matchId: number, input: StrategyInput): Strategy;
-  updateStrategy(id: number, input: Partial<StrategyInput>): Strategy;
-  removeStrategy(id: number): { ok: true };
-  setLineup(id: number, slots: LineupEntryInput[]): { lineup: LineupSlot[] };
-  autoLineup(id: number, formation?: string): XiSuggestion;
-  saveStats(matchId: number, entries: Array<Partial<MatchStat> & { playerId: number }>): { entries: MatchStat[] };
-  getStats(matchId: number): { entries: MatchStat[] };
+  list(): Promise<Match[]>;
+  get(id: number, playerView?: boolean): Promise<MatchDetail>;
+  publishLineup(id: number): Promise<Match>;
+  attendance(id: number, userId?: number): Promise<import('../../../domain/entities').MatchAttendance[]>;
+  setAttendance(id: number, userId: number, status: import('../../../domain/entities').AttendanceStatus): Promise<import('../../../domain/entities').MatchAttendance>;
+  create(input: CreateMatchInput): Promise<Match>;
+  update(id: number, input: UpdateMatchInput): Promise<Match>;
+  remove(id: number): Promise<{ ok: true }>;
+  setFormation(id: number, formation: string): Promise<{ match: Match; lineup: LineupSlot[] }>;
+  addStrategy(matchId: number, input: StrategyInput): Promise<Strategy>;
+  updateStrategy(id: number, input: Partial<StrategyInput>): Promise<Strategy>;
+  removeStrategy(id: number): Promise<{ ok: true }>;
+  setLineup(id: number, slots: LineupEntryInput[]): Promise<{ lineup: LineupSlot[] }>;
+  autoLineup(id: number, formation?: string): Promise<XiSuggestion>;
+  saveStats(matchId: number, entries: Array<Partial<MatchStat> & { playerId: number }>): Promise<{ entries: MatchStat[] }>;
+  getStats(matchId: number): Promise<{ entries: MatchStat[] }>;
 }

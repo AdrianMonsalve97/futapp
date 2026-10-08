@@ -24,10 +24,10 @@ export interface UpdateUniformInput {
 /** Puerto de salida para el catálogo de uniformes. */
 export interface UniformRepository {
   /** Por defecto solo activos; incluye `issuedCount` (entregas totales). */
-  list(includeInactive?: boolean): Uniform[];
-  findById(id: number): Uniform | null;
-  create(input: CreateUniformInput): Uniform;
-  update(id: number, input: UpdateUniformInput): Uniform;
+  list(includeInactive?: boolean): Promise<Uniform[]>;
+  findById(id: number): Promise<Uniform | null>;
+  create(input: CreateUniformInput): Promise<Uniform>;
+  update(id: number, input: UpdateUniformInput): Promise<Uniform>;
   /** Baja lógica (`active = false`). */
-  remove(id: number): void;
+  remove(id: number): Promise<void>;
 }

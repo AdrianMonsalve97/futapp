@@ -18,18 +18,18 @@ export class SanctionService implements SanctionPort {
     private readonly players: PlayerRepository,
   ) {}
 
-  list(filters: SanctionFiltersInput = {}): Sanction[] {
-    return this.sanctions.list(filters);
+  async list(filters: SanctionFiltersInput = {}): Promise<Sanction[]> {
+    return (await this.sanctions.list(filters));
   }
 
-  create(input: CreateSanctionInput): Sanction {
+  async create(input: CreateSanctionInput): Promise<Sanction> {
     if (!input.reason || !input.reason.trim()) {
       throw new ValidationError('El motivo de la sanción es obligatorio');
     }
     if (!SANCTION_TYPES.includes(input.type)) {
       throw new ValidationError(`Tipo de sanción inválido. Opciones: ${SANCTION_TYPES.join(', ')}`);
     }
-    const player = this.players.findById(input.playerId);
+    const player = (await this.players.findById(input.playerId));
     if (!player) throw new NotFoundError('Jugador no encontrado');
     if (input.amount !== undefined && input.amount < 0) {
       throw new ValidationError('El monto no puede ser negativo');
@@ -37,11 +37,11 @@ export class SanctionService implements SanctionPort {
     if (input.points !== undefined && input.points < 0) {
       throw new ValidationError('Los puntos no pueden ser negativos');
     }
-    return this.sanctions.create(input);
+    return (await this.sanctions.create(input));
   }
 
-  update(id: number, input: UpdateSanctionInput): Sanction {
-    const current = this.sanctions.findById(id);
+  async update(id: number, input: UpdateSanctionInput): Promise<Sanction> {
+    const current = (await this.sanctions.findById(id));
     if (!current) throw new NotFoundError('Sanción no encontrada');
     if (input.reason !== undefined && !input.reason.trim()) {
       throw new ValidationError('El motivo de la sanción es obligatorio');
@@ -52,13 +52,13 @@ export class SanctionService implements SanctionPort {
     if (input.points !== undefined && input.points < 0) {
       throw new ValidationError('Los puntos no pueden ser negativos');
     }
-    return this.sanctions.update(id, input);
+    return (await this.sanctions.update(id, input));
   }
 
-  remove(id: number): { ok: true } {
-    const current = this.sanctions.findById(id);
+  async remove(id: number): Promise<{ ok: true }> {
+    const current = (await this.sanctions.findById(id));
     if (!current) throw new NotFoundError('Sanción no encontrada');
-    this.sanctions.remove(id);
+    (await this.sanctions.remove(id));
     return { ok: true };
   }
 }

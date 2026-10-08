@@ -37,12 +37,12 @@ export class UniformService implements UniformPort {
     private readonly uow: UnitOfWork,
   ) {}
 
-  listUniforms(): Uniform[] {
-    return this.uniforms.list();
+  async listUniforms(): Promise<Uniform[]> {
+    return (await this.uniforms.list());
   }
 
-  createUniform(input: CreateUniformInput): Uniform {
-    this.validateUniform(input);
+  async createUniform(input: CreateUniformInput): Promise<Uniform> {
+    (await this.validateUniform(input));
     if (!input.name || !input.name.trim()) throw new ValidationError('El nombre es obligatorio');
     if (!UNIFORM_KINDS.includes(input.kind)) {
       throw new ValidationError(`Tipo de uniforme inválido. Opciones: ${UNIFORM_KINDS.join(', ')}`);
@@ -50,112 +50,112 @@ export class UniformService implements UniformPort {
     if (input.variant && !UNIFORM_VARIANTS.includes(input.variant)) {
       throw new ValidationError(`Variante inválida. Opciones: ${UNIFORM_VARIANTS.join(', ')}`);
     }
-    return this.uniforms.create(input);
+    return (await this.uniforms.create(input));
   }
 
-  updateUniform(id: number, input: UpdateUniformInput): Uniform {
-    const current = this.uniforms.findById(id);
+  async updateUniform(id: number, input: UpdateUniformInput): Promise<Uniform> {
+    const current = (await this.uniforms.findById(id));
     if (!current) throw new NotFoundError('Uniforme no encontrado');
-    this.validateUniform(input);
+    (await this.validateUniform(input));
     if (input.kind && !UNIFORM_KINDS.includes(input.kind)) {
       throw new ValidationError(`Tipo de uniforme inválido. Opciones: ${UNIFORM_KINDS.join(', ')}`);
     }
     if (input.variant && !UNIFORM_VARIANTS.includes(input.variant)) {
       throw new ValidationError(`Variante inválida. Opciones: ${UNIFORM_VARIANTS.join(', ')}`);
     }
-    return this.uniforms.update(id, input);
+    return (await this.uniforms.update(id, input));
   }
 
-  removeUniform(id: number): { ok: true } {
-    const current = this.uniforms.findById(id);
+  async removeUniform(id: number): Promise<{ ok: true }> {
+    const current = (await this.uniforms.findById(id));
     if (!current) throw new NotFoundError('Uniforme no encontrado');
-    this.uniforms.remove(id);
+    (await this.uniforms.remove(id));
     return { ok: true };
   }
 
-  listIssues(playerId?: number): UniformIssue[] {
-    return this.issues.list(playerId);
+  async listIssues(playerId?: number): Promise<UniformIssue[]> {
+    return (await this.issues.list(playerId));
   }
 
-  createIssue(input: CreateIssueInput): UniformIssue {
-    return this.uow.run(() => {
-      const player = this.players.findById(input.playerId);
-      if (!player) throw new NotFoundError('Jugador no encontrado');
-      const uniform = this.uniforms.findById(input.uniformId);
-      if (!uniform) throw new NotFoundError('Uniforme no encontrado');
-      if (!uniform.active) throw new ValidationError('El uniforme está inactivo');
-      if (uniform.stock <= 0) {
-        throw new ValidationError(`Sin stock disponible de "${uniform.name}"`);
-      }
-      if (input.condition && !CONDITIONS.includes(input.condition)) {
-        throw new ValidationError(`Condición inválida. Opciones: ${CONDITIONS.join(', ')}`);
-      }
-      const issue = this.issues.create({
-        ...input,
-        cost: input.cost ?? uniform.price,
-      });
-      this.uniforms.update(uniform.id, { stock: uniform.stock - 1 });
-      return issue;
-    });
+  async createIssue(input: CreateIssueInput): Promise<UniformIssue> {
+    return (await this.uow.run(async () => {
+          const player = (await this.players.findById(input.playerId));
+          if (!player) throw new NotFoundError('Jugador no encontrado');
+          const uniform = (await this.uniforms.findById(input.uniformId));
+          if (!uniform) throw new NotFoundError('Uniforme no encontrado');
+          if (!uniform.active) throw new ValidationError('El uniforme está inactivo');
+          if (uniform.stock <= 0) {
+            throw new ValidationError(`Sin stock disponible de "${uniform.name}"`);
+          }
+          if (input.condition && !CONDITIONS.includes(input.condition)) {
+            throw new ValidationError(`Condición inválida. Opciones: ${CONDITIONS.join(', ')}`);
+          }
+          const issue = (await this.issues.create({
+                  ...input,
+                  cost: input.cost ?? uniform.price,
+                }));
+          (await this.uniforms.update(uniform.id, { stock: uniform.stock - 1 }));
+          return issue;
+        }));
   }
 
-  updateIssue(id: number, input: UpdateIssueInput): UniformIssue {
-    return this.uow.run(() => {
-      const current = this.issues.findById(id);
-      if (!current) throw new NotFoundError('Entrega no encontrada');
-      if (input.condition && !CONDITIONS.includes(input.condition)) {
-        throw new ValidationError(`Condición inválida. Opciones: ${CONDITIONS.join(', ')}`);
-      }
-      if (current.returned && input.returned === false) throw new ValidationError('Una devolución registrada no se puede deshacer');
-      const updated = this.issues.update(id, input);
-      // Al marcar la devolución se repone el stock una sola vez.
-      if (input.returned === true && !current.returned) {
-        const uniform = this.uniforms.findById(current.uniformId);
-        if (uniform) this.uniforms.update(uniform.id, { stock: uniform.stock + 1 });
-      }
-      return updated;
-    });
+  async updateIssue(id: number, input: UpdateIssueInput): Promise<UniformIssue> {
+    return (await this.uow.run(async () => {
+          const current = (await this.issues.findById(id));
+          if (!current) throw new NotFoundError('Entrega no encontrada');
+          if (input.condition && !CONDITIONS.includes(input.condition)) {
+            throw new ValidationError(`Condición inválida. Opciones: ${CONDITIONS.join(', ')}`);
+          }
+          if (current.returned && input.returned === false) throw new ValidationError('Una devolución registrada no se puede deshacer');
+          const updated = (await this.issues.update(id, input));
+          // Al marcar la devolución se repone el stock una sola vez.
+          if (input.returned === true && !current.returned) {
+            const uniform = (await this.uniforms.findById(current.uniformId));
+            if (uniform) (await this.uniforms.update(uniform.id, { stock: uniform.stock + 1 }));
+          }
+          return updated;
+        }));
   }
 
-  listRequests(status?: UniformRequestStatus): UniformRequest[] {
-    return this.requests.list(status);
+  async listRequests(status?: UniformRequestStatus): Promise<UniformRequest[]> {
+    return (await this.requests.list(status));
   }
 
-  updateRequest(id: number, input: UpdateRequestInput): UniformRequest {
-    return this.uow.run(() => {
-      const current = this.requests.findById(id);
-      if (!current) throw new NotFoundError('Solicitud no encontrada');
-      if (!REQUEST_STATUSES.includes(input.status)) {
-        throw new ValidationError(`Estado inválido. Opciones: ${REQUEST_STATUSES.join(', ')}`);
-      }
+  async updateRequest(id: number, input: UpdateRequestInput): Promise<UniformRequest> {
+    return (await this.uow.run(async () => {
+          const current = (await this.requests.findById(id));
+          if (!current) throw new NotFoundError('Solicitud no encontrada');
+          if (!REQUEST_STATUSES.includes(input.status)) {
+            throw new ValidationError(`Estado inválido. Opciones: ${REQUEST_STATUSES.join(', ')}`);
+          }
 
-      if (current.status === 'entregada' && input.status !== 'entregada') throw new ValidationError('Una solicitud entregada no puede cambiar de estado');
-      if (input.status === 'entregada' && current.status !== 'entregada') {
-        const uniform = this.uniforms.findById(current.uniformId);
-        if (!uniform) throw new NotFoundError('Uniforme no encontrado');
-        if (!uniform.active) throw new ValidationError('El uniforme está inactivo');
-        if (uniform.stock <= 0) {
-          throw new ValidationError(`Sin stock disponible de "${uniform.name}"`);
-        }
-        const issue = this.issues.create({
-          playerId: current.playerId,
-          uniformId: current.uniformId,
-          size: current.size,
-          cost: current.quotedPrice ?? uniform.price,
-          condition: 'nuevo',
-          notes: current.reason,
-        });
-        this.requests.update(id, { issueId: issue.id });
-        this.uniforms.update(uniform.id, { stock: uniform.stock - 1 });
-      }
+          if (current.status === 'entregada' && input.status !== 'entregada') throw new ValidationError('Una solicitud entregada no puede cambiar de estado');
+          if (input.status === 'entregada' && current.status !== 'entregada') {
+            const uniform = (await this.uniforms.findById(current.uniformId));
+            if (!uniform) throw new NotFoundError('Uniforme no encontrado');
+            if (!uniform.active) throw new ValidationError('El uniforme está inactivo');
+            if (uniform.stock <= 0) {
+              throw new ValidationError(`Sin stock disponible de "${uniform.name}"`);
+            }
+            const issue = (await this.issues.create({
+                      playerId: current.playerId,
+                      uniformId: current.uniformId,
+                      size: current.size,
+                      cost: current.quotedPrice ?? uniform.price,
+                      condition: 'nuevo',
+                      notes: current.reason,
+                    }));
+            (await this.requests.update(id, { issueId: issue.id }));
+            (await this.uniforms.update(uniform.id, { stock: uniform.stock - 1 }));
+          }
 
-      const reviewedAt = input.status === 'pendiente' ? current.reviewedAt : nowIso();
-      return this.requests.update(id, {
-        status: input.status,
-        reviewNotes: input.reviewNotes ?? current.reviewNotes,
-        reviewedAt,
-      });
-    });
+          const reviewedAt = input.status === 'pendiente' ? current.reviewedAt : nowIso();
+          return (await this.requests.update(id, {
+                  status: input.status,
+                  reviewNotes: input.reviewNotes ?? current.reviewNotes,
+                  reviewedAt,
+                }));
+        }));
   }
 
   private validateUniform(input: { price?: number; stock?: number; minStock?: number }): void {

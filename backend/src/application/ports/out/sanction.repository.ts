@@ -26,9 +26,9 @@ export interface UpdateSanctionInput {
 /** Puerto de salida para sanciones. */
 export interface SanctionRepository {
   /** Con `playerName`; ordenadas por `created_at` desc. */
-  list(filters?: SanctionFilters): Sanction[];
-  findById(id: number): Sanction | null;
-  create(input: CreateSanctionInput): Sanction;
-  update(id: number, input: UpdateSanctionInput): Sanction;
-  remove(id: number): void;
+  list(filters?: SanctionFilters): Promise<Sanction[]>;
+  findById(id: number): Promise<Sanction | null>;
+  create(input: CreateSanctionInput): Promise<Sanction>;
+  update(id: number, input: UpdateSanctionInput): Promise<Sanction>;
+  remove(id: number): Promise<void>;
 }

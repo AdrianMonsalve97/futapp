@@ -10,61 +10,61 @@ export class MediaService {
   constructor(private readonly storage: MediaStorage, private readonly users: UserRepository,
     private readonly uniforms: UniformRepository, private readonly settings: SettingsRepository,
     private readonly tournaments: TournamentRepository, private readonly uow: UnitOfWork) {}
-  branding() {
-    const { teamName, logoUrl, brandColor } = this.settings.get();
+  async branding() {
+    const { teamName, logoUrl, brandColor } = (await this.settings.get());
     return { teamName, logoUrl, brandColor };
   }
-  publicLogo(): MediaAsset {
-    const id = this.settings.get().logoUrl?.split('/api/media/')[1];
-    const asset = id ? this.storage.find(id) : null;
+  async publicLogo(): Promise<MediaAsset> {
+    const id = (await this.settings.get()).logoUrl?.split('/api/media/')[1];
+    const asset = id ? (await this.storage.find(id)) : null;
     if (!asset || asset.purpose !== 'logo') throw new NotFoundError('Escudo no encontrado');
     return asset;
   }
-  read(id: string, userId: number, admin: boolean): MediaAsset {
-    const asset = this.storage.find(id);
+  async read(id: string, userId: number, admin: boolean): Promise<MediaAsset> {
+    const asset = (await this.storage.find(id));
     if (!asset) throw new NotFoundError('Archivo no encontrado');
     if ((asset.purpose === 'avatar' || asset.purpose === 'receipt') && !admin && asset.ownerId !== userId) throw new NotFoundError('Archivo no encontrado');
     if (asset.purpose === 'tournament' && !admin) {
-      const document = this.tournaments.documentForAsset(id);
-      const tournament = document ? this.tournaments.find(document.tournamentId) : null;
+      const document = (await this.tournaments.documentForAsset(id));
+      const tournament = document ? (await this.tournaments.find(document.tournamentId)) : null;
       if (!tournament || tournament.status === 'borrador') throw new NotFoundError('Archivo no encontrado');
     }
     if (asset.purpose === 'tournament_image' && !admin) {
-      const tournament = this.tournaments.tournamentForImage(id);
+      const tournament = (await this.tournaments.tournamentForImage(id));
       if (!tournament || tournament.status === 'borrador') throw new NotFoundError('Archivo no encontrado');
     }
     return asset;
   }
-  filePath(asset: MediaAsset): string { return this.storage.filePath(asset); }
+  async content(asset: MediaAsset): Promise<Buffer> { return (await this.storage.content(asset)); }
   async upload(userId: number, purpose: MediaPurpose, entityId: number | null, fileName: string, data: Uint8Array, title?: string) {
-    if (purpose === 'uniform' && !this.uniforms.findById(entityId!)) throw new NotFoundError('Uniforme no encontrado');
-    if ((purpose === 'tournament' || purpose === 'tournament_image') && !this.tournaments.find(entityId!)) throw new NotFoundError('Torneo no encontrado');
+    if (purpose === 'uniform' && !(await this.uniforms.findById(entityId!))) throw new NotFoundError('Uniforme no encontrado');
+    if ((purpose === 'tournament' || purpose === 'tournament_image') && !(await this.tournaments.find(entityId!))) throw new NotFoundError('Torneo no encontrado');
     if (title !== undefined && (typeof title !== 'string' || !title.trim() || title.length > 120)) throw new ValidationError('Título de documento inválido');
     const asset = await this.storage.store(userId, purpose, fileName, data);
     try {
-      return this.uow.run(() => {
-        const url = '/api/media/' + asset.id;
-        if (purpose === 'logo') this.settings.update({ logoUrl: url });
-        if (purpose === 'avatar') this.users.update(userId, { avatarUrl: url });
-        if (purpose === 'uniform') this.uniforms.update(entityId!, { imageUrl: url });
-        if (purpose === 'tournament_image') this.tournaments.setImage(entityId!, asset.id);
-        if (purpose === 'tournament') return this.tournaments.addDocument({ tournamentId: entityId!, title: title?.trim() || asset.fileName,
-          assetId: asset.id, fileName: asset.fileName, mimeType: asset.mimeType, extractedText: asset.extractedText,
-          extractionStatus: asset.extractedText ? 'extraido' : 'requiere_texto' });
-        return { url };
-      });
+      return (await this.uow.run(async () => {
+              const url = '/api/media/' + asset.id;
+              if (purpose === 'logo') (await this.settings.update({ logoUrl: url }));
+              if (purpose === 'avatar') (await this.users.update(userId, { avatarUrl: url }));
+              if (purpose === 'uniform') (await this.uniforms.update(entityId!, { imageUrl: url }));
+              if (purpose === 'tournament_image') (await this.tournaments.setImage(entityId!, asset.id));
+              if (purpose === 'tournament') return (await this.tournaments.addDocument({ tournamentId: entityId!, title: title?.trim() || asset.fileName,
+                        assetId: asset.id, fileName: asset.fileName, mimeType: asset.mimeType, extractedText: asset.extractedText,
+                        extractionStatus: asset.extractedText ? 'extraido' : 'requiere_texto' }));
+              return { url };
+            }));
     } catch (error) { await this.storage.discard(asset); throw error; }
   }
-  clear(userId: number, purpose: 'logo' | 'avatar' | 'uniform' | 'tournament_image', entityId?: number) {
+  async clear(userId: number, purpose: 'logo' | 'avatar' | 'uniform' | 'tournament_image', entityId?: number) {
     if (purpose === 'tournament_image') {
-      if (!this.tournaments.find(entityId!)) throw new NotFoundError('Torneo no encontrado');
-      this.tournaments.setImage(entityId!, null);
+      if (!(await this.tournaments.find(entityId!))) throw new NotFoundError('Torneo no encontrado');
+      (await this.tournaments.setImage(entityId!, null));
     }
-    if (purpose === 'logo') this.settings.update({ logoUrl: '/brand/aag-logo.jpg' });
-    if (purpose === 'avatar') this.users.update(userId, { avatarUrl: null });
+    if (purpose === 'logo') (await this.settings.update({ logoUrl: '/brand/aag-logo.jpg' }));
+    if (purpose === 'avatar') (await this.users.update(userId, { avatarUrl: null }));
     if (purpose === 'uniform') {
-      if (!this.uniforms.findById(entityId!)) throw new NotFoundError('Uniforme no encontrado');
-      this.uniforms.update(entityId!, { imageUrl: null });
+      if (!(await this.uniforms.findById(entityId!))) throw new NotFoundError('Uniforme no encontrado');
+      (await this.uniforms.update(entityId!, { imageUrl: null }));
     }
     return { ok: true };
   }

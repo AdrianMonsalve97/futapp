@@ -14,7 +14,7 @@ export function sanctionRoutes(sanctions: SanctionPort): Router {
   const router = Router();
   const admin = [requireAuth, requireRole('admin')];
 
-  router.get('/sanctions', ...admin, (req, res) => {
+  router.get('/sanctions', ...admin, async (req, res) => {
     const status = queryStr(req, 'status');
     const type = queryStr(req, 'type');
     if (status && !['activa', 'cumplida', 'anulada'].includes(status)) {
@@ -25,36 +25,36 @@ export function sanctionRoutes(sanctions: SanctionPort): Router {
     }
     const playerId = queryStr(req, 'playerId');
     res.json(
-      sanctions.list({
-        playerId: playerId ? Number(playerId) : undefined,
-        status: status as SanctionStatus | undefined,
-        type: type as SanctionType | undefined,
-      }),
+      (await sanctions.list({
+                playerId: playerId ? Number(playerId) : undefined,
+                status: status as SanctionStatus | undefined,
+                type: type as SanctionType | undefined,
+              })),
     );
   });
 
-  router.post('/sanctions', ...admin, (req, res) => {
+  router.post('/sanctions', ...admin, async (req, res) => {
     const body = jsonBody<Partial<CreateSanctionInput>>(req);
     res.json(
-      sanctions.create({
-        playerId: Number(body.playerId),
-        matchId: body.matchId ?? null,
-        type: body.type ?? 'amonestacion',
-        reason: String(body.reason ?? ''),
-        amount: body.amount !== undefined ? Number(body.amount) : 0,
-        points: body.points !== undefined ? Number(body.points) : 0,
-        matchDate: body.matchDate ?? null,
-      }),
+      (await sanctions.create({
+                playerId: Number(body.playerId),
+                matchId: body.matchId ?? null,
+                type: body.type ?? 'amonestacion',
+                reason: String(body.reason ?? ''),
+                amount: body.amount !== undefined ? Number(body.amount) : 0,
+                points: body.points !== undefined ? Number(body.points) : 0,
+                matchDate: body.matchDate ?? null,
+              })),
     );
   });
 
-  router.put('/sanctions/:id', ...admin, (req, res) => {
+  router.put('/sanctions/:id', ...admin, async (req, res) => {
     const body = jsonBody<UpdateSanctionInput>(req);
-    res.json(sanctions.update(paramId(req), body));
+    res.json((await sanctions.update(paramId(req), body)));
   });
 
-  router.delete('/sanctions/:id', ...admin, (req, res) => {
-    res.json(sanctions.remove(paramId(req)));
+  router.delete('/sanctions/:id', ...admin, async (req, res) => {
+    res.json((await sanctions.remove(paramId(req))));
   });
 
   return router;

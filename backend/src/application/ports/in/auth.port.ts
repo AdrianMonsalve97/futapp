@@ -22,10 +22,10 @@ export interface AuthUserView {
 
 /** Casos de uso de autenticación (§7.1). */
 export interface AuthPort {
-  verifySession(token:string):AuthUserView;
-  logout(token:string):void;
-  createInvitation():{code:string;expiresAt:string};
-  login(input: LoginInput): AuthPayload;
-  register(input: RegisterInput): AuthPayload;
-  me(userId: number): AuthUserView;
+  verifySession(token:string):Promise<AuthUserView>;
+  logout(token:string):Promise<void>;
+  createInvitation():Promise<{code:string;expiresAt:string}>;
+  login(input: LoginInput): Promise<AuthPayload>;
+  register(input: RegisterInput): Promise<AuthPayload>;
+  me(userId: number): Promise<AuthUserView>;
 }

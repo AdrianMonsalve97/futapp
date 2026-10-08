@@ -89,7 +89,7 @@ Después configura la variable de repositorio `MAC_DEPLOY_ENABLED=true`. Si pers
 
 No conectes este runner a workflows de pull requests ni a código de terceros sin revisar: el runner ejecuta código en tu Mac. Este cambio no abre SSH ni expone el socket de Docker en internet. Para la primera migración, mantén los avisos desactivados y completa la ingesta desde Configuración después del primer arranque.
 
-La rama de despliegue Render solo se ejecuta si se elige explícitamente `DEPLOY_TARGET=render` y se configuran sus credenciales. La configuración de Render existente sigue destinada al montaje con disco de pago; no se utiliza para esta ruta gratuita.
+Si no mantendrás el Mac encendido, usa la [ruta Render Free + Supabase Free](RENDER-FREE-SUPABASE.md). El despliegue Render solo se ejecuta con `DEPLOY_TARGET=render` y sus credenciales; ahora `render.yaml` usa PostgreSQL remoto y almacenamiento privado, sin disco de pago.
 
 Podman también puede ejecutar contenedores en macOS mediante una máquina virtual y un proveedor Compose. Para este montaje empezamos con Docker, cuyo flujo está cubierto por las pruebas. Si en el futuro usas Podman, prueba el acceso al bind mount y la persistencia antes de pasarle los datos reales.
 

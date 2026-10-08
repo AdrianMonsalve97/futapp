@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 dotenv.config({ path: path.join(root, 'backend/.env'), quiet: true });
+if (process.env.DB_DRIVER === 'postgres' || process.env.DATABASE_URL) throw new Error('Este respaldo es para SQLite. En la nube exporta los datos desde Configuración o respalda PostgreSQL y el bucket');
 const dbPath = path.resolve(root, 'backend', process.env.DB_PATH ?? 'data/portal.db');
 const destination = path.join(path.dirname(dbPath), 'backups', new Date().toISOString().replace(/[:.]/g, '-'));
 await fs.mkdir(destination, { recursive: true });
