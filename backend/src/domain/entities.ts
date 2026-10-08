@@ -31,7 +31,8 @@ export interface Player {
   heightCm: number | null; weightKg: number | null; foot: Foot | null;
   emergencyContact: string | null; eps: string | null; prepaidHealth: string | null; joinedAt: string;
 }
-export interface AuthPayload { token: string; user: User; player: Player | null; }
+export interface SessionStatus { sessionKey:string; serverNow:number; idleTimeoutMs:number|null; idleExpiresAt:number|null }
+export interface AuthPayload { token: string; user: User; player: Player | null; session?:SessionStatus }
 
 export interface Payment {
   registeredBy?: number | null;

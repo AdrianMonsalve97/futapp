@@ -30,7 +30,8 @@ export interface Player {
   emergencyContact: string | null; eps: string | null; prepaidHealth: string | null; joinedAt: string;
 }
 export interface RegistrationPayload { user: User; player: Player | null; pendingApproval: true; message: string }
-export interface AuthPayload { token: string; user: User; player: Player | null; }
+export interface SessionStatus { sessionKey:string; serverNow:number; idleTimeoutMs:number|null; idleExpiresAt:number|null }
+export interface AuthPayload { token: string; user: User; player: Player | null; session?:SessionStatus }
 
 export interface Payment {
   registeredBy?: number | null;

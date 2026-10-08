@@ -30,6 +30,13 @@ export async function migratePostgres(db: PostgresDatabase) {
         .replace(/(REFERENCES\s+\w+\s*\(\w+\)(?:\s+ON DELETE (?:CASCADE|SET NULL))?)/gi,'$1 DEFERRABLE INITIALLY IMMEDIATE')
         .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?/i,'CREATE TABLE IF NOT EXISTS ');
       await db.execute(sql);created.add(table.name);
+      if(table.name==='auth_sessions') {
+        const activity=await db.query("SELECT column_name FROM information_schema.columns WHERE table_schema='futapp' AND table_name='auth_sessions' AND column_name='last_activity_at'");
+        if(!activity.length){
+          await db.execute('ALTER TABLE auth_sessions ADD COLUMN last_activity_at BIGINT NOT NULL DEFAULT 0');
+          await db.prepare('UPDATE auth_sessions SET last_activity_at=?').run(Date.now());
+        }
+      }
       const columns=await db.query("SELECT column_name FROM information_schema.columns WHERE table_schema='futapp' AND table_name=$1",[table.name]);
       if(columns.map(row=>row.column_name).sort().join()!==[...table.columns].sort().join())throw new Error('El esquema de PostgreSQL necesita una migración de versión antes de iniciar');
     }

@@ -2,13 +2,19 @@ import type { NextFunction, Request, Response } from 'express';
 import type { Role } from '../../../../domain/entities';
 import { ForbiddenError, UnauthorizedError } from '../../../../domain/errors';
 import type { AuthPort } from '../../../../application/ports/in/auth.port';
+import {env} from '../../../../config/env';
+import type {SessionStatus} from '../../../../domain/entities';
 
 export interface AuthContext {
   userId: number;
   role: Role;
   email: string;
+  session?:SessionStatus;
 }
 export const SESSION_COOKIE='futapp_session';
+export function clearSessionCookie(req:Request,res:Response):void {
+  res.clearCookie(SESSION_COOKIE,{httpOnly:true,secure:env.production||req.get('origin')?.startsWith('https://'),sameSite:'strict',path:'/'});
+}
 export function requestToken(req:Request):string|null {
   const header=req.headers.authorization;
   if(header)return header.startsWith('Bearer ')?header.slice(7).trim():null;
@@ -18,18 +24,19 @@ export function requestToken(req:Request):string|null {
 
 /** Resolve identity against the database on every authenticated request. */
 export function sessionMiddleware(authService: AuthPort) {
-  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const token=requestToken(req);
-    if (req.path === '/auth/login' || req.path === '/auth/register' || !token) {
+    if (req.path === '/auth/login' || req.path === '/auth/register' || req.path === '/auth/logout' || !token) {
       next();
       return;
     }
     try {
-      const {user}=(await authService.verifySession(token));
-      (req as Request & { auth?: AuthContext }).auth = { userId:user.id, role: user.role, email: user.email };
+      const {user,session}=(await authService.verifySession(token));
+      (req as Request & { auth?: AuthContext }).auth = { userId:user.id, role: user.role, email: user.email,session };
       next();
-    } catch {
-      next(new UnauthorizedError('Sesión inválida, expirada o cuenta inactiva'));
+    } catch(error) {
+      clearSessionCookie(req,res);
+      next(error instanceof UnauthorizedError?error:new UnauthorizedError('Sesión inválida, expirada o cuenta inactiva'));
     }
   };
 }

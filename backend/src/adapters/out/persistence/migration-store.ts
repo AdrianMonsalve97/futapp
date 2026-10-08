@@ -86,6 +86,11 @@ export class FileMigrationStore implements MigrationPort {
     catch { throw new ValidationError('Archivo de migración inválido o demasiado grande'); }
     if (p?.format !== 'futapp-migration' || p.version !== 1 || typeof p.createdAt !== 'string' || !Number.isFinite(Date.parse(p.createdAt)) || !p.tables || Array.isArray(p.tables) || !Array.isArray(p.files) || p.files.length > 2000) throw new ValidationError('Formato de migración no compatible');
     const names = this.tables();
+    // Session rows are transient and never restored; keep old snapshot columns compatible.
+    const sessions=p.tables.auth_sessions;
+    if(sessions&&Array.isArray(sessions.columns)&&Array.isArray(sessions.rows)&&sessions.rows.every(Array.isArray)&&!sessions.columns.includes('last_activity_at')) {
+      sessions.columns.push('last_activity_at');sessions.rows=sessions.rows.map(row=>[...row,0]);
+    }
     for (const name of ['registration_requests','media_deletion_jobs','uniform_recipients']) {
       if (!Object.hasOwn(p.tables,name) && names.includes(name)) p.tables[name]={columns:(this.db.pragma(`table_info(${name})`) as {name:string}[]).map(column=>column.name),rows:[]};
     }

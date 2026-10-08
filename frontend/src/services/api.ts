@@ -56,10 +56,6 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   }
 
   const isLogin = path.includes('/auth/login') || path.includes('/auth/register');
-  if (res.status === 401 && !isLogin) {
-    clearToken();
-    window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
-  }
 
   const text = await res.text();
   let body: unknown = null;
@@ -73,6 +69,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
 
   if (!res.ok) {
     const errBody = (body ?? {}) as ApiErrorBody;
+    if(res.status===401&&!isLogin){clearToken();window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT,{detail:{code:errBody.error?.code}}));}
     const message = errBody.error?.message ?? `Ocurrió un error (HTTP ${res.status}).`;
     throw new ApiError(message, res.status, errBody.error?.code);
   }
@@ -91,7 +88,10 @@ export function errorMessage(error: unknown): string {
 export async function apiBlob(path: string): Promise<Blob> {
   if (!path.startsWith('/api/')) throw new Error('Ruta de archivo inválida');
   const res = await fetch(path, { credentials:'same-origin',headers:{'X-FutApp-Client':'web'} });
-  if (res.status === 401) { clearToken(); window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT)); }
+  if (res.status === 401) {
+    const body=await res.json().catch(()=>({})) as ApiErrorBody;
+    clearToken();window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT,{detail:{code:body.error?.code}}));
+  }
   if (!res.ok) throw new ApiError('No se pudo descargar el archivo', res.status);
   return res.blob();
 }

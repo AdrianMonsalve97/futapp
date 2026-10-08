@@ -8,7 +8,7 @@ import { env } from '../../config/env';
 import type { AuthPort, AuthUserView, LoginInput, RegisterInput, RegistrationPayload } from '../ports/in/auth.port';
 import type { PlayerRepository } from '../ports/out/player.repository';
 import type { UserRepository } from '../ports/out/user.repository';
-import type { AuthPayload, User } from '../../domain/entities';
+import type { AuthPayload, User, SessionStatus } from '../../domain/entities';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../../domain/errors';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -89,14 +89,39 @@ export class AuthService implements AuthPort {
   async verifySession(token:string):Promise<AuthUserView> {
     try {
       const payload=jwt.verify(token,env.jwtSecret,{algorithms:['HS256'],issuer:'futapp',audience:'futapp-client'}) as jwt.JwtPayload;
-      const session=typeof payload.jti==='string'?(await this.security.session(payload.jti)):null;
+      let session=typeof payload.jti==='string'?(await this.security.session(payload.jti)):null;
       const userId=Number(payload.sub);if(!session||session.userId!==userId||session.expiresAt<=Date.now())throw new Error();
       const view=(await this.me(userId));
       if(!view.user.active||view.user.role!==payload.role||!equal(session.stamp,(await this.stamp(view.user))))throw new Error();
-      return view;
-    }catch{throw new UnauthorizedError('Sesión inválida, expirada o revocada');}
+      if(view.user.role!=='admin'&&session.lastActivityAt+env.playerIdleTimeoutMs<=Date.now()) {
+        if(await this.security.expireIdleSession(payload.jti!,Date.now()-env.playerIdleTimeoutMs))throw this.idleError();
+        session=await this.security.session(payload.jti!);
+        if(!session)throw new Error();
+      }
+      return {...view,session:this.sessionStatus(payload.jti!,view.user,session.lastActivityAt)};
+    }catch(error){if(error instanceof UnauthorizedError)throw error;throw new UnauthorizedError('Sesión inválida, expirada o revocada');}
   }
-  async logout(token:string){try{const payload=jwt.verify(token,env.jwtSecret,{algorithms:['HS256'],issuer:'futapp',audience:'futapp-client'}) as jwt.JwtPayload;if(payload.jti)(await this.security.revokeSession(payload.jti));}catch{}}
+  private idleError(){return new UnauthorizedError('Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.','SESSION_IDLE_EXPIRED');}
+  private sessionStatus(id:string,user:User,lastActivityAt:number):SessionStatus {
+    return {sessionKey:digest(id),serverNow:Date.now(),idleTimeoutMs:user.role==='admin'?null:env.playerIdleTimeoutMs,idleExpiresAt:user.role==='admin'?null:lastActivityAt+env.playerIdleTimeoutMs};
+  }
+  async activity(token:string):Promise<SessionStatus> {
+    const view=await this.verifySession(token);
+    if(view.user.role==='admin')return view.session!;
+    const id=(jwt.decode(token) as jwt.JwtPayload).jti!,now=Date.now();
+    if(!await this.security.touchSession(id,now,env.playerIdleTimeoutMs))throw this.idleError();
+    const session=await this.security.session(id);
+    if(!session)throw new UnauthorizedError('Sesión revocada');
+    return this.sessionStatus(id,view.user,session.lastActivityAt);
+  }
+  async logout(token:string,sessionKey?:string){
+    try {
+      const payload=jwt.verify(token,env.jwtSecret,{algorithms:['HS256'],issuer:'futapp',audience:'futapp-client',ignoreExpiration:true}) as jwt.JwtPayload;
+      if(sessionKey&&(!payload.jti||!equal(sessionKey,digest(payload.jti))))return false;
+      if(payload.jti)await this.security.revokeSession(payload.jti);
+    }catch{}
+    return true;
+  }
   async createInvitation(){const code=randomBytes(24).toString('base64url'),expiresAt=Date.now()+7*86400000;(await this.security.setInvitation(digest(code),expiresAt));return {code,expiresAt:new Date(expiresAt).toISOString()};}
 
   private async buildPayload(user: User): Promise<AuthPayload> {
@@ -119,6 +144,6 @@ export class AuthService implements AuthPort {
       active: user.active,
       createdAt: user.createdAt,
     };
-    return { token, user: safeUser, player };
+    return { token, user: safeUser, player,session:this.sessionStatus(id,safeUser,(await this.security.session(id))!.lastActivityAt) };
   }
 }

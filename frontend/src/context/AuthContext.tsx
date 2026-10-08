@@ -9,7 +9,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { AuthPayload, RegistrationPayload, Player, User } from '../types/api';
+import type { AuthPayload, RegistrationPayload, Player, User, SessionStatus } from '../types/api';
+import {browserIdleEnvironment,publishSessionLogout,startIdleSession} from '../services/idle-session';
 import {
   AUTH_EXPIRED_EVENT,
   api,
@@ -28,6 +29,7 @@ export interface RegisterInput {
 }
 
 interface AuthContextValue {
+  sessionNotice:string|null;
   user: User | null;
   player: Player | null;
   token: string | null;
@@ -45,12 +47,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
   const [loading, setLoading] = useState(true);
+  const [session,setSession]=useState<SessionStatus|null>(null);
+  const [sessionNotice,setSessionNotice]=useState<string|null>(null);
 
   const applySession = useCallback((payload: AuthPayload) => {
     clearToken();
     setTokenState('cookie-session');
     setUser(payload.user);
     setPlayer(payload.player);
+    setSession(payload.session??null);
+    setSessionNotice(null);
   }, []);
 
   const clearSession = useCallback(() => {
@@ -58,16 +64,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenState(null);
     setUser(null);
     setPlayer(null);
+    setSession(null);
   }, []);
 
   const refresh = useCallback(async () => {
     clearToken();
     setLoading(true);
     try {
-      const res = await api<{ user: User; player: Player | null }>('/api/auth/me');
+      const res = await api<{ user: User; player: Player | null; session?:SessionStatus }>('/api/auth/me');
       setUser(res.user);
       setPlayer(res.player);
       setTokenState('cookie-session');
+      setSession(res.session??null);
     } catch {
       clearSession();
     } finally {
@@ -82,10 +90,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 401 global: el cliente de API emite este evento y acá se limpia la sesión.
   useEffect(() => {
-    const onExpired = () => clearSession();
+    const onExpired = (event:Event) => {
+      if((event as CustomEvent<{code?:string}>).detail?.code==='SESSION_IDLE_EXPIRED')setSessionNotice('Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.');
+      clearSession();
+    };
     window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
   }, [clearSession]);
+
+  useEffect(()=>{
+    if(user?.role!=='player'||!session)return;
+    return startIdleSession(session,browserIdleEnvironment(),()=>api('/api/auth/activity',{method:'POST',json:{}}),reason=>{
+      clearSession();
+      setSessionNotice(reason==='idle'?'Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.':'La sesión se cerró en otra pestaña. Vuelve a iniciar sesión.');
+      if(reason==='idle')void api('/api/auth/logout',{method:'POST',json:{sessionKey:session.sessionKey}}).catch(()=>undefined);
+    });
+  },[user?.role,session,clearSession]);
 
   const login = useCallback(
     async (email: string, password: string): Promise<AuthPayload> => {
@@ -119,12 +139,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    void api('/api/auth/logout',{method:'POST',json:{}}).catch(() => undefined).finally(clearSession);
-  }, [clearSession]);
+    if(session)publishSessionLogout(session.sessionKey);
+    clearSession();setSessionNotice(null);
+    void api('/api/auth/logout',{method:'POST',json:session?{sessionKey:session.sessionKey}:{}}).catch(() => undefined);
+  }, [clearSession,session]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, player, token, loading, login, register, logout, refresh }),
-    [user, player, token, loading, login, register, logout, refresh],
+    () => ({ user, player, token, loading, login, register, logout, refresh,sessionNotice }),
+    [user, player, token, loading, login, register, logout, refresh,sessionNotice],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

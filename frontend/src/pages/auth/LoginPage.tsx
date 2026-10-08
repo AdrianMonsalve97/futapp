@@ -15,7 +15,7 @@ interface LocationState {
 
 /** Login público (SPEC §10.4): tarjeta centrada + credenciales demo. */
 export function LoginPage() {
-  const { login } = useAuth();
+  const { login,sessionNotice } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState('');
@@ -55,6 +55,7 @@ export function LoginPage() {
         <p className="text-sm text-base-content/60 mt-1">Accedé con tu cuenta del club.</p>
 
         <form className="auth-fields" onSubmit={(event) => void submit(event)}>
+          {sessionNotice ? <Alert tone="info">{sessionNotice}</Alert> : null}
           {error ? <Alert tone="error">{error}</Alert> : null}
 
           <FormField label="Email" required>

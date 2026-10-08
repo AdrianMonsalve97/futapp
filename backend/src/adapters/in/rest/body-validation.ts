@@ -80,7 +80,8 @@ export function validateBody(path: string, method: string, body: unknown): void 
   if (path === '/settings/payment-qr') return check(body, {recipient:nonempty(120),paymentKey:nonempty(120)},['recipient','paymentKey']);
   if (path === '/auth/login') return check(body, { email: credentials.email, password: credentials.password }, ['email', 'password']);
   if (path === '/auth/register') return check(body, { ...credentials, invitationCode:nonempty(100),phone: profile.phone, position, shirtNumber: profile.shirtNumber }, ['email', 'password', 'fullName']);
-  if(path==='/auth/invitation'||path==='/auth/logout')return check(body,{});
+  if(path==='/auth/logout')return check(body,{sessionKey:v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v)});
+  if(path==='/auth/invitation'||path==='/auth/activity')return check(body,{});
   if (path === '/me/profile') return check(body, profile);
   if (path === '/me/password') return check(body, { currentPassword: nonempty(128), newPassword: nonempty(128) }, ['currentPassword', 'newPassword']);
   if (/^\/players\/\d+\/approval$/.test(path)) return check(body, {});

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { AuthPort, LoginInput, RegisterInput } from '../../../../application/ports/in/auth.port';
-import { getAuth, requireAuth, requireRole, requestToken, SESSION_COOKIE } from '../middleware/auth';
+import { getAuth, requireAuth, requireRole, requestToken, SESSION_COOKIE, clearSessionCookie } from '../middleware/auth';
 import type { Request, Response } from 'express';
 import type { AuthPayload } from '../../../../domain/entities';
 import { env } from '../../../../config/env';
@@ -40,11 +40,12 @@ export function authRoutes(auth: AuthPort): Router {
     );
   });
 
-  router.post('/auth/logout',async (req,res)=>{const token=requestToken(req);if(token)(await auth.logout(token));res.clearCookie(SESSION_COOKIE,{httpOnly:true,secure:env.production||req.get('origin')?.startsWith('https://'),sameSite:'strict',path:'/'});res.json({ok:true});});
+  router.post('/auth/logout',async (req,res)=>{const body=jsonBody<{sessionKey?:string}>(req);const token=requestToken(req);const matched=token?await auth.logout(token,body.sessionKey):true;if(matched)clearSessionCookie(req,res);res.json({ok:true});});
+  router.post('/auth/activity',requireAuth,async(req,res)=>{jsonBody(req);res.json(await auth.activity(requestToken(req)!));});
   router.post('/auth/invitation',requireAuth,requireRole('admin'),async (req,res)=>{jsonBody(req);res.json((await auth.createInvitation()));});
 
   router.get('/auth/me', requireAuth, async (req, res) => {
-    res.json((await auth.me(getAuth(req).userId)));
+    res.json({...await auth.me(getAuth(req).userId),session:getAuth(req).session});
   });
 
   return router;
