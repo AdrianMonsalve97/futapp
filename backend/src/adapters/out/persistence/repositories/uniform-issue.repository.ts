@@ -9,11 +9,13 @@ import { mapUniformIssue, type UniformIssueRow } from '../mappers';
 import { asAsyncDatabase, type ApplicationDatabase } from "../async-database";
 
 const SELECT_ISSUE = `
-  SELECT ui.*, u.full_name AS player_name, f.name AS uniform_name, f.kind, f.variant
+  SELECT ui.*, u.full_name AS player_name, f.name AS uniform_name, f.kind, f.variant,
+    COALESCE(d.recipient_type,'jugador') AS recipient_type,d.recipient_name
   FROM uniform_issues ui
   JOIN players p ON p.id = ui.player_id
   JOIN users u ON u.id = p.user_id
   JOIN uniforms f ON f.id = ui.uniform_id
+  LEFT JOIN uniform_recipients d ON d.issue_id=ui.id
 `;
 
 export class SqliteUniformIssueRepository implements UniformIssueRepository {
@@ -37,6 +39,7 @@ export class SqliteUniformIssueRepository implements UniformIssueRepository {
   }
 
   async create(input: CreateUniformIssueInput): Promise<UniformIssue> {
+    return this.db.transaction(async()=>{
     const result = (await this.db
           .prepare(
             `INSERT INTO uniform_issues (player_id, uniform_id, size, cost, condition, notes)
@@ -50,7 +53,10 @@ export class SqliteUniformIssueRepository implements UniformIssueRepository {
             condition: input.condition ?? 'nuevo',
             notes: input.notes ?? null,
           }));
-    return (await this.findById(Number(result.lastInsertRowid))) as UniformIssue;
+    const id=Number(result.lastInsertRowid);
+    if(input.recipientType && input.recipientType!=='jugador')await this.db.prepare('INSERT INTO uniform_recipients(issue_id,recipient_type,recipient_name) VALUES(?,?,?)').run(id,input.recipientType,input.recipientName??null);
+    return (await this.findById(id)) as UniformIssue;
+    })();
   }
 
   async update(id: number, input: UpdateUniformIssueInput): Promise<UniformIssue> {

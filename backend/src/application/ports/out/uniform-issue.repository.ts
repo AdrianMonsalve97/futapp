@@ -1,6 +1,6 @@
-import type { UniformCondition, UniformIssue } from '../../../domain/entities';
+import type { UniformCondition, UniformIssue, UniformRecipientInput } from '../../../domain/entities';
 
-export interface CreateUniformIssueInput {
+export interface CreateUniformIssueInput extends UniformRecipientInput {
   playerId: number;
   uniformId: number;
   size: string;

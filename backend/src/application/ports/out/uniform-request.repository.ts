@@ -1,6 +1,6 @@
-import type { UniformRequest, UniformRequestStatus } from '../../../domain/entities';
+import type { UniformRequest, UniformRequestStatus, UniformRecipientInput } from '../../../domain/entities';
 
-export interface CreateUniformRequestInput {
+export interface CreateUniformRequestInput extends UniformRecipientInput {
   playerId: number;
   uniformId: number;
   size: string;

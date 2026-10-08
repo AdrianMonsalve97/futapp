@@ -99,6 +99,7 @@ export interface UniformRow {
 }
 
 export interface UniformIssueRow {
+  recipient_type?:UniformIssue['recipientType'];recipient_name?:string|null;
   id: number;
   player_id: number;
   uniform_id: number;
@@ -115,6 +116,7 @@ export interface UniformIssueRow {
 }
 
 export interface UniformRequestRow {
+  recipient_type?:UniformRequest['recipientType'];recipient_name?:string|null;
   quoted_price?: number | null;
   issue_id?: number | null;
   id: number;
@@ -297,6 +299,7 @@ export function mapUniform(row: UniformRow): Uniform {
 
 export function mapUniformIssue(row: UniformIssueRow): UniformIssue {
   const mapped: UniformIssue = {
+    recipientType:row.recipient_type??'jugador',recipientName:row.recipient_name??null,
     id: row.id,
     playerId: row.player_id,
     uniformId: row.uniform_id,
@@ -316,6 +319,7 @@ export function mapUniformIssue(row: UniformIssueRow): UniformIssue {
 
 export function mapUniformRequest(row: UniformRequestRow): UniformRequest {
   const mapped: UniformRequest = {
+    recipientType:row.recipient_type??'jugador',recipientName:row.recipient_name??null,
     quotedPrice: row.quoted_price ?? null,
     issueId: row.issue_id ?? null,
     id: row.id,

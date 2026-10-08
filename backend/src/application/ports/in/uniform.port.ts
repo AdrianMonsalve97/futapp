@@ -6,6 +6,7 @@ import type {
   UniformRequest,
   UniformRequestStatus,
   UniformVariant,
+  UniformRecipientInput,
 } from '../../../domain/entities';
 
 export interface CreateUniformInput {
@@ -26,7 +27,7 @@ export interface UpdateUniformInput {
   minStock?: number;
 }
 
-export interface CreateIssueInput {
+export interface CreateIssueInput extends UniformRecipientInput {
   playerId: number;
   uniformId: number;
   size: string;

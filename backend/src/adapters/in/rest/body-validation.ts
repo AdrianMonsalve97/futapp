@@ -45,7 +45,8 @@ const match: Shape = {
   goalsFor: nullable(integer(0, 100)), goalsAgainst: nullable(integer(0, 100)), notes: nullable(text(5000)),
 };
 const inscription: Shape = { playerId: integer(1), season: nonempty(40), concept: nonempty(200), amount: money, dueDate: nullable(date), notes: nullable(text(5000)) };
-const uniform: Shape = { name: nonempty(120), kind: oneOf('camiseta', 'pantalon', 'medias', 'buzo', 'entrenamiento', 'guantes'), variant: oneOf('titular', 'alterna', 'entrenamiento'), price: money, stock: integer(), minStock: integer(), active: boolean };
+const uniform: Shape = { name: nonempty(120), kind: oneOf('completo', 'camiseta', 'pantalon', 'medias', 'buzo', 'entrenamiento', 'guantes'), variant: oneOf('titular', 'alterna', 'entrenamiento'), price: money, stock: integer(), minStock: integer(), active: boolean };
+const uniformRecipientFields:Shape = {recipientType:oneOf('jugador','pareja','hijo'),recipientName:nullable(text(120))};
 const condition = oneOf('nuevo', 'bueno', 'regular', 'danado');
 const strategy: Shape = { title: nonempty(120), kind: oneOf('general', 'ataque', 'defensa', 'pelota_parada', 'transicion'), content: nonempty(5000) };
 const stats: Shape = {
@@ -104,8 +105,8 @@ export function validateBody(path: string, method: string, body: unknown): void 
     return check(body, create ? inscription : update, create ? ['playerId', 'season', 'amount'] : []);
   }
   if (/^\/uniforms(\/\d+)?$/.test(path)) return check(body, uniform, create ? ['name'] : []);
-  if (/^\/uniform-issues(\/\d+)?$/.test(path)) return check(body, create ? { playerId: integer(1), uniformId: integer(1), size: nonempty(20), cost: money, condition, notes: nullable(text(5000)) } : { returned: boolean, condition, notes: nullable(text(5000)) }, create ? ['playerId', 'uniformId'] : []);
-  if (path === '/me/uniform-requests') return check(body, { uniformId: integer(1), size: nonempty(20), reason: nullable(text(5000)) }, ['uniformId', 'size']);
+  if (/^\/uniform-issues(\/\d+)?$/.test(path)) return check(body, create ? { playerId: integer(1), uniformId: integer(1), size: nonempty(20), cost: money, condition, notes: nullable(text(5000)),...uniformRecipientFields } : { returned: boolean, condition, notes: nullable(text(5000)) }, create ? ['playerId', 'uniformId'] : []);
+  if (path === '/me/uniform-requests') return check(body, { uniformId: integer(1), size: nonempty(20), reason: nullable(text(5000)),...uniformRecipientFields }, ['uniformId', 'size']);
   if (/^\/uniform-requests\/\d+$/.test(path)) return check(body, { status: oneOf('pendiente', 'aprobada', 'rechazada', 'entregada'), reviewNotes: nullable(text(5000)) }, ['status']);
   if (/^\/sanctions(\/\d+)?$/.test(path)) return check(body, { playerId: integer(1), matchId: nullable(integer(1)), type: oneOf('tarjeta_amarilla', 'tarjeta_roja', 'suspension', 'multa', 'amonestacion'), reason: nonempty(5000), amount: money, points: integer(), status: oneOf('activa', 'cumplida', 'anulada'), matchDate: nullable(date) }, create ? ['playerId', 'reason'] : []);
   if (path === '/settings') return check(body, { brandColor: v => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v), defaultTournamentId: nullable(integer(1)), teamName: nonempty(80), season: nonempty(40), format: oneOf(5, 7, 8, 11) });

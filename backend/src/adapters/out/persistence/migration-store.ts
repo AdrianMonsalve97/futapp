@@ -86,7 +86,7 @@ export class FileMigrationStore implements MigrationPort {
     catch { throw new ValidationError('Archivo de migración inválido o demasiado grande'); }
     if (p?.format !== 'futapp-migration' || p.version !== 1 || typeof p.createdAt !== 'string' || !Number.isFinite(Date.parse(p.createdAt)) || !p.tables || Array.isArray(p.tables) || !Array.isArray(p.files) || p.files.length > 2000) throw new ValidationError('Formato de migración no compatible');
     const names = this.tables();
-    for (const name of ['registration_requests','media_deletion_jobs']) {
+    for (const name of ['registration_requests','media_deletion_jobs','uniform_recipients']) {
       if (!Object.hasOwn(p.tables,name) && names.includes(name)) p.tables[name]={columns:(this.db.pragma(`table_info(${name})`) as {name:string}[]).map(column=>column.name),rows:[]};
     }
     if(!Object.hasOwn(p.tables,'match_referee_transfers')&&names.includes('match_referee_transfers'))p.tables.match_referee_transfers={columns:['receipt_id','match_id','amount'],rows:[]};

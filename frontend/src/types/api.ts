@@ -6,7 +6,9 @@ export type Position = 'POR' | 'DEF' | 'MED' | 'DEL';
 export type Foot = 'izq' | 'der' | 'ambos';
 export type InscriptionStatus = 'pendiente' | 'parcial' | 'pagada';
 export type PaymentMethod = 'efectivo' | 'transferencia' | 'qr' | 'tarjeta';
-export type UniformKind = 'camiseta' | 'pantalon' | 'medias' | 'buzo' | 'entrenamiento' | 'guantes';
+export type UniformKind = 'completo' | 'camiseta' | 'pantalon' | 'medias' | 'buzo' | 'entrenamiento' | 'guantes';
+export type UniformRecipientType = 'jugador' | 'pareja' | 'hijo';
+export interface UniformRecipientInput {recipientType?:UniformRecipientType;recipientName?:string|null}
 export type UniformVariant = 'titular' | 'alterna' | 'entrenamiento';
 export type UniformCondition = 'nuevo' | 'bueno' | 'regular' | 'danado';
 export type UniformRequestStatus = 'pendiente' | 'aprobada' | 'rechazada' | 'entregada';
@@ -47,13 +49,13 @@ export interface Uniform {
   id: number; name: string; kind: UniformKind; variant: UniformVariant;
   price: number; stock: number; minStock: number; active: boolean; issuedCount?: number;
 }
-export interface UniformIssue {
+export interface UniformIssue extends UniformRecipientInput {
   id: number; playerId: number; playerName?: string; uniformId: number;
   uniformName?: string; kind?: UniformKind; variant?: UniformVariant;
   size: string; cost: number; condition: UniformCondition; returned: boolean;
   notes: string | null; issuedAt: string;
 }
-export interface UniformRequest {
+export interface UniformRequest extends UniformRecipientInput {
   quotedPrice?: number | null;
   issueId?: number | null;
   id: number; playerId: number; playerName?: string; uniformId: number;

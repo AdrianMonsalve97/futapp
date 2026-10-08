@@ -62,7 +62,7 @@ export interface MePort {
             }>;
   createUniformRequest(
     userId: number,
-    input: { uniformId: number; size: string; reason?: string | null },
+    input: { uniformId: number; size: string; reason?: string | null } & import('../../../domain/entities').UniformRecipientInput,
   ): Promise<{ request: UniformRequest }>;
   getMatches(userId: number): Promise<{ upcoming: MatchView[]; finished: MatchView[] }>;
   getStats(userId: number): Promise<{ summary: StatsSummary; matches: MatchStat[] }>;

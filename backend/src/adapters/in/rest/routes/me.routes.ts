@@ -10,6 +10,8 @@ interface PasswordBody {
 }
 
 interface UniformRequestBody {
+  recipientType?:import('../../../../domain/entities').UniformRecipientType;
+  recipientName?:string|null;
   uniformId?: number;
   size?: string;
   reason?: string | null;
@@ -55,6 +57,8 @@ export function meRoutes(me: MePort): Router {
                 uniformId: body.uniformId as number,
                 size: String(body.size ?? ''),
                 reason: body.reason ?? null,
+                recipientType:body.recipientType,
+                recipientName:body.recipientName,
               })),
     );
   });

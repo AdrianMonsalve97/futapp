@@ -16,10 +16,11 @@ import { Money } from '../../molecules/Money';
 import { UniformCatalog } from '../../organisms/UniformCatalog';
 import { UniformIssueList } from '../../organisms/UniformIssueList';
 import { QrPaymentPanel } from '../../organisms/QrPaymentPanel';
-import type { MeUniformsResponse, Uniform, UniformRequestCreatedResponse } from '../../types/api';
+import type { MeUniformsResponse, Uniform, UniformRequestCreatedResponse, UniformRecipientType } from '../../types/api';
+import { UniformRecipientFields } from '../../molecules/UniformRecipientFields';
+import { CHILD_SIZES, UNIFORM_SIZES, uniformKindLabel, uniformVariantLabel, uniformRecipientLabel } from '../../utils/uniforms';
 
 type Tab = 'mis' | 'solicitar';
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
 /** Mis uniformes (SPEC §10.4): pestañas "Mis uniformes" y "Solicitar". */
 export function MyUniformsPage() {
@@ -28,24 +29,32 @@ export function MyUniformsPage() {
   const [selected, setSelected] = useState<Uniform | null>(null);
   const [size, setSize] = useState('M');
   const [reason, setReason] = useState('');
+  const [recipientType, setRecipientType] = useState<UniformRecipientType>('jugador');
+  const [recipientName, setRecipientName] = useState('');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const submitRequest = async () => {
     if (!selected) return;
+    if (recipientType !== 'jugador' && !recipientName.trim()) {
+      setActionError('Indica el nombre de tu pareja o hijo/a.');
+      return;
+    }
     setBusy(true);
     setActionError(null);
     setNotice(null);
     try {
       await api<UniformRequestCreatedResponse>('/api/me/uniform-requests', {
         method: 'POST',
-        json: { uniformId: selected.id, size, reason: reason.trim() || undefined },
+        json: { uniformId: selected.id, size, reason: reason.trim() || undefined, recipientType, recipientName: recipientType === 'jugador' ? null : recipientName.trim() },
       });
       setNotice(`Solicitud enviada: ${selected.name} (talla ${size}).`);
       setSelected(null);
       setReason('');
       setSize('M');
+      setRecipientType('jugador');
+      setRecipientName('');
       reload();
     } catch (err) {
       setActionError(errorMessage(err));
@@ -124,6 +133,9 @@ export function MyUniformsPage() {
               onSelect={(uniform) => {
                 setSelected(uniform);
                 setActionError(null);
+                setRecipientType('jugador');
+                setRecipientName('');
+                setSize('M');
               }}
               emptyTitle="Sin prendas disponibles"
               emptyMessage="El club todavía no cargó prendas en el catálogo."
@@ -136,22 +148,27 @@ export function MyUniformsPage() {
                 <CardTitle className="text-base">
                   Solicitar {selected.name} · <Money value={selected.price} />
                 </CardTitle>
+                <p className="text-sm text-base-content/70">{uniformVariantLabel(selected.variant)} · {uniformKindLabel(selected.kind)}</p>
+                <UniformRecipientFields kind={selected.kind} recipientType={recipientType} recipientName={recipientName}
+                  onTypeChange={(value) => { setRecipientType(value); setRecipientName(''); setSize(value === 'hijo' ? '8' : 'M'); }}
+                  onNameChange={setRecipientName} />
                 <div className="grid gap-3 sm:grid-cols-2">
                   <FormField label="Talla" required>
                     <Select value={size} onChange={(event) => setSize(event.target.value)}>
-                      {SIZES.map((item) => (
+                      {(recipientType === 'hijo' ? [...CHILD_SIZES, ...UNIFORM_SIZES] : UNIFORM_SIZES).map((item) => (
                         <option key={item} value={item}>
                           {item}
                         </option>
                       ))}
                     </Select>
                   </FormField>
-                  <FormField label="Motivo" hint="¿Por qué necesitás esta prenda?">
+                  <FormField label="Detalle del pedido" hint="Observaciones para el administrador">
                     <Textarea
                       rows={2}
                       value={reason}
                       onChange={(event) => setReason(event.target.value)}
-                      placeholder="Se me rompió la camiseta titular…"
+                      maxLength={1000}
+                      placeholder="Nombre a estampar, preferencias u otro detalle…"
                     />
                   </FormField>
                 </div>
@@ -182,7 +199,8 @@ export function MyUniformsPage() {
                     <tr>
                       <th>Prenda</th>
                       <th>Talla</th>
-                      <th>Motivo</th>
+                      <th>Destinatario</th>
+                      <th>Detalle</th>
                       <th>Fecha</th>
                       <th>Estado</th>
                       <th>Revisión</th>
@@ -193,6 +211,7 @@ export function MyUniformsPage() {
                       <tr key={request.id} className="hover">
                         <td className="font-medium">{request.uniformName ?? `Uniforme #${request.uniformId}`}</td>
                         <td>{request.size}</td>
+                        <td className="text-sm break-words">{uniformRecipientLabel(request)}</td>
                         <td className="text-sm text-base-content/60">{request.reason ?? '—'}</td>
                         <td className="whitespace-nowrap text-sm">
                           <DateLabel value={request.createdAt} />

@@ -117,6 +117,7 @@ export function migrate(db: Database = getDb()): void {
   if (!hasColumn(db, 'team_settings', 'logo_url')) db.exec("ALTER TABLE team_settings ADD COLUMN logo_url TEXT DEFAULT '/brand/aag-logo.jpg'");
   if (!hasColumn(db, 'team_settings', 'brand_color')) db.exec("ALTER TABLE team_settings ADD COLUMN brand_color TEXT NOT NULL DEFAULT '#d8b86a'");
   if (!hasColumn(db, 'uniforms', 'image_url')) db.exec('ALTER TABLE uniforms ADD COLUMN image_url TEXT');
+  ensureUniformOrders(db);
   db.exec(`CREATE TABLE IF NOT EXISTS tournaments (
     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, league_name TEXT NOT NULL,
     season TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('borrador','publicado','archivado')),
@@ -181,6 +182,29 @@ export function migrate(db: Database = getDb()): void {
     db.exec(`INSERT OR IGNORE INTO published_lineups SELECT match_id, slot_index, player_id, x, y, role, label FROM lineups;
       UPDATE matches SET lineup_published_at = datetime('now'), published_formation = formation WHERE id IN (SELECT DISTINCT match_id FROM published_lineups);`);
   }
+}
+
+/** Extend the catalogue without changing existing columns, IDs or linked orders. */
+function ensureUniformOrders(db:Database):void {
+  const uniforms=db.prepare("SELECT sql FROM sqlite_master WHERE name='uniforms'").get() as {sql:string};
+  if(!uniforms.sql.includes("'completo'")) {
+    const extended=uniforms.sql.replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?uniforms["`]?/i,'CREATE TABLE uniforms_extended').replace(/'guantes'\s*\)/,"'guantes','completo')");
+    if(!extended.startsWith('CREATE TABLE uniforms_extended')||!extended.includes("'completo'"))throw new Error('Esquema de uniformes no compatible');
+    db.pragma('foreign_keys = OFF');
+    try {db.transaction(()=>{
+      db.exec(extended);
+      db.exec('INSERT INTO uniforms_extended SELECT * FROM uniforms; DROP TABLE uniforms; ALTER TABLE uniforms_extended RENAME TO uniforms;');
+      if((db.pragma('foreign_key_check') as unknown[]).length)throw new Error('Referencias de uniformes inconsistentes');
+    })();}finally{db.pragma('foreign_keys = ON');}
+  }
+  db.exec(`CREATE TABLE IF NOT EXISTS uniform_recipients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER UNIQUE REFERENCES uniform_requests(id) ON DELETE CASCADE,
+    issue_id INTEGER UNIQUE REFERENCES uniform_issues(id) ON DELETE CASCADE,
+    recipient_type TEXT NOT NULL CHECK(recipient_type IN ('pareja','hijo')),
+    recipient_name TEXT NOT NULL CHECK(length(trim(recipient_name)) BETWEEN 1 AND 120),
+    CHECK((request_id IS NULL) <> (issue_id IS NULL))
+  );`);
 }
 
 /** Rebuild only the media CHECK constraint; retain IDs and document references. */

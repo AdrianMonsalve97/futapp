@@ -6,6 +6,7 @@ import { DateLabel } from '../molecules/DateLabel';
 import { StatusBadge } from '../molecules/StatusBadge';
 import { ConfirmAction } from '../molecules/ConfirmAction';
 import type { UniformRequest, UniformRequestStatus } from '../types/api';
+import { uniformRecipientLabel } from '../utils/uniforms';
 
 export interface UniformRequestsPanelProps {
   requests: UniformRequest[];
@@ -53,9 +54,10 @@ export function UniformRequestsPanel({
               <StatusBadge status={request.status} />
             </div>
 
+            <p className="text-sm break-words">Destinatario: {uniformRecipientLabel(request)}</p>
             {request.reason ? (
               <p className="text-sm text-base-content/60">
-                <span className="font-medium text-base-content/70">Motivo:</span> {request.reason}
+                <span className="font-medium text-base-content/70">Detalle:</span> {request.reason}
               </p>
             ) : null}
 

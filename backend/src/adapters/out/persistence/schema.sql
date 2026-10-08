@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE TABLE IF NOT EXISTS uniforms (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   name       TEXT NOT NULL,
-  kind       TEXT NOT NULL CHECK (kind IN ('camiseta','pantalon','medias','buzo','entrenamiento','guantes')),
+  kind       TEXT NOT NULL CHECK (kind IN ('completo','camiseta','pantalon','medias','buzo','entrenamiento','guantes')),
   variant    TEXT NOT NULL DEFAULT 'titular' CHECK (variant IN ('titular','alterna','entrenamiento')),
   price      REAL NOT NULL DEFAULT 0,
   stock      INTEGER NOT NULL DEFAULT 0,

@@ -59,6 +59,8 @@ export function uniformRoutes(uniforms: UniformPort): Router {
                 cost: body.cost !== undefined ? Number(body.cost) : undefined,
                 condition: body.condition,
                 notes: body.notes ?? null,
+                recipientType:body.recipientType,
+                recipientName:body.recipientName,
               })),
     );
   });

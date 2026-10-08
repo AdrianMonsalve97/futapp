@@ -9,11 +9,13 @@ import { mapUniformRequest, type UniformRequestRow } from '../mappers';
 import { asAsyncDatabase, type ApplicationDatabase } from "../async-database";
 
 const SELECT_REQUEST = `
-  SELECT r.*, u.full_name AS player_name, f.name AS uniform_name
+  SELECT r.*, u.full_name AS player_name, f.name AS uniform_name,
+    COALESCE(d.recipient_type,'jugador') AS recipient_type,d.recipient_name
   FROM uniform_requests r
   JOIN players p ON p.id = r.player_id
   JOIN users u ON u.id = p.user_id
   JOIN uniforms f ON f.id = r.uniform_id
+  LEFT JOIN uniform_recipients d ON d.request_id=r.id
 `;
 
 export class SqliteUniformRequestRepository implements UniformRequestRepository {
@@ -47,6 +49,7 @@ export class SqliteUniformRequestRepository implements UniformRequestRepository 
   }
 
   async create(input: CreateUniformRequestInput): Promise<UniformRequest> {
+    return this.db.transaction(async()=>{
     const result = (await this.db
           .prepare(
             `INSERT INTO uniform_requests (player_id, uniform_id, size, reason, quoted_price)
@@ -58,7 +61,10 @@ export class SqliteUniformRequestRepository implements UniformRequestRepository 
             size: input.size,
             reason: input.reason ?? null,
           }));
-    return (await this.findById(Number(result.lastInsertRowid))) as UniformRequest;
+    const id=Number(result.lastInsertRowid);
+    if(input.recipientType && input.recipientType!=='jugador')await this.db.prepare('INSERT INTO uniform_recipients(request_id,recipient_type,recipient_name) VALUES(?,?,?)').run(id,input.recipientType,input.recipientName??null);
+    return (await this.findById(id)) as UniformRequest;
+    })();
   }
 
   async update(id: number, input: UpdateUniformRequestInput): Promise<UniformRequest> {

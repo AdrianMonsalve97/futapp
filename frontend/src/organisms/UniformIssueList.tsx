@@ -8,6 +8,7 @@ import { DateLabel } from '../molecules/DateLabel';
 import { StatusBadge } from '../molecules/StatusBadge';
 import { Money } from '../molecules/Money';
 import { humanize } from '../utils/format';
+import { uniformKindLabel, uniformVariantLabel, uniformRecipientLabel } from '../utils/uniforms';
 import type { UniformCondition, UniformIssue } from '../types/api';
 
 export interface UniformIssueListProps {
@@ -61,6 +62,8 @@ export function UniformIssueList({
             {showPlayer ? <th>Jugador</th> : null}
             <th>Prenda</th>
             <th>Talla</th>
+            <th>Destinatario</th>
+            <th>Detalle</th>
             <th>Estado</th>
             <th>Condición</th>
             <th className="text-right">Costo</th>
@@ -77,11 +80,13 @@ export function UniformIssueList({
                 <p className="font-medium">{issue.uniformName ?? `Uniforme #${issue.uniformId}`}</p>
                 {issue.kind ? (
                   <p className="text-xs text-base-content/50">
-                    {humanize(issue.kind)} · {humanize(issue.variant ?? 'titular')}
+                    {uniformKindLabel(issue.kind)} · {uniformVariantLabel(issue.variant ?? 'titular')}
                   </p>
                 ) : null}
               </td>
               <td>{issue.size}</td>
+              <td className="text-sm break-words">{uniformRecipientLabel(issue)}</td>
+              <td className="text-sm break-words">{issue.notes ?? '—'}</td>
               <td>
                 <StatusBadge status={issue.returned ? 'entregada' : 'pendiente'} size="xs" />
               </td>

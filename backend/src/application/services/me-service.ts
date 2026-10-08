@@ -1,4 +1,5 @@
 import type { UnitOfWork } from '../ports/out/unit-of-work';
+import { uniformRecipient } from '../../domain/uniform-order';
 import * as bcrypt from 'bcryptjs';
 import type {
   MePort,
@@ -129,7 +130,7 @@ export class MeService implements MePort {
 
   async createUniformRequest(
     userId: number,
-    input: { uniformId: number; size: string; reason?: string | null },
+    input: { uniformId: number; size: string; reason?: string | null } & import('../../domain/entities').UniformRecipientInput,
   ): Promise<{ request: Awaited<ReturnType<UniformRequestRepository['create']>> }> {
     const player = (await this.requirePlayer(userId));
     if (!Number.isInteger(input.uniformId)) {
@@ -142,6 +143,7 @@ export class MeService implements MePort {
       throw new ValidationError('La talla es obligatoria');
     }
     const request = (await this.requests.create({
+          ...uniformRecipient(input,uniform.kind),
           playerId: player.id,
           uniformId: uniform.id,
           size: input.size.trim(),

@@ -7,10 +7,11 @@ import { Icon, type IconName } from '../atoms/Icon';
 import { Spinner } from '../atoms/Spinner';
 import { ConfirmAction } from '../molecules/ConfirmAction';
 import { Money } from '../molecules/Money';
-import { humanize } from '../utils/format';
+import { uniformKindLabel, uniformVariantLabel } from '../utils/uniforms';
 import type { Uniform, UniformKind } from '../types/api';
 
 const KIND_ICON: Record<UniformKind, IconName> = {
+  completo: 'camiseta',
   camiseta: 'camiseta',
   pantalon: 'camiseta',
   medias: 'camiseta',
@@ -99,15 +100,17 @@ export function UniformCatalog({
                     <div className="min-w-0">
                       <p className="font-semibold truncate">{item.name}</p>
                       <p className="text-xs text-base-content/50">
-                        {humanize(item.kind)} · {humanize(item.variant)}
+                        {uniformKindLabel(item.kind)} · {uniformVariantLabel(item.variant)}
                       </p>
                     </div>
                   </div>
                   <Badge tone={VARIANT_TONE[item.variant] ?? 'neutral'} size="xs">
-                    {humanize(item.variant)}
+                    {uniformVariantLabel(item.variant)}
                   </Badge>
                 </div>
 
+                {item.kind === 'completo' ? <p className="text-xs text-base-content/70">Incluye camiseta, pantaloneta y medias.</p> : null}
+                {item.kind === 'camiseta' ? <p className="text-xs text-base-content/70">Para ti, tu pareja o tus hijos.</p> : null}
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-semibold">
                     <Money value={item.price} />

@@ -22,8 +22,9 @@ import type {
 } from '../../domain/entities';
 import { NotFoundError, ValidationError } from '../../domain/errors';
 import { nowIso } from './shared';
+import { uniformRecipient } from '../../domain/uniform-order';
 
-const UNIFORM_KINDS: UniformKind[] = ['camiseta', 'pantalon', 'medias', 'buzo', 'entrenamiento', 'guantes'];
+const UNIFORM_KINDS: UniformKind[] = ['completo', 'camiseta', 'pantalon', 'medias', 'buzo', 'entrenamiento', 'guantes'];
 const UNIFORM_VARIANTS: UniformVariant[] = ['titular', 'alterna', 'entrenamiento'];
 const CONDITIONS: UniformCondition[] = ['nuevo', 'bueno', 'regular', 'danado'];
 const REQUEST_STATUSES: UniformRequestStatus[] = ['pendiente', 'aprobada', 'rechazada', 'entregada'];
@@ -63,6 +64,12 @@ export class UniformService implements UniformPort {
     if (input.variant && !UNIFORM_VARIANTS.includes(input.variant)) {
       throw new ValidationError(`Variante inválida. Opciones: ${UNIFORM_VARIANTS.join(', ')}`);
     }
+    if (input.kind && input.kind !== 'camiseta' && current.kind === 'camiseta') {
+      const [requests, issues] = await Promise.all([this.requests.list(), this.issues.list()]);
+      if ([...requests, ...issues].some(order => order.uniformId === id && order.recipientType && order.recipientType !== 'jugador')) {
+        throw new ValidationError('Esta camiseta tiene pedidos de familiares. Crea otra prenda para el uniforme completo.');
+      }
+    }
     return (await this.uniforms.update(id, input));
   }
 
@@ -84,6 +91,7 @@ export class UniformService implements UniformPort {
           const uniform = (await this.uniforms.findById(input.uniformId));
           if (!uniform) throw new NotFoundError('Uniforme no encontrado');
           if (!uniform.active) throw new ValidationError('El uniforme está inactivo');
+          const recipient=uniformRecipient(input,uniform.kind);
           if (uniform.stock <= 0) {
             throw new ValidationError(`Sin stock disponible de "${uniform.name}"`);
           }
@@ -92,6 +100,7 @@ export class UniformService implements UniformPort {
           }
           const issue = (await this.issues.create({
                   ...input,
+                  ...recipient,
                   cost: input.cost ?? uniform.price,
                 }));
           (await this.uniforms.update(uniform.id, { stock: uniform.stock - 1 }));
@@ -144,6 +153,7 @@ export class UniformService implements UniformPort {
                       cost: current.quotedPrice ?? uniform.price,
                       condition: 'nuevo',
                       notes: current.reason,
+                      ...uniformRecipient(current,uniform.kind),
                     }));
             (await this.requests.update(id, { issueId: issue.id }));
             (await this.uniforms.update(uniform.id, { stock: uniform.stock - 1 }));

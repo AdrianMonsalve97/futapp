@@ -18,11 +18,13 @@ export class SqliteQrPaymentRepository implements QrPaymentRepository {
       u.full_name AS playerName, i.concept || ' · ' || i.season AS concept, i.amount, i.paid
       FROM inscriptions i JOIN players p ON p.id=i.player_id JOIN users u ON u.id=p.user_id
       UNION ALL SELECT 'uniform_request', r.id, r.player_id, u.full_name,
-      'Solicitud: ' || f.name || ' · ' || r.size, COALESCE(r.quoted_price,f.price), 0
+      'Solicitud: ' || f.name || ' · ' || r.size || CASE WHEN d.recipient_name IS NULL THEN '' ELSE ' · ' || d.recipient_name END, COALESCE(r.quoted_price,f.price), 0
       FROM uniform_requests r JOIN uniforms f ON f.id=r.uniform_id JOIN players p ON p.id=r.player_id JOIN users u ON u.id=p.user_id
+      LEFT JOIN uniform_recipients d ON d.request_id=r.id
       WHERE r.status IN ('pendiente','aprobada') OR r.issue_id IS NOT NULL
-      UNION ALL SELECT 'uniform_issue', i.id, i.player_id, u.full_name, f.name || ' · ' || i.size, i.cost, 0
+      UNION ALL SELECT 'uniform_issue', i.id, i.player_id, u.full_name, f.name || ' · ' || i.size || CASE WHEN d.recipient_name IS NULL THEN '' ELSE ' · ' || d.recipient_name END, i.cost, 0
       FROM uniform_issues i JOIN uniforms f ON f.id=i.uniform_id JOIN players p ON p.id=i.player_id JOIN users u ON u.id=p.user_id
+      LEFT JOIN uniform_recipients d ON d.issue_id=i.id
       WHERE NOT EXISTS(SELECT 1 FROM uniform_requests r WHERE r.issue_id=i.id)
     `).all()) as Omit<PaymentDebt, 'pending' | 'outstanding'>[];
     const receipts = (await this.receipts(playerId));

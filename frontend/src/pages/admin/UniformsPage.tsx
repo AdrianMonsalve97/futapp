@@ -14,6 +14,8 @@ import { FormField } from '../../molecules/FormField';
 import { UniformCatalog } from '../../organisms/UniformCatalog';
 import { UniformIssueList } from '../../organisms/UniformIssueList';
 import { UniformRequestsPanel } from '../../organisms/UniformRequestsPanel';
+import { UniformRecipientFields } from '../../molecules/UniformRecipientFields';
+import { CHILD_SIZES,UNIFORM_SIZES,uniformKindLabel,uniformVariantLabel } from '../../utils/uniforms';
 import type {
   PlayerListItem,
   Uniform,
@@ -23,6 +25,7 @@ import type {
   UniformRequest,
   UniformRequestStatus,
   UniformVariant,
+  UniformRecipientType,
 } from '../../types/api';
 
 type Tab = 'catalogo' | 'entregas' | 'solicitudes';
@@ -100,7 +103,7 @@ function UniformFormModal({
       };
       let id = uniform?.id ?? createdId;
       if (id) await api(`/api/uniforms/${id}`, { method: 'PUT', json: payload });
-      else { const response = await api<{ uniform: Uniform }>('/api/uniforms', { method: 'POST', json: payload }); id = response.uniform.id; setCreatedId(id); }
+      else { const response = await api<Uniform>('/api/uniforms', { method: 'POST', json: payload }); id = response.id; setCreatedId(id); }
       if (newImage) {
         try { await uploadFile(`/api/uniforms/${id}/image`, newImage); }
         catch (err) { onSaved(); throw new Error(`La prenda quedó guardada. Imagen: ${errorMessage(err)}. Selecciona otra imagen y vuelve a guardar.`); }
@@ -138,7 +141,7 @@ function UniformFormModal({
           <Input
             value={form.name}
             onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-            placeholder="Camiseta titular 2026"
+            placeholder="Camiseta local 2026"
           />
         </FormField>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -147,7 +150,8 @@ function UniformFormModal({
               value={form.kind}
               onChange={(event) => setForm((prev) => ({ ...prev, kind: event.target.value as UniformKind }))}
             >
-              <option value="camiseta">Camiseta</option>
+              <option value="camiseta">Solo camiseta</option>
+              <option value="completo">Uniforme completo: camiseta, pantaloneta y medias</option>
               <option value="pantalon">Pantalón</option>
               <option value="medias">Medias</option>
               <option value="buzo">Buzo</option>
@@ -160,8 +164,8 @@ function UniformFormModal({
               value={form.variant}
               onChange={(event) => setForm((prev) => ({ ...prev, variant: event.target.value as UniformVariant }))}
             >
-              <option value="titular">Titular</option>
-              <option value="alterna">Alterna</option>
+              <option value="titular">Local</option>
+              <option value="alterna">Visitante</option>
               <option value="entrenamiento">Entrenamiento</option>
             </Select>
           </FormField>
@@ -217,6 +221,8 @@ function IssueFormModal({
     cost: '',
     condition: 'nuevo' as UniformCondition,
     notes: '',
+    recipientType:'jugador' as UniformRecipientType,
+    recipientName:'',
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -231,6 +237,8 @@ function IssueFormModal({
       cost: uniforms[0] ? String(uniforms[0].price) : '',
       condition: 'nuevo',
       notes: '',
+      recipientType:'jugador',
+      recipientName:'',
     });
   }, [open, players, uniforms]);
 
@@ -239,6 +247,7 @@ function IssueFormModal({
       setError('Seleccioná jugador y prenda.');
       return;
     }
+    if(form.recipientType!=='jugador'&&!form.recipientName.trim()){setError('Indica el nombre de la pareja o hijo.');return;}
     setBusy(true);
     setError(null);
     try {
@@ -251,6 +260,8 @@ function IssueFormModal({
           cost: Number(form.cost) || 0,
           condition: form.condition,
           notes: form.notes.trim() || null,
+          recipientType:form.recipientType,
+          recipientName:form.recipientType==='jugador'?null:form.recipientName.trim(),
         },
       });
       onSaved();
@@ -302,6 +313,7 @@ function IssueFormModal({
               setForm((prev) => ({
                 ...prev,
                 uniformId: event.target.value,
+                recipientType:'jugador',recipientName:'',size:'M',
                 cost: uniform ? String(uniform.price) : prev.cost,
               }));
             }}
@@ -309,15 +321,16 @@ function IssueFormModal({
             <option value="">— Seleccioná —</option>
             {uniforms.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.name} · stock {item.stock}
+                {item.name} · {uniformVariantLabel(item.variant)} · {uniformKindLabel(item.kind)} · stock {item.stock}
               </option>
             ))}
           </Select>
         </FormField>
+        <UniformRecipientFields kind={uniforms.find(item=>String(item.id)===form.uniformId)?.kind??'camiseta'} recipientType={form.recipientType} recipientName={form.recipientName} onTypeChange={recipientType=>setForm(prev=>({...prev,recipientType,recipientName:'',size:recipientType==='hijo'?'8':'M'}))} onNameChange={recipientName=>setForm(prev=>({...prev,recipientName}))}/>
         <div className="grid gap-3 sm:grid-cols-3">
           <FormField label="Talla">
             <Select value={form.size} onChange={(event) => setForm((prev) => ({ ...prev, size: event.target.value }))}>
-              {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map((size) => (
+              {(form.recipientType==='hijo'?[...CHILD_SIZES,...UNIFORM_SIZES]:UNIFORM_SIZES).map((size) => (
                 <option key={size} value={size}>
                   {size}
                 </option>
@@ -344,7 +357,7 @@ function IssueFormModal({
             </Select>
           </FormField>
         </div>
-        <FormField label="Notas">
+        <FormField label="Detalle del pedido">
           <Input
             value={form.notes}
             onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))}
