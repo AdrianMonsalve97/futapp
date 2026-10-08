@@ -7,15 +7,23 @@ import type {
   UpdateRequestInput,
   UpdateUniformInput,
 } from '../../../../application/ports/in/uniform.port';
-import type { UniformRequestStatus } from '../../../../domain/entities';
 import { ValidationError } from '../../../../domain/errors';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { jsonBody, paramId, queryStr } from '../route-helpers';
+import {filterUniformRequests,type UniformRequestFilters} from '../../../../domain/uniform-request-filter';
+import {requestLimit} from '../middleware/login-limit';
 
 /** §7.6 · Uniformes: catálogo, entregas y solicitudes (solo admin). */
 export function uniformRoutes(uniforms: UniformPort): Router {
   const router = Router();
   const admin = [requireAuth, requireRole('admin')];
+  const filters=(req:import('express').Request):UniformRequestFilters=>{
+    const status=queryStr(req,'status'),variant=queryStr(req,'variant'),search=queryStr(req,'search');
+    if(status&&!['pendiente','aprobada','rechazada','entregada'].includes(status))throw new ValidationError('Estado de solicitud inválido');
+    if(variant&&!['titular','alterna','entrenamiento'].includes(variant))throw new ValidationError('Variante de uniforme inválida');
+    if(search&&search.length>160)throw new ValidationError('La búsqueda admite hasta 160 caracteres');
+    return {status:status as UniformRequestFilters['status'],variant:variant as UniformRequestFilters['variant'],search};
+  };
 
   router.get('/uniforms', ...admin, async (_req, res) => {
     res.json((await uniforms.listUniforms()));
@@ -71,11 +79,17 @@ export function uniformRoutes(uniforms: UniformPort): Router {
   });
 
   router.get('/uniform-requests', ...admin, async (req, res) => {
-    const status = queryStr(req, 'status');
-    if (status && !['pendiente', 'aprobada', 'rechazada', 'entregada'].includes(status)) {
-      throw new ValidationError('Estado de solicitud inválido');
-    }
-    res.json((await uniforms.listRequests(status as UniformRequestStatus | undefined)));
+    const applied=filters(req);res.json(filterUniformRequests(await uniforms.listRequests(applied.status),applied));
+  });
+
+  router.get('/uniform-requests/export',...admin,requestLimit(10,60000),async(req,res)=>{
+    const applied=filters(req),rows=filterUniformRequests(await uniforms.listRequests(applied.status),applied);
+    const {uniformRequestsWorkbook}=await import('../reports/uniform-requests.xlsx');
+    const file=await uniformRequestsWorkbook(rows,applied);
+    res.type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Cache-Control','no-store');
+    res.setHeader('Content-Disposition',`attachment; filename="solicitudes-uniformes-${new Date().toISOString().slice(0,10)}.xlsx"`);
+    res.send(file);
   });
 
   router.put('/uniform-requests/:id', ...admin, async (req, res) => {

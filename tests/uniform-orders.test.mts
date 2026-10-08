@@ -6,6 +6,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import sharp from 'sharp';
+import ExcelJS from 'exceljs';
 import {gzipSync,gunzipSync} from 'node:zlib';
 import {testPostgres} from './postgres-helper.mts';
 
@@ -97,6 +98,23 @@ for(const dialect of ['sqlite','postgres'] as const)test(`${dialect}: local/visi
       assert.equal((await request('GET','/me/uniforms',undefined,playerToken)).data.requests[0].recipientName,'Hijo prueba');
       assert.equal((await request('GET','/me/uniforms',undefined,teammateToken)).data.requests.length,0);
       assert.equal((await request('GET','/uniform-requests',undefined,playerToken)).status,403);
+    });
+    await t.test('admin table and XLSX share filters, current dorsal and private ownership',async()=>{
+      await db.prepare('UPDATE players SET shirt_number=0 WHERE id=?').run(player.player.id);
+      const response=await request('GET','/uniform-requests?search=Hijo%20prueba&variant=alterna&status=pendiente');
+      assert.equal(response.status,200);assert.equal(response.data.length,1);
+      const row=response.data[0];assert.equal(row.id,family.id);assert.equal(row.playerShirtNumber,0);assert.equal(row.playerEmail,player.user.email);assert.equal(row.playerPosition,'MED');assert.equal(row.uniformKind,'camiseta');assert.equal(row.uniformVariant,'alterna');
+      const exportRequest=(suffix='',token=adminToken)=>fetch(`http://127.0.0.1:${address.port}/api/uniform-requests/export${suffix}`,{headers:{Authorization:`Bearer ${token}`}});
+      assert.equal((await exportRequest('',playerToken)).status,403);
+      assert.equal((await fetch(`http://127.0.0.1:${address.port}/api/uniform-requests/export`)).status,401);
+      assert.equal((await exportRequest('?status=bogus')).status,400);assert.equal((await exportRequest('?variant=bogus')).status,400);assert.equal((await exportRequest('?search='+ 'x'.repeat(161))).status,400);
+      const before=await db.prepare('SELECT * FROM uniform_requests ORDER BY id').all();
+      const download=await exportRequest('?search=Hijo%20prueba&variant=alterna&status=pendiente');assert.equal(download.status,200);assert.match(download.headers.get('content-type')!,/spreadsheetml/);assert.match(download.headers.get('content-disposition')!,/\.xlsx/);
+      const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(Buffer.from(await download.arrayBuffer()));
+      const sheet=workbook.getWorksheet('Solicitudes')!;assert.equal(sheet.getCell('A5').value,family.id);assert.equal(sheet.getCell('D5').value,0);assert.equal(sheet.getCell('F5').value,player.user.email);assert.equal(sheet.getCell('H5').value,'Hijo prueba');assert.equal(sheet.getCell('L5').value,'8');assert.equal(sheet.getCell('M5').value,45000);assert.equal(sheet.getCell('O5').value,'Estampar nombre en espalda');assert.equal(sheet.getCell('A6').value,null);
+      const empty=await exportRequest('?search=no-such-player');const blank=new ExcelJS.Workbook();await blank.xlsx.load(Buffer.from(await empty.arrayBuffer()));assert.equal(blank.getWorksheet('Solicitudes')!.getCell('A5').value,null);
+      assert.deepEqual(await db.prepare('SELECT * FROM uniform_requests ORDER BY id').all(),before);
+      const own=(await request('GET','/me/uniforms',undefined,playerToken)).data.requests;assert.equal(own[0].playerShirtNumber,0);assert.equal((await request('GET','/me/uniforms',undefined,teammateToken)).data.requests.length,0);
     });
     await t.test('family metadata failure rolls back the entire request and direct delivery',async()=>{
       const counts=await db.prepare('SELECT COUNT(*) AS n FROM uniform_requests').get();

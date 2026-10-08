@@ -116,6 +116,8 @@ export interface UniformIssueRow {
 }
 
 export interface UniformRequestRow {
+  player_shirt_number?:number|null;player_position?:UniformRequest['playerPosition'];player_email?:string;
+  uniform_kind?:UniformRequest['uniformKind'];uniform_variant?:UniformRequest['uniformVariant'];
   recipient_type?:UniformRequest['recipientType'];recipient_name?:string|null;
   quoted_price?: number | null;
   issue_id?: number | null;
@@ -319,6 +321,8 @@ export function mapUniformIssue(row: UniformIssueRow): UniformIssue {
 
 export function mapUniformRequest(row: UniformRequestRow): UniformRequest {
   const mapped: UniformRequest = {
+    playerShirtNumber:row.player_shirt_number??null,playerPosition:row.player_position,playerEmail:row.player_email,
+    uniformKind:row.uniform_kind,uniformVariant:row.uniform_variant,
     recipientType:row.recipient_type??'jugador',recipientName:row.recipient_name??null,
     quotedPrice: row.quoted_price ?? null,
     issueId: row.issue_id ?? null,

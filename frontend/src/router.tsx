@@ -12,7 +12,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 
 import { PlayerDashboardPage } from './pages/player/PlayerDashboardPage';
 import { MyInscriptionPage } from './pages/player/MyInscriptionPage';
-import { MyUniformsPage } from './pages/player/MyUniformsPage';
+const MyUniformsPage = lazy(() => import('./pages/player/MyUniformsPage').then(module=>({default:module.MyUniformsPage})));
 import { MatchesPage as PlayerMatchesPage } from './pages/player/MatchesPage';
 import { MatchDetailPage } from './pages/player/MatchDetailPage';
 import { MyProfilePage } from './pages/player/MyProfilePage';
@@ -23,7 +23,7 @@ import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { PlayersPage } from './pages/admin/PlayersPage';
 import { PlayerDetailPage } from './pages/admin/PlayerDetailPage';
 import { InscriptionsPage } from './pages/admin/InscriptionsPage';
-import { UniformsPage } from './pages/admin/UniformsPage';
+const UniformsPage = lazy(() => import('./pages/admin/UniformsPage').then(module=>({default:module.UniformsPage})));
 import { MatchesPage as AdminMatchesPage } from './pages/admin/MatchesPage';
 import { MatchBuilderPage } from './pages/admin/MatchBuilderPage';
 import { SanctionsPage } from './pages/admin/SanctionsPage';
@@ -65,7 +65,7 @@ export function AppRouter() {
         <Route path="/jugador/torneos/:id" element={playerRoute(tournamentPage())} />
         <Route path="/jugador/inicio" element={playerRoute(<PlayerDashboardPage />)} />
         <Route path="/jugador/inscripcion" element={playerRoute(<MyInscriptionPage />)} />
-        <Route path="/jugador/uniformes" element={playerRoute(<MyUniformsPage />)} />
+        <Route path="/jugador/uniformes" element={playerRoute(<Suspense fallback={<p className="py-10 text-center">Cargando tienda…</p>}><MyUniformsPage /></Suspense>)} />
         <Route path="/jugador/partidos" element={playerRoute(<PlayerMatchesPage />)} />
         <Route path="/jugador/transmisiones" element={playerRoute(broadcastsPage())} />
         <Route path="/jugador/partidos/:id" element={playerRoute(<MatchDetailPage />)} />
@@ -80,7 +80,7 @@ export function AppRouter() {
         <Route path="/admin/jugadores" element={adminRoute(<PlayersPage />)} />
         <Route path="/admin/jugadores/:id" element={adminRoute(<PlayerDetailPage />)} />
         <Route path="/admin/inscripciones" element={adminRoute(<InscriptionsPage />)} />
-        <Route path="/admin/uniformes" element={adminRoute(<UniformsPage />)} />
+        <Route path="/admin/uniformes" element={adminRoute(<Suspense fallback={<p className="py-10 text-center">Cargando colección…</p>}><UniformsPage /></Suspense>)} />
         <Route path="/admin/partidos" element={adminRoute(<AdminMatchesPage />)} />
         <Route path="/admin/transmisiones" element={adminRoute(broadcastsPage())} />
         <Route path="/admin/partidos/:id" element={adminRoute(<MatchBuilderPage />)} />

@@ -10,6 +10,8 @@ import { asAsyncDatabase, type ApplicationDatabase } from "../async-database";
 
 const SELECT_REQUEST = `
   SELECT r.*, u.full_name AS player_name, f.name AS uniform_name,
+    p.shirt_number AS player_shirt_number,p.position AS player_position,u.email AS player_email,
+    f.kind AS uniform_kind,f.variant AS uniform_variant,
     COALESCE(d.recipient_type,'jugador') AS recipient_type,d.recipient_name
   FROM uniform_requests r
   JOIN players p ON p.id = r.player_id

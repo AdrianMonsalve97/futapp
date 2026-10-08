@@ -408,7 +408,7 @@ export function UniformsPage() {
     }, 'Devolución registrada. El stock volvió a sumarse.');
 
   const reviewRequest = (request: UniformRequest, status: UniformRequestStatus) => {
-    void run(async () => {
+    return run(async () => {
       await api(`/api/uniform-requests/${request.id}`, { method: 'PUT', json: { status } });
       requests.reload();
       issues.reload();

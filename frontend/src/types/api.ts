@@ -57,6 +57,8 @@ export interface UniformIssue extends UniformRecipientInput {
   notes: string | null; issuedAt: string;
 }
 export interface UniformRequest extends UniformRecipientInput {
+  playerShirtNumber?:number|null; playerPosition?:Position; playerEmail?:string;
+  uniformKind?:UniformKind; uniformVariant?:UniformVariant;
   quotedPrice?: number | null;
   issueId?: number | null;
   id: number; playerId: number; playerName?: string; uniformId: number;

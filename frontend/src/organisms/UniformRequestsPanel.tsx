@@ -1,117 +1,34 @@
-import { Alert } from '../atoms/Alert';
-import { Badge } from '../atoms/Badge';
-import { EmptyState } from '../atoms/EmptyState';
-import { Spinner } from '../atoms/Spinner';
-import { DateLabel } from '../molecules/DateLabel';
-import { StatusBadge } from '../molecules/StatusBadge';
-import { ConfirmAction } from '../molecules/ConfirmAction';
-import type { UniformRequest, UniformRequestStatus } from '../types/api';
-import { uniformRecipientLabel } from '../utils/uniforms';
+import {useState} from 'react';
+import {Alert} from '../atoms/Alert';
+import {Button} from '../atoms/Button';
+import {Input} from '../atoms/Input';
+import {Select} from '../atoms/Select';
+import {Spinner} from '../atoms/Spinner';
+import {DateLabel} from '../molecules/DateLabel';
+import {Money} from '../molecules/Money';
+import {StatusBadge} from '../molecules/StatusBadge';
+import {ConfirmAction} from '../molecules/ConfirmAction';
+import {apiBlob,errorMessage} from '../services/api';
+import {filterUniformRequests,uniformRequestExportUrl,uniformRecipientLabel,uniformKindLabel,uniformVariantLabel,type RequestFilters} from '../utils/uniforms';
+import type {UniformRequest,UniformRequestStatus} from '../types/api';
 
-export interface UniformRequestsPanelProps {
-  requests: UniformRequest[];
-  /** Cambia el estado de la solicitud (`PUT /api/uniform-requests/:id`). */
-  onReview: (request: UniformRequest, status: UniformRequestStatus) => void;
-  isLoading?: boolean;
-  error?: string | null;
-  emptyTitle?: string;
-  emptyMessage?: string;
-}
-
-/** Panel de solicitudes de uniforme con aprobación/rechazo/entrega. */
-export function UniformRequestsPanel({
-  requests,
-  onReview,
-  isLoading = false,
-  error = null,
-  emptyTitle = 'Sin solicitudes',
-  emptyMessage = 'No hay solicitudes de uniforme pendientes de revisión.',
-}: UniformRequestsPanelProps) {
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-10">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-  if (error) return <Alert tone="error">No se pudieron cargar las solicitudes: {error}</Alert>;
-  if (requests.length === 0) {
-    return <EmptyState title={emptyTitle} message={emptyMessage} icon="camiseta" />;
-  }
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {requests.map((request) => (
-        <div key={request.id} className="card bg-base-100 border border-base-200 shadow-sm">
-          <div className="card-body p-4 gap-2">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="font-semibold truncate">{request.playerName ?? `Jugador #${request.playerId}`}</p>
-                <p className="text-sm text-base-content/70 truncate">
-                  {request.uniformName ?? `Uniforme #${request.uniformId}`} · Talla {request.size}
-                </p>
-              </div>
-              <StatusBadge status={request.status} />
-            </div>
-
-            <p className="text-sm break-words">Destinatario: {uniformRecipientLabel(request)}</p>
-            {request.reason ? (
-              <p className="text-sm text-base-content/60">
-                <span className="font-medium text-base-content/70">Detalle:</span> {request.reason}
-              </p>
-            ) : null}
-
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-base-content/50">
-              <span>
-                Pedida el <DateLabel value={request.createdAt} />
-              </span>
-              {request.reviewedAt ? (
-                <span>
-                  · Revisada el <DateLabel value={request.reviewedAt} />
-                </span>
-              ) : null}
-              {request.reviewNotes ? (
-                <Badge tone="neutral" size="xs">
-                  {request.reviewNotes}
-                </Badge>
-              ) : null}
-            </div>
-
-            <div className="card-actions justify-end pt-2">
-              {request.status === 'pendiente' ? (
-                <>
-                  <ConfirmAction
-                    title="Aprobar solicitud"
-                    message={`¿Aprobar la solicitud de ${request.uniformName ?? 'uniforme'} de ${request.playerName ?? 'este jugador'}?`}
-                    confirmLabel="Aprobar"
-                    variant="primary"
-                    onConfirm={() => onReview(request, 'aprobada')}
-                  />
-                  <ConfirmAction
-                    title="Rechazar solicitud"
-                    message={`¿Rechazar la solicitud de ${request.playerName ?? 'este jugador'}? No se descontará stock.`}
-                    confirmLabel="Rechazar"
-                    variant="danger"
-                    onConfirm={() => onReview(request, 'rechazada')}
-                  />
-                </>
-              ) : null}
-              {request.status === 'aprobada' ? (
-                <ConfirmAction
-                  title="Entregar uniforme"
-                  message="Al entregar se descuenta el stock, se registra la entrega con el precio de la prenda y se marca como revisada. ¿Continuar?"
-                  confirmLabel="Marcar entregada"
-                  variant="primary"
-                  onConfirm={() => onReview(request, 'entregada')}
-                />
-              ) : null}
-              {request.status === 'rechazada' || request.status === 'entregada' ? (
-                <span className="text-xs text-base-content/40">Sin acciones disponibles</span>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+export interface UniformRequestsPanelProps {requests:UniformRequest[];onReview?:(request:UniformRequest,status:UniformRequestStatus)=>void|Promise<void>;isLoading?:boolean;error?:string|null;emptyTitle?:string;emptyMessage?:string}
+export function UniformRequestsPanel({requests,onReview,isLoading=false,error=null,emptyTitle='Sin solicitudes',emptyMessage='Todavía no hay pedidos registrados.'}:UniformRequestsPanelProps) {
+  const [filters,setFilters]=useState<RequestFilters>({search:'',status:'',variant:''}),[page,setPage]=useState(1),[pageSize,setPageSize]=useState(10),[exporting,setExporting]=useState(false),[exportError,setExportError]=useState<string|null>(null);
+  const filtered=filterUniformRequests(requests,filters),pages=Math.max(1,Math.ceil(filtered.length/pageSize)),currentPage=Math.min(page,pages),start=(currentPage-1)*pageSize;
+  const update=(next:Partial<RequestFilters>)=>{setFilters(previous=>({...previous,...next}));setPage(1);};
+  const download=async()=>{if(exporting)return;setExporting(true);setExportError(null);try{const blob=await apiBlob(uniformRequestExportUrl(filters)),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`solicitudes-uniformes-${new Date().toISOString().slice(0,10)}.xlsx`;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(err){setExportError(errorMessage(err));}finally{setExporting(false);}};
+  if(isLoading)return <div className="flex justify-center py-10"><Spinner size="lg"/></div>;
+  if(error)return <Alert tone="error">No se pudieron cargar las solicitudes: {error}</Alert>;
+  return <section className="kit-requests">
+    <div className="kit-request-metrics">{([['Registros',requests.length],['Pendientes',requests.filter(row=>row.status==='pendiente').length],['Aprobados',requests.filter(row=>row.status==='aprobada').length],['Entregados',requests.filter(row=>row.status==='entregada').length]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
+    <div className="kit-request-toolbar"><Input aria-label="Buscar solicitudes" placeholder="Jugador, dorsal, destinatario o detalle…" value={filters.search} maxLength={160} onChange={event=>update({search:event.target.value})}/><Select aria-label="Estado de solicitudes" value={filters.status} onChange={event=>update({status:event.target.value as RequestFilters['status']})}><option value="">Todos los estados</option>{['pendiente','aprobada','rechazada','entregada'].map(value=><option key={value} value={value}>{value.charAt(0).toUpperCase()+value.slice(1)}</option>)}</Select><Select aria-label="Variante de solicitudes" value={filters.variant} onChange={event=>update({variant:event.target.value as RequestFilters['variant']})}><option value="">Todas las variantes</option>{(['titular','alterna','entrenamiento'] as const).map(value=><option key={value} value={value}>{uniformVariantLabel(value)}</option>)}</Select>{onReview?<Button variant="outline" loading={exporting} onClick={()=>void download()}>↓ Descargar Excel</Button>:null}</div>
+    {exportError?<Alert tone="error">{exportError}</Alert>:null}
+    <div className="kit-request-count"><span>{filtered.length} registros encontrados{onReview?' · Excel incluye todos los registros filtrados':''}</span>{(filters.search||filters.status||filters.variant)?<Button size="sm" variant="ghost" onClick={()=>update({search:'',status:'',variant:''})}>Limpiar filtros</Button>:null}</div>
+    <div className="kit-table-scroll" role="region" aria-label="Registros de solicitudes" tabIndex={0}><table className="table kit-requests-table"><caption className="sr-only">Pedidos de uniformes y equipamiento, con talla, dorsal y destinatario</caption><thead><tr><th>Pedido / fecha</th><th>Jugador</th><th>Dorsal</th><th>Prenda</th><th>Destinatario</th><th>Talla</th><th>Valor</th><th>Observaciones / detalles</th><th>Estado</th><th>Revisión</th>{onReview?<th>Acciones</th>:null}</tr></thead><tbody>
+      {filtered.slice(start,start+pageSize).map(row=><tr key={row.id}><td><b>#{row.id}</b><small><DateLabel value={row.createdAt}/></small></td><td><strong>{row.playerName??`Jugador #${row.playerId}`}</strong>{onReview?<small>{row.playerEmail}</small>:null}</td><td><span className="kit-dorsal">{row.playerShirtNumber??'—'}</span></td><td><strong>{row.uniformName??`Prenda #${row.uniformId}`}</strong><small>{row.uniformKind?uniformKindLabel(row.uniformKind):''}{row.uniformVariant?` · ${uniformVariantLabel(row.uniformVariant)}`:''}</small></td><td>{uniformRecipientLabel(row)}{(!row.recipientType||row.recipientType==='jugador')?<small>{row.playerName}</small>:null}</td><td><b className="kit-size-tag">{row.size}</b></td><td className="whitespace-nowrap">{row.quotedPrice==null?'Por confirmar':<Money value={row.quotedPrice}/>}</td><td className="kit-request-details">{row.reason||'—'}</td><td><StatusBadge status={row.status}/></td><td className="kit-request-details">{row.reviewNotes||'—'}{row.reviewedAt?<small><DateLabel value={row.reviewedAt}/></small>:null}</td>{onReview?<td><div className="kit-review-actions">{row.status==='pendiente'?<><ConfirmAction title="Aprobar solicitud" message={`¿Aprobar el pedido #${row.id} de ${row.playerName??'este jugador'}?`} confirmLabel="Aprobar" variant="primary" onConfirm={()=>onReview(row,'aprobada')}/><ConfirmAction title="Rechazar solicitud" message="No se descontará stock. ¿Rechazar este pedido?" confirmLabel="Rechazar" variant="danger" onConfirm={()=>onReview(row,'rechazada')}/></>:row.status==='aprobada'?<ConfirmAction title="Entregar uniforme" message="Al entregar se descontará el stock y se registrará la entrega con el precio del pedido. ¿Continuar?" confirmLabel="Marcar entregada" variant="primary" onConfirm={()=>onReview(row,'entregada')}/>:<span>Sin acciones</span>}</div></td>:null}</tr>)}
+      {!filtered.length?<tr><td colSpan={onReview?11:10} className="kit-empty-row"><strong>{requests.length?'Sin coincidencias':emptyTitle}</strong><p>{requests.length?'Prueba otros filtros.':emptyMessage}</p></td></tr>:null}
+    </tbody></table></div>
+    <div className="kit-pagination"><span>{filtered.length?`${start+1}–${Math.min(start+pageSize,filtered.length)}`:'0'} de {filtered.length}</span><Select aria-label="Registros por página" value={pageSize} onChange={event=>{setPageSize(Number(event.target.value));setPage(1);}}>{[10,25,50].map(value=><option key={value} value={value}>{value} por página</option>)}</Select><Button size="sm" variant="outline" disabled={currentPage===1} onClick={()=>setPage(currentPage-1)}>Anterior</Button><span>{currentPage} / {pages}</span><Button size="sm" variant="outline" disabled={currentPage===pages} onClick={()=>setPage(currentPage+1)}>Siguiente</Button></div>
+  </section>;
 }
