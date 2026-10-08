@@ -27,6 +27,18 @@ async function request(base,path,{method='GET',json,token,body}={}){
 }
 async function login(base,email,pass){return (await (await request(base,'/auth/login',{method:'POST',json:{email,password:pass}})).json()).token;}
 try{
+  const generatedConfig=path.join(temporary,'generated.env'),generatedData=path.join(temporary,'generated-data');
+  const initialize=()=>{
+    const result=spawnSync('sh',['scripts/docker-init.sh'],{encoding:'utf8',env:{...process.env,FUTAPP_ENV_FILE:generatedConfig,FUTAPP_DATA_DIR:generatedData}});
+    assert.equal(result.status,0,result.stderr);
+  };
+  initialize();
+  const originalConfig=fs.readFileSync(generatedConfig,'utf8');
+  assert.match(originalConfig,/^JWT_SECRET=[A-Za-z0-9_-]{64}$/m);
+  assert.match(originalConfig,/^ADMIN_PASSWORD=[A-Za-z0-9_-]{32}$/m);
+  assert.equal(fs.statSync(generatedConfig).mode & 0o777,0o600);
+  assert(fs.statSync(generatedData).isDirectory());
+  initialize();assert.equal(fs.readFileSync(generatedConfig,'utf8'),originalConfig);
   for(const volume of volumes)docker('volume','create',volume);
   const source=run(sourceName,'source@docker.test',password),destination=`http://127.0.0.1:${port}`;
   compose('config','--quiet');compose('up','-d','--no-build','app');
@@ -57,7 +69,7 @@ try{
   assert(fs.existsSync(path.join(dataDir,'portal.db')));assert(fs.readdirSync(path.join(dataDir,'uploads')).length===1);
   compose('stop','app');compose('run','--rm','--no-deps','app','node','../scripts/backup.mjs');compose('up','-d','--no-build','app');await ready(recreated);
   assert(fs.readdirSync(path.join(dataDir,'backups')).some(name=>fs.existsSync(path.join(dataDir,'backups',name,'uploads'))));
-  console.log('Docker verificado: React, ingesta, cuentas y contraseñas, salud, torneo F8, plantilla, documentos y persistencia al recrear el contenedor.');
+  console.log('Docker verificado: configuración privada persistente, React, ingesta, cuentas y contraseñas, salud, torneo F8, plantilla, documentos, respaldo y persistencia al recrear el contenedor.');
 }finally{
   spawnSync('docker',['compose','--env-file',envFile,'-p',destinationName,'down'],{stdio:'ignore',windowsHide:true});
   for(const name of containers){assert(name.startsWith('futapp-ci-'));spawnSync('docker',['rm','-f',name],{stdio:'ignore',windowsHide:true});}
