@@ -1,4 +1,8 @@
 export interface SecurityRepository {
+  claimPasswordReset(emailKey:string,now:number):Promise<boolean>;
+  savePasswordReset(input:{userId:number;tokenHash:string;stamp:string;expiresAt:number;issuedAt:number;createdBy:number|null}):Promise<void>;
+  consumePasswordReset(tokenHash:string,now:number):Promise<{userId:number;stamp:string}|null>;
+  resetDelivery(tokenHash:string,state:'sent'|'failed'):Promise<void>;
   requestRegistration(userId:number):Promise<void>;
   pendingRegistration(userId:number):Promise<boolean>;
   approveRegistration(userId:number,reviewerId:number):Promise<void>;

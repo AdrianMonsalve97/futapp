@@ -8,6 +8,8 @@ import { HomeRedirect, ProtectedRoute } from './templates/ProtectedRoute';
 
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+const ForgotPasswordPage=lazy(()=>import('./pages/auth/PasswordRecoveryPage').then(module=>({default:module.ForgotPasswordPage})));
+const ResetPasswordPage=lazy(()=>import('./pages/auth/PasswordRecoveryPage').then(module=>({default:module.ResetPasswordPage})));
 import { NotFoundPage } from './pages/NotFoundPage';
 
 import { PlayerDashboardPage } from './pages/player/PlayerDashboardPage';
@@ -54,6 +56,8 @@ export function AppRouter() {
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registro" element={<RegisterPage />} />
+        <Route path="/recuperar-contrasena" element={<Suspense fallback={<p>Cargando recuperación…</p>}><ForgotPasswordPage/></Suspense>}/>
+        <Route path="/restablecer-contrasena" element={<Suspense fallback={<p>Cargando recuperación…</p>}><ResetPasswordPage/></Suspense>}/>
       </Route>
 
       {/* Redirección por rol */}

@@ -5,10 +5,16 @@ import type { Request, Response } from 'express';
 import type { AuthPayload } from '../../../../domain/entities';
 import { env } from '../../../../config/env';
 import { jsonBody } from '../route-helpers';
+import {requestLimit,loginLimit} from '../middleware/login-limit';
 
 /** §7.1 · Autenticación (público salvo `/auth/me`). */
 export function authRoutes(auth: AuthPort): Router {
   const router = Router();
+  router.get('/auth/recovery-status',(_req,res)=>res.json({ready:auth.recoveryStatus().ready}));
+  router.get('/auth/recovery-settings',requireAuth,requireRole('admin'),(_req,res)=>res.json(auth.recoveryStatus()));
+  router.post('/auth/forgot-password',requestLimit(10,3600000),async(req,res)=>{const body=jsonBody<{email?:string}>(req);res.status(202).json(await auth.forgotPassword(String(body.email??'')));});
+  router.post('/auth/reset-password',requestLimit(20,900000),async(req,res)=>{const body=jsonBody<{token?:string;password?:string;confirmation?:string}>(req);res.json(await auth.resetPassword(String(body.token??''),String(body.password??''),String(body.confirmation??'')));});
+  router.post('/auth/admin-reset',requireAuth,requireRole('admin'),loginLimit(),requestLimit(10,3600000),async(req,res)=>{const body=jsonBody<{userId?:number;password?:string}>(req);res.json(await auth.administratorReset(getAuth(req).userId,Number(body.userId),String(body.password??'')));});
   const respond=(req:Request,res:Response,payload:AuthPayload)=>{
     if(req.get('X-FutApp-Client')!=='web'){res.json(payload);return;}
     res.cookie(SESSION_COOKIE,payload.token,{httpOnly:true,secure:env.production||req.get('origin')?.startsWith('https://'),sameSite:'strict',path:'/',maxAge:8*3600000});

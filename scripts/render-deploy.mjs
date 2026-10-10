@@ -55,6 +55,11 @@ export function createRenderClient({ apiKey, serviceId, request = fetch, cloud =
         ADMIN_EMAIL:existing.get('ADMIN_EMAIL') || 'admin@futapp.local',ADMIN_NAME:existing.get('ADMIN_NAME') || 'Administrador de migración',ADMIN_PASSWORD:password,
         PUBLIC_APP_URL:target.url,CORS_ORIGIN:target.url,
       };
+      const brevoApiKey=cloud.brevoApiKey||existing.get('BREVO_API_KEY'),mailFrom=cloud.mailFrom||existing.get('MAIL_FROM');
+      if(brevoApiKey||mailFrom){
+        if(!brevoApiKey||!mailFrom||!/^\S+@[^\s@]+\.[^\s@]+$/.test(mailFrom))throw new Error('Configura BREVO_API_KEY y MAIL_FROM verificado para habilitar la recuperación por correo');
+        mask(brevoApiKey);variables.BREVO_API_KEY=brevoApiKey;variables.MAIL_FROM=mailFrom;variables.MAIL_FROM_NAME=cloud.mailFromName||existing.get('MAIL_FROM_NAME')||'FutApp';
+      }
       if(cloud.ca||existing.get('SUPABASE_DB_CA'))variables.SUPABASE_DB_CA=cloud.ca||existing.get('SUPABASE_DB_CA');
       if(variables.SUPABASE_DB_CA)mask(variables.SUPABASE_DB_CA);
       // Delete obsolete local persistence and SSL bypass settings before switching to the cloud.
@@ -89,7 +94,7 @@ export function createRenderClient({ apiKey, serviceId, request = fetch, cloud =
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    const client = createRenderClient({apiKey:process.env.RENDER_API_KEY,serviceId:process.env.RENDER_SERVICE_ID,cloud:{databaseUrl:process.env.DATABASE_URL,supabaseUrl:process.env.SUPABASE_URL,serverKey:process.env.SUPABASE_SECRET_KEY,ca:process.env.SUPABASE_DB_CA}});
+    const client = createRenderClient({apiKey:process.env.RENDER_API_KEY,serviceId:process.env.RENDER_SERVICE_ID,cloud:{databaseUrl:process.env.DATABASE_URL,supabaseUrl:process.env.SUPABASE_URL,serverKey:process.env.SUPABASE_SECRET_KEY,ca:process.env.SUPABASE_DB_CA,brevoApiKey:process.env.BREVO_API_KEY,mailFrom:process.env.MAIL_FROM,mailFromName:process.env.MAIL_FROM_NAME}});
     const mode = process.argv[2];
     if (!['configure','deploy'].includes(mode)) throw new Error('Usa configure o deploy');
     const result = mode==='configure' ? await client.configure() : await client.deploy(process.env.GITHUB_SHA);

@@ -15,6 +15,7 @@ import { PerformanceChart } from '../../organisms/PerformanceChart';
 import { RatingTrendChart } from '../../organisms/RatingTrendChart';
 import { AiPlayerCard } from '../../organisms/AiPlayerCard';
 import { HealthForm } from '../../organisms/HealthForm';
+import {PlayerRecoveryDialog} from '../../organisms/PlayerRecoveryDialog';
 import { PositionBadge } from '../../molecules/PositionBadge';
 import { RatingBadge } from '../../molecules/RatingBadge';
 import { StatusBadge } from '../../molecules/StatusBadge';
@@ -84,10 +85,12 @@ export function PlayerDetailPage() {
         title={user.fullName}
         subtitle={`${user.email} · ${user.phone ?? 'sin teléfono'}`}
         actions={
+          <><div>{user.active&&user.role==='player'?<PlayerRecoveryDialog userId={user.id} name={user.fullName}/>:null}</div>
           <Link to="/admin/jugadores" className="btn btn-outline btn-sm">
             <Icon name="arrowLeft" size={14} />
             Volver al plantel
           </Link>
+          </>
         }
       />
 

@@ -25,6 +25,10 @@ export interface RegistrationPayload extends AuthUserView { pendingApproval:true
 
 /** Casos de uso de autenticación (§7.1). */
 export interface AuthPort {
+  recoveryStatus():{ready:boolean;missing:string[];expiresInMinutes:number};
+  forgotPassword(email:string):Promise<{message:string}>;
+  resetPassword(token:string,password:string,confirmation:string):Promise<{ok:true}>;
+  administratorReset(adminId:number,userId:number,password:string):Promise<{url:string;expiresAt:string}>;
   verifySession(token:string):Promise<AuthUserView>;
   activity(token:string):Promise<SessionStatus>;
   logout(token:string,sessionKey?:string):Promise<boolean>;

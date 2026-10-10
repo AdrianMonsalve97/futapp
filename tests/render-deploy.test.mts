@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRenderClient } from '../scripts/render-deploy.mjs';
 const commit='a'.repeat(40),url='https://futapp-test.onrender.com';
-function fixture({free=true,mismatched=false,configured=true}={}){
+function fixture({free=true,mismatched=false,configured=true,mail={}}:{free?:boolean;mismatched?:boolean;configured?:boolean;mail?:Record<string,string>}={}){
   const env=new Map([['JWT_SECRET','existing-very-long-jwt-secret-that-must-persist'],['SMTP_PASSWORD','keep-provider-secret'],['DB_PATH','/var/data/portal.db']]);
   const writes:{route:string;body:any}[]=[];let trigger='commit';
   const request=async(input:string,options:any={})=>{
@@ -17,8 +17,12 @@ function fixture({free=true,mismatched=false,configured=true}={}){
     if(route==='/deploys/dep-example')return Response.json({id:'dep-example',status:'live',commit:{id:mismatched?'b'.repeat(40):commit}});
     return Response.json({type:'web_service',repo:'https://github.com/AdrianMonsalve97/futapp.git',branch:'main',rootDir:'',autoDeployTrigger:trigger,serviceDetails:{runtime:'node',numInstances:1,plan:free?'free':'0.5c-512mb',...(free?{}:{disk:{mountPath:'/var/data'}}),url}});
   };
-  return {env,writes,client:createRenderClient({apiKey:'api-key-test',serviceId:'srv-example',request,cloud:configured?{databaseUrl:'postgresql://postgres.test:fixture-password@aws-0-test.pooler.supabase.com:5432/postgres',supabaseUrl:'https://fixture-project.supabase.co',serverKey:'sb_secret_fixture_key'}:{}})};
+  return {env,writes,client:createRenderClient({apiKey:'api-key-test',serviceId:'srv-example',request,cloud:configured?{databaseUrl:'postgresql://postgres.test:fixture-password@aws-0-test.pooler.supabase.com:5432/postgres',supabaseUrl:'https://fixture-project.supabase.co',serverKey:'sb_secret_fixture_key',...mail}:{}})};
 }
+test('optional Brevo secrets are applied idempotently, preserve other credentials and reject partial setup',async()=>{
+  const {client,env,writes}=fixture({mail:{brevoApiKey:'private-fixture-key',mailFrom:'verified@test.local',mailFromName:'Club fixture'}});await client.configure();assert.equal(env.get('BREVO_API_KEY'),'private-fixture-key');assert.equal(env.get('MAIL_FROM'),'verified@test.local');assert.equal(env.get('MAIL_FROM_NAME'),'Club fixture');assert.equal(env.get('SMTP_PASSWORD'),'keep-provider-secret');const count=writes.length;await client.configure();assert.equal(writes.length,count);
+  const partial=fixture({mail:{brevoApiKey:'private-fixture-key'}});await assert.rejects(partial.client.configure(),/MAIL_FROM/);assert.equal(partial.writes.length,0);
+});
 test('environment task preserves existing secrets, generates missing credentials and is idempotent',async()=>{
   const {client,env,writes}=fixture();const before=env.get('JWT_SECRET');await client.configure();
   assert.equal(env.get('JWT_SECRET'),before);assert.equal(env.get('SMTP_PASSWORD'),'keep-provider-secret');

@@ -81,6 +81,7 @@ export function LoginPage() {
           <Button type="submit" className="w-full" loading={busy}>
             Ingresar
           </Button>
+          <Link to="/recuperar-contrasena" className="link link-primary text-sm text-center py-2">¿Olvidaste tu contraseña?</Link>
         </form>
 
         <div className="mt-4 space-y-3">

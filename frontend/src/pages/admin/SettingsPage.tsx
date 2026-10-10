@@ -219,7 +219,9 @@ export function SettingsPage() {
       </div>
       <MigrationPanel />
       <AccountSecurityPanel />
+      <RecoverySettingsPanel />
     </>
   );
 }
 import { AccountSecurityPanel } from '../../organisms/AccountSecurityPanel';
+import {RecoverySettingsPanel} from '../../organisms/RecoverySettingsPanel';

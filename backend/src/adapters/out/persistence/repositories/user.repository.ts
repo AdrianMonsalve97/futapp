@@ -62,6 +62,7 @@ export class SqliteUserRepository implements UserRepository {
       (await this.db.transaction(async ()=>{
                 (await this.db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = @id`).run(params));
                 if(input.passwordHash!==undefined||input.role!==undefined||input.active!==undefined)(await this.db.prepare('DELETE FROM auth_sessions WHERE user_id=?').run(id));
+                if(input.passwordHash!==undefined||input.role!==undefined||input.active!==undefined)await this.db.prepare('DELETE FROM password_reset_tokens WHERE user_id=?').run(id);
               })());
     }
     return (await this.findById(id)) as User;

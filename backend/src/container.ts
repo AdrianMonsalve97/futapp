@@ -46,6 +46,8 @@ import type { ApplicationDatabase } from './adapters/out/persistence/async-datab
 import type { MediaStorage } from './application/ports/out/media.storage';
 import type { ModelStore } from './application/ports/out/model-store';
 import type { MigrationPort } from './application/ports/in/migration.port';
+import type {RecoveryMailer} from './application/ports/out/recovery-mailer';
+import {BrevoRecoveryMailer} from './adapters/out/notifications/recovery-mailer';
 
 export interface Container {
   migrationService: MigrationPort;
@@ -66,7 +68,7 @@ export interface Container {
   settingsService: SettingsService;
 }
 
-export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaStorage; model:ModelStore; migration:MigrationPort }): Container {
+export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaStorage; model:ModelStore; migration:MigrationPort; recoveryMailer?:RecoveryMailer }): Container {
   const db = cloud?.db ?? getDb();
   const uow = new SqliteUnitOfWork(db);
 
@@ -107,7 +109,7 @@ export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaSto
     tournaments,
     refereeService,
   );
-  const authService = new AuthService(users, players, uow, new SqliteSecurityRepository(db));
+  const authService = new AuthService(users, players, uow, new SqliteSecurityRepository(db),cloud?.recoveryMailer??new BrevoRecoveryMailer());
   const meService = new MeService(
     users,
     players,

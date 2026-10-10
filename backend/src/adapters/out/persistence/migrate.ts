@@ -116,6 +116,14 @@ export function migrate(db: Database = getDb()): void {
     db.exec('ALTER TABLE auth_sessions ADD COLUMN last_activity_at INTEGER NOT NULL DEFAULT 0');
     db.prepare('UPDATE auth_sessions SET last_activity_at=?').run(Date.now());
   }
+  db.exec(`CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE, stamp TEXT NOT NULL, expires_at INTEGER NOT NULL,
+    issued_at INTEGER NOT NULL, created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    delivery_state TEXT NOT NULL DEFAULT 'pending' CHECK(delivery_state IN ('pending','sent','failed','manual'))
+  ); CREATE TABLE IF NOT EXISTS password_reset_requests (
+    email_key TEXT PRIMARY KEY, window_start INTEGER NOT NULL, last_requested_at INTEGER NOT NULL, attempts INTEGER NOT NULL
+  );`);
   if (!hasColumn(db, 'players', 'eps')) db.exec('ALTER TABLE players ADD COLUMN eps TEXT');
   if (!hasColumn(db, 'players', 'prepaid_health')) db.exec('ALTER TABLE players ADD COLUMN prepaid_health TEXT');
   if (!hasColumn(db, 'team_settings', 'logo_url')) db.exec("ALTER TABLE team_settings ADD COLUMN logo_url TEXT DEFAULT '/brand/aag-logo.jpg'");

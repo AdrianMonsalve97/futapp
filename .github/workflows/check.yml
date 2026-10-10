@@ -36,6 +36,9 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
       SUPABASE_DB_CA: ${{ secrets.SUPABASE_DB_CA }}
+      BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+      MAIL_FROM: ${{ secrets.MAIL_FROM }}
+      MAIL_FROM_NAME: ${{ vars.MAIL_FROM_NAME }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -69,7 +72,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Verificar ingesta y operaciones contra PostgreSQL real
-        run: node --import tsx --test --test-concurrency=1 tests/postgres.test.mts tests/referee.test.mts tests/player-lifecycle.test.mts tests/uniform-orders.test.mts tests/idle-session.test.mts
+        run: node --import tsx --test --test-concurrency=1 tests/postgres.test.mts tests/referee.test.mts tests/player-lifecycle.test.mts tests/uniform-orders.test.mts tests/idle-session.test.mts tests/password-recovery.test.mts
   containers:
     strategy:
       fail-fast: false

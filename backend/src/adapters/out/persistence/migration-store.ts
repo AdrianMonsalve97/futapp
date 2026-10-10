@@ -14,7 +14,7 @@ type Table = { columns: string[]; rows: Cell[][] };
 export type MigrationPacket = { format: string; version: number; createdAt: string; tables: Record<string, Table>; files: { name: string; data: string; sha256: string }[] };
 type Packet = MigrationPacket;
 const LIMIT = 25 * 1024 * 1024, EXPANDED = 64 * 1024 * 1024;
-const TRANSIENT = new Set(['auth_sessions', 'registration_invitation', 'notification_jobs', 'notification_match_versions', 'media_deletion_jobs']);
+const TRANSIENT = new Set(['auth_sessions', 'registration_invitation', 'notification_jobs', 'notification_match_versions', 'media_deletion_jobs','password_reset_tokens','password_reset_requests']);
 const counted = ['users', 'players', 'tournaments', 'tournament_players', 'matches', 'inscriptions', 'payments', 'payment_receipts', 'media_assets'];
 const quote = (name: string) => { if (!/^[a-z_][a-z0-9_]*$/.test(name)) throw new ValidationError('Esquema no compatible'); return `"${name}"`; };
 const hash = (data: Buffer) => createHash('sha256').update(data).digest('hex');
@@ -91,7 +91,7 @@ export class FileMigrationStore implements MigrationPort {
     if(sessions&&Array.isArray(sessions.columns)&&Array.isArray(sessions.rows)&&sessions.rows.every(Array.isArray)&&!sessions.columns.includes('last_activity_at')) {
       sessions.columns.push('last_activity_at');sessions.rows=sessions.rows.map(row=>[...row,0]);
     }
-    for (const name of ['registration_requests','media_deletion_jobs','uniform_recipients']) {
+    for (const name of ['registration_requests','media_deletion_jobs','uniform_recipients','password_reset_tokens','password_reset_requests']) {
       if (!Object.hasOwn(p.tables,name) && names.includes(name)) p.tables[name]={columns:(this.db.pragma(`table_info(${name})`) as {name:string}[]).map(column=>column.name),rows:[]};
     }
     if(!Object.hasOwn(p.tables,'match_referee_transfers')&&names.includes('match_referee_transfers'))p.tables.match_referee_transfers={columns:['receipt_id','match_id','amount'],rows:[]};

@@ -36,6 +36,12 @@ try {
   assert(ready, errors);
   const response = await fetch(base + '/admin/partidos/7'); const html = await response.text();
   assert.equal(response.status, 200); assert(html.includes('id="root"'));
+  for (const route of ['/recuperar-contrasena','/restablecer-contrasena']) {
+    const page = await fetch(base + route); assert.equal(page.status,200); assert((await page.text()).includes('id="root"'));
+  }
+  const recoveryStatus = await fetch(base + '/api/auth/recovery-status'); assert.equal(recoveryStatus.status,200);
+  assert.deepEqual(Object.keys(await recoveryStatus.json()),['ready']);
+  assert.equal((await fetch(base + '/api/auth/recovery-settings')).status,401);
   const policy = new Map(response.headers.get('content-security-policy').split(';').map(directive => {
     const [name, ...sources] = directive.trim().split(/\s+/); return [name, sources];
   }));

@@ -26,7 +26,7 @@ export function requestToken(req:Request):string|null {
 export function sessionMiddleware(authService: AuthPort) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const token=requestToken(req);
-    if (req.path === '/auth/login' || req.path === '/auth/register' || req.path === '/auth/logout' || !token) {
+    if (['/auth/login','/auth/register','/auth/logout','/auth/forgot-password','/auth/reset-password','/auth/recovery-status'].includes(req.path) || !token) {
       next();
       return;
     }

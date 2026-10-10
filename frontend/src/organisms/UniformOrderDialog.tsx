@@ -24,7 +24,7 @@ export function UniformOrderDialog({uniform,onClose,onSaved}:{uniform:Uniform;on
       onSaved(`Solicitud enviada: ${uniform.name} · talla ${size}${recipientName.trim()?` · ${recipientName.trim()}`:''}.`);
     }catch(err){setError(errorMessage(err));}finally{setBusy(false);}
   };
-  return <Modal open title="Arma tu pedido" size="lg" onClose={()=>{if(!busy)onClose();}} closeOnOutside={!busy} footer={<><Button variant="ghost" disabled={busy} onClick={onClose}>Seguir mirando</Button><Button form={formId} type="submit" loading={busy}>Enviar solicitud <Icon name="arrowRight" size={18}/></Button></>}>
+  return <Modal open title="Personaliza tu equipamiento" size="lg" onClose={()=>{if(!busy)onClose();}} closeOnOutside={!busy} footer={<><Button variant="ghost" disabled={busy} onClick={onClose}>Volver al vestuario</Button><Button form={formId} type="submit" loading={busy}>Confirmar solicitud <Icon name="arrowRight" size={18}/></Button></>}>
     <div className="kit-order-layout">
       <aside className="kit-order-preview">
         <div className={`kit-product-stage kit-stage-${uniform.variant}`}><span className="kit-variant">{uniformVariantLabel(uniform.variant)}</span><UniformProductImage uniform={uniform}/></div>

@@ -7,9 +7,10 @@ import { validatePassword } from '../../domain/password-policy';
 import { env } from '../../config/env';
 import type { AuthPort, AuthUserView, LoginInput, RegisterInput, RegistrationPayload } from '../ports/in/auth.port';
 import type { PlayerRepository } from '../ports/out/player.repository';
-import type { UserRepository } from '../ports/out/user.repository';
+import type { UserRepository,UserWithPassword } from '../ports/out/user.repository';
+import type {RecoveryMailer,RecoveryMail} from '../ports/out/recovery-mailer';
 import type { AuthPayload, User, SessionStatus } from '../../domain/entities';
-import { NotFoundError, UnauthorizedError, ValidationError } from '../../domain/errors';
+import { AppError,ForbiddenError,NotFoundError, UnauthorizedError, ValidationError } from '../../domain/errors';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const digest=(value:string)=>createHash('sha256').update(value).digest('hex');
@@ -23,7 +24,65 @@ export class AuthService implements AuthPort {
     private readonly players: PlayerRepository,
     private readonly uow: UnitOfWork,
     private readonly security:SecurityRepository,
+    private readonly recoveryMailer:RecoveryMailer,
   ) {}
+
+  private recoveryOrigin():string|null {
+    try{const url=new URL(env.publicAppUrl||'');if(url.username||url.password||url.pathname!=='/'||url.search||url.hash)return null;
+      if(url.protocol==='https:'||(!env.production&&url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)))return url.origin;
+    }catch{}return null;
+  }
+  recoveryStatus(){const status=this.recoveryMailer.status(),missing=[...status.missing];if(!this.recoveryOrigin())missing.push('PUBLIC_APP_URL');return {ready:missing.length===0,missing,expiresInMinutes:15};}
+  private recoveryStamp(user:UserWithPassword){return createHmac('sha256',env.jwtSecret).update(`${user.id}:${user.role}:${user.active}:${user.passwordHash}`).digest('hex');}
+  private async issueRecovery(user:UserWithPassword,createdBy:number|null){
+    const origin=this.recoveryOrigin();if(!origin)throw new ValidationError('Configura la URL pública de FutApp para generar enlaces de recuperación.');
+    const token=randomBytes(32).toString('base64url'),issuedAt=Date.now(),expiresAt=issuedAt+15*60000;
+    await this.security.savePasswordReset({userId:user.id,tokenHash:digest(token),stamp:this.recoveryStamp(user),issuedAt,expiresAt,createdBy});
+    return {url:`${origin}/restablecer-contrasena#token=${token}`,expiresAt:new Date(expiresAt).toISOString(),tokenHash:digest(token)};
+  }
+  private deliverRecovery(message:RecoveryMail,tokenHash?:string){
+    // Email latency never reveals whether an account exists. Never log links, recipient or provider bodies.
+    setImmediate(()=>{void this.recoveryMailer.send(message).then(()=>tokenHash?this.security.resetDelivery(tokenHash,'sent'):undefined).catch(async()=>{if(tokenHash)await this.security.resetDelivery(tokenHash,'failed');}).catch(()=>{});});
+  }
+  async forgotPassword(value:string):Promise<{message:string}>{
+    const email=value.trim().toLowerCase(),started=Date.now();
+    if(email.length>254||!EMAIL_RE.test(email))throw new ValidationError('Indica un correo válido.');
+    if(!this.recoveryStatus().ready)throw new AppError('La recuperación por correo aún no está habilitada. Pide al administrador un enlace temporal.',503,'RECOVERY_UNAVAILABLE');
+    const grant=await this.uow.run(async()=>{
+      const key=createHmac('sha256',env.jwtSecret).update('recovery:'+email).digest('hex');
+      const allowed=await this.security.claimPasswordReset(key,Date.now()),user=await this.users.findByEmail(email);
+      if(!allowed||!user?.active)return null;
+      return {user,...await this.issueRecovery(user,null)};
+    });
+    await new Promise(resolve=>setTimeout(resolve,Math.max(0,250-(Date.now()-started))));
+    if(grant)this.deliverRecovery({email:grant.user.email,name:grant.user.fullName,url:grant.url,kind:'reset'},grant.tokenHash);
+    return {message:'Si existe una cuenta activa con ese correo, enviaremos un enlace para recuperar el acceso. Revisa también spam. Si no llega, contacta al administrador.'};
+  }
+  async resetPassword(token:string,password:string,confirmation:string):Promise<{ok:true}>{
+    if(!/^[A-Za-z0-9_-]{43}$/.test(token))throw new ValidationError('Este enlace no es válido o ya venció. Solicita uno nuevo.','RESET_INVALID');
+    if(password!==confirmation)throw new ValidationError('Las contraseñas no coinciden.');validatePassword(password);
+    const hash=await bcrypt.hash(password,10);
+    const user=await this.uow.run(async()=>{
+      const grant=await this.security.consumePasswordReset(digest(token),Date.now());
+      const view=grant?await this.users.findById(grant.userId):null,stored=view?await this.users.findByEmail(view.email):null;
+      if(!grant||!stored?.active||!equal(grant.stamp,this.recoveryStamp(stored)))throw new ValidationError('Este enlace no es válido o ya venció. Solicita uno nuevo.','RESET_INVALID');
+      if(await bcrypt.compare(password,stored.passwordHash))throw new ValidationError('Elige una contraseña diferente de la actual.');
+      await this.users.update(stored.id,{passwordHash:hash});return stored;
+    });
+    if(this.recoveryMailer.status().ready)this.deliverRecovery({email:user.email,name:user.fullName,kind:'changed'});
+    return {ok:true};
+  }
+  async administratorReset(adminId:number,userId:number,password:string){
+    if(!Number.isSafeInteger(userId)||userId<1)throw new ValidationError('Jugador inválido.');
+    const admin=await this.users.findById(adminId),stored=admin?await this.users.findByEmail(admin.email):null;
+    if(!stored?.active||stored.role!=='admin')throw new ForbiddenError();
+    if(!password||!await bcrypt.compare(password,stored.passwordHash))throw new ValidationError('Confirma tu contraseña de administrador.');
+    return this.uow.run(async()=>{
+      const view=await this.users.findById(userId),target=view?await this.users.findByEmail(view.email):null;
+      if(!target?.active||target.role!=='player')throw new ValidationError('Solo se puede recuperar el acceso de jugadores activos. Las solicitudes pendientes requieren aval.');
+      const {url,expiresAt}=await this.issueRecovery(target,adminId);return {url,expiresAt};
+    });
+  }
 
   async login(input: LoginInput): Promise<AuthPayload> {
     const email = (input.email ?? '').trim();
