@@ -16,6 +16,7 @@ import { ProfileForm } from '../../organisms/ProfileForm';
 import { HealthForm } from '../../organisms/HealthForm';
 import { formatDate } from '../../utils/format';
 import type { MeResponse, PasswordResponse } from '../../types/api';
+import {PASSWORD_HINT,PASSWORD_MIN_LENGTH,passwordError} from '../../utils/password';
 
 /** Mi perfil (SPEC §10.4): ficha, formulario de datos y cambio de contraseña. */
 export function MyProfilePage() {
@@ -35,8 +36,9 @@ export function MyProfilePage() {
     event.preventDefault();
     setPwdError(null);
     setPwdOk(false);
-    if (passwords.next.length < 15) {
-      setPwdError('La nueva contraseña debe tener al menos 15 caracteres.');
+    const invalidPassword=passwordError(passwords.next);
+    if (invalidPassword) {
+      setPwdError(invalidPassword);
       return;
     }
     if (passwords.next !== passwords.confirm) {
@@ -139,7 +141,7 @@ export function MyProfilePage() {
           <Card>
             <CardBody className="gap-3">
               <CardTitle className="text-base">Cambiar contraseña</CardTitle>
-              <p className="text-sm text-base-content/60">Usa al menos 15 caracteres. Al cambiarla, se cerrarán tus sesiones y deberás ingresar de nuevo.</p>
+              <p className="text-sm text-base-content/60">{PASSWORD_HINT} Al cambiarla, se cerrarán tus sesiones y deberás ingresar de nuevo.</p>
               {pwdError ? <Alert tone="error">{pwdError}</Alert> : null}
               {pwdOk ? <Alert tone="success">Contraseña actualizada correctamente.</Alert> : null}
               <form className="grid gap-3 xl:grid-cols-3" onSubmit={(event) => void changePassword(event)}>
@@ -161,6 +163,7 @@ export function MyProfilePage() {
                   </label>
                   <Input
                     id="new-password"
+                    required minLength={PASSWORD_MIN_LENGTH}
                     type="password"
                     autoComplete="new-password"
                     value={passwords.next}

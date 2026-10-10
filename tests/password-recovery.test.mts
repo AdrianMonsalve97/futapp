@@ -20,7 +20,7 @@ const {createHttpServer}=await import('../backend/src/adapters/in/rest/http-serv
 const {SqliteSecurityRepository}=await import('../backend/src/adapters/out/persistence/repositories/security.repository');
 const {FileMigrationStore}=await import('../backend/src/adapters/out/persistence/migration-store');
 const {PostgresMigrationStore}=await import('../backend/src/adapters/out/persistence/postgres-migration-store');
-const original='Recovery fixture password 123!',fresh='A completely new fixture password 456!';
+const original='Recovery fixture password 123!',fresh='Nueva12!';
 const token=(url:string)=>new URLSearchParams(new URL(url).hash.slice(1)).get('token')!;
 const settle=()=>new Promise(resolve=>setTimeout(resolve,35));
 after(()=>{closeDb();assert.equal(path.dirname(directory),os.tmpdir());fs.rmSync(directory,{recursive:true,force:true});});
@@ -56,6 +56,7 @@ for(const dialect of ['sqlite','postgres'] as const)test(`${dialect}: recovery l
       const grant=await manual();await db.prepare('UPDATE password_reset_tokens SET expires_at=? WHERE user_id=?').run(Date.now()-1,player.user.id);
       assert.equal((await request('/reset-password',{token:token(grant.url),password:fresh,confirmation:fresh})).data.error.code,'RESET_INVALID');
       const active=await manual(),value=token(active.url);
+      for(const password of ['sinMayuscula12!'.toLowerCase(),'SINMINUSCULA12!','SinNumeros!!','SinSimbolos12'])assert.equal((await request('/reset-password',{token:value,password,confirmation:password})).status,400);
       assert.equal((await request('/reset-password',{token:value,password:'short',confirmation:'short'})).status,400);assert.equal((await request('/reset-password',{token:value,password:fresh,confirmation:'mismatch'})).status,400);
       assert.equal((await request('/reset-password',{token:value,password:original,confirmation:original})).status,400);assert.equal((await request('/reset-password',{token:'x'.repeat(43),password:fresh,confirmation:fresh})).status,400);
       assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens WHERE user_id=?').get(player.user.id)).n,1);
@@ -92,6 +93,21 @@ for(const dialect of ['sqlite','postgres'] as const)test(`${dialect}: recovery l
       const objects={put:async()=>{},get:async()=>Buffer.alloc(0),remove:async()=>{}};const store=pg?new PostgresMigrationStore(pg,objects):new FileMigrationStore(getDb(),directory);
       const packet=JSON.parse(gunzipSync(await store.exportData()).toString());assert.deepEqual(packet.tables.password_reset_tokens.rows,[]);assert.deepEqual(packet.tables.password_reset_requests.rows,[]);
       delete packet.tables.password_reset_tokens;delete packet.tables.password_reset_requests;const freshDb=new Database(':memory:');migrate(freshDb);try{const valid=new FileMigrationStore(freshDb,directory).validateForImport(gzipSync(JSON.stringify(packet)));assert.deepEqual(valid.tables.password_reset_tokens.rows,[]);}finally{freshDb.close();}
+    });
+    await t.test('short passwords work for player creation, registration and change; existing credentials stay valid',async()=>{
+      const legacy='legacypassphrase';
+      const legacyId=Number((await db.prepare("INSERT INTO users(email,password_hash,full_name,role) VALUES(?,?,?,'player')").run(`legacy-${dialect}@test.local`,bcrypt.hashSync(legacy,4),'Cuenta anterior')).lastInsertRowid);
+      const legacySession=await c.authService.login({email:`legacy-${dialect}@test.local`,password:legacy});assert.equal(legacySession.user.id,legacyId);
+      const created=await c.playerService.create({email:`short-${dialect}@test.local`,password:fresh,fullName:'Contraseña corta',position:'MED'});
+      await assert.rejects(c.playerService.create({email:`bad-${dialect}@test.local`,password:'sinmayuscula12!',fullName:'Inválido',position:'MED'}));
+      const invited=await c.authService.createInvitation();
+      await assert.rejects(c.authService.register({email:`bad-register-${dialect}@test.local`,password:'SINMINUSCULA12!',fullName:'Inválido',invitationCode:invited.code}));
+      const registered=await c.authService.register({email:`short-register-${dialect}@test.local`,password:fresh,fullName:'Registro corto',invitationCode:invited.code});assert.equal(registered.pendingApproval,true);
+      const session=await c.authService.login({email:created.user.email,password:fresh});
+      await assert.rejects(c.meService.changePassword(created.user.id,fresh,'SinSimbolos12'));assert.equal((await c.authService.verifySession(session.token)).user.id,created.user.id);
+      await c.meService.changePassword(created.user.id,fresh,'Otra123!');await assert.rejects(c.authService.verifySession(session.token));
+      assert.equal((await c.authService.login({email:created.user.email,password:'Otra123!'})).user.id,created.user.id);
+      assert.equal((await c.authService.verifySession(legacySession.token)).user.id,legacyId);
     });
     await t.test('public recovery rate limits also count successful generic replies',async()=>{
       let limited:any;for(let index=0;index<12;index++){const reply=await request('/forgot-password',{email:`limit${index}@test.local`});if(reply.status===429){limited=reply;break;}}assert(limited);assert(limited.response.headers.get('retry-after'));

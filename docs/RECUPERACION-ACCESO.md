@@ -23,8 +23,10 @@ Esta opción solo recupera cuentas de jugadores activos. No aprueba registros pe
 
 ## Controles y operación
 
+Las nuevas contraseñas requieren al menos 8 caracteres, con mayúscula, minúscula, número y carácter especial (por ejemplo `!`, `@` o `_`). Los espacios no cuentan como carácter especial. La regla se aplica al registro, creación de jugadores, cambio y recuperación, y al administrador inicial. Las cuentas y contraseñas ya existentes siguen funcionando; no se cambian automáticamente ni se fuerzan nuevas contraseñas al desplegar.
+
 - `POST /api/auth/forgot-password`: respuesta uniforme para cuentas existentes, inexistentes, inactivas o limitadas; 10 solicitudes por hora por IP y 5 por hora por cuenta, con separación mínima de un minuto. El envío ocurre aparte de la respuesta para evitar distinguir cuentas por la demora del proveedor. Si falta configuración, devuelve 503 para todos y la página indica recuperación asistida.
-- `POST /api/auth/reset-password`: recibe token, contraseña y confirmación. Mantiene la política de 15 caracteres y 72 bytes; rechaza la contraseña anterior. Consumo atómico en SQLite y PostgreSQL, incluso ante solicitudes simultáneas.
+- `POST /api/auth/reset-password`: recibe token, contraseña y confirmación. Exige un mínimo de 8 caracteres, mayúscula, minúscula, número y carácter especial, con un máximo de 72 bytes; rechaza la contraseña anterior. Consumo atómico en SQLite y PostgreSQL, incluso ante solicitudes simultáneas.
 - `POST /api/auth/admin-reset`: solo administrador autenticado, contraseña actual y jugador activo. Una solicitud rechazada no modifica contraseñas ni sesiones.
 - Se guardan hashes de los tokens y una huella de las credenciales; el token completo está únicamente en el enlace y el correo. El token viaja en el fragmento `#token=...`, que no se envía al servidor al abrir la página; la pantalla lo retira de la barra de direcciones y lo mantiene en memoria mientras completas el formulario. Si recargas esa pantalla, abre de nuevo el enlace original.
 - Cambiar contraseña, rol o estado invalida los enlaces. La baja definitiva elimina los tokens asociados. Los enlaces y contadores son transitorios: no se restauran desde backups. Los respaldos anteriores que no contienen las nuevas tablas siguen siendo compatibles.

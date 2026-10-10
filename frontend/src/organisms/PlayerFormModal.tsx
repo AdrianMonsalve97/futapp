@@ -8,6 +8,7 @@ import { Select } from '../atoms/Select';
 import { FormField } from '../molecules/FormField';
 import { HealthFields } from '../molecules/HealthFields';
 import type { Foot, PlayerListItem, Position, Role, UserPlayerResponse } from '../types/api';
+import {PASSWORD_HINT,PASSWORD_MIN_LENGTH,passwordError} from '../utils/password';
 
 export interface PlayerFormModalProps {
   open: boolean;
@@ -112,8 +113,9 @@ export function PlayerFormModal({ open, onClose, player, onSaved }: PlayerFormMo
       setError('El email es obligatorio para crear el usuario.');
       return;
     }
-    if (!player && form.password.length < 15) {
-      setError('La contraseña debe tener al menos 15 caracteres.');
+    const invalidPassword=(!player||form.password)?passwordError(form.password):null;
+    if (invalidPassword) {
+      setError(invalidPassword);
       return;
     }
 
@@ -204,10 +206,11 @@ export function PlayerFormModal({ open, onClose, player, onSaved }: PlayerFormMo
           <FormField
             label="Contraseña"
             required={!player}
-            hint={player ? 'Dejar vacío para no modificar.' : 'Mínimo 15 caracteres.'}
+            hint={player ? `Dejar vacío para no modificar. ${PASSWORD_HINT}` : PASSWORD_HINT}
           >
             <Input
               type="password"
+              required={!player} minLength={PASSWORD_MIN_LENGTH}
               value={form.password}
               onChange={(event) => set('password', event.target.value)}
               placeholder="••••••"

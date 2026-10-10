@@ -1,12 +1,13 @@
 import bcrypt from 'bcryptjs';
 import { createPostgresDatabase } from '../backend/src/adapters/out/persistence/postgres-database';
+import passwordRules from '../backend/src/domain/password-rules.json';
 
 // Recovery only copies an already valid imported password to Render's private environment.
 // It never resets passwords, creates accounts, changes business rows or deploys the app.
 async function recover() {
   const password = process.env.ADMIN_ACCESS_PASSWORD || '';
   const serviceId = process.env.RENDER_SERVICE_ID || '';
-  if (!/^srv-[a-z0-9]+$/.test(serviceId) || !process.env.RENDER_API_KEY || password.length < 15 || Buffer.byteLength(password) > 72) throw new Error();
+  if (!/^srv-[a-z0-9]+$/.test(serviceId) || !process.env.RENDER_API_KEY || password.length < passwordRules.minLength || Buffer.byteLength(password) > passwordRules.maxBytes) throw new Error();
   async function render(route: string, value?: string) {
     const response = await fetch(`https://api.render.com/v1/services/${serviceId}${route}`, {
       method: value === undefined ? 'GET' : 'PUT',

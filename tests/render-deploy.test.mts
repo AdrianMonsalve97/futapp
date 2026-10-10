@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRenderClient } from '../scripts/render-deploy.mjs';
+import {validatePassword} from '../backend/src/domain/password-policy';
 const commit='a'.repeat(40),url='https://futapp-test.onrender.com';
 function fixture({free=true,mismatched=false,configured=true,mail={}}:{free?:boolean;mismatched?:boolean;configured?:boolean;mail?:Record<string,string>}={}){
   const env=new Map([['JWT_SECRET','existing-very-long-jwt-secret-that-must-persist'],['SMTP_PASSWORD','keep-provider-secret'],['DB_PATH','/var/data/portal.db']]);
@@ -27,7 +28,11 @@ test('environment task preserves existing secrets, generates missing credentials
   const {client,env,writes}=fixture();const before=env.get('JWT_SECRET');await client.configure();
   assert.equal(env.get('JWT_SECRET'),before);assert.equal(env.get('SMTP_PASSWORD'),'keep-provider-secret');
   assert(env.get('ADMIN_PASSWORD')!.length>=15);assert.equal(env.has('DB_PATH'),false);assert.equal(env.get('DB_DRIVER'),'postgres');assert.equal(env.get('PUBLIC_APP_URL'),url);assert.equal(env.get('SUPABASE_SECRET_KEY'),'sb_secret_fixture_key');
+  assert.doesNotThrow(()=>validatePassword(env.get('ADMIN_PASSWORD')!));
   const count=writes.length,password=env.get('ADMIN_PASSWORD');await client.configure();assert.equal(writes.length,count);assert.equal(env.get('ADMIN_PASSWORD'),password);
+});
+test('environment task accepts eight-character admin credentials without replacing them',async()=>{
+  const {client,env}=fixture();env.set('ADMIN_PASSWORD','Nueva12!');await client.configure();assert.equal(env.get('ADMIN_PASSWORD'),'Nueva12!');
 });
 test('only the validated commit is published and the service must pass health',async()=>{
   const {client,writes}=fixture();await assert.rejects(client.deploy(commit));await client.configure();

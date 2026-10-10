@@ -9,6 +9,7 @@ import { Input } from '../../atoms/Input';
 import { Select } from '../../atoms/Select';
 import { FormField } from '../../molecules/FormField';
 import type { Position } from '../../types/api';
+import {PASSWORD_HINT,PASSWORD_MIN_LENGTH,passwordError} from '../../utils/password';
 
 /** Registro público de jugador (SPEC §10.4) → redirige a `/jugador/inicio`. */
 export function RegisterPage() {
@@ -39,8 +40,9 @@ export function RegisterPage() {
       setError('Nombre, email y contraseña son obligatorios.');
       return;
     }
-    if (form.password.length < 15) {
-      setError('La contraseña debe tener al menos 15 caracteres.');
+    const invalidPassword=passwordError(form.password);
+    if (invalidPassword) {
+      setError(invalidPassword);
       return;
     }
     setBusy(true);
@@ -103,9 +105,10 @@ export function RegisterPage() {
                 placeholder="300 000 0000"
               />
             </FormField>
-            <FormField label="Contraseña" required hint="Mínimo 15 caracteres. Puedes usar una frase.">
+            <FormField label="Contraseña" required hint={PASSWORD_HINT}>
               <Input
                 type="password"
+                required minLength={PASSWORD_MIN_LENGTH}
                 value={form.password}
                 onChange={(event) => set('password', event.target.value)}
                 autoComplete="new-password"

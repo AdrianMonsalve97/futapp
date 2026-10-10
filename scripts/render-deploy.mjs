@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import passwordRules from '../backend/src/domain/password-rules.json' with {type:'json'};
 
 export function createRenderClient({ apiKey, serviceId, request = fetch, cloud = {} }) {
   if (!apiKey || !/^srv-[a-z0-9]+$/.test(serviceId ?? '')) throw new Error('Configura RENDER_API_KEY como secreto y RENDER_SERVICE_ID como variable de GitHub Actions');
@@ -36,9 +37,9 @@ export function createRenderClient({ apiKey, serviceId, request = fetch, cloud =
         if (page===99) throw new Error('Demasiadas variables de entorno');
       }
       const jwt = existing.get('JWT_SECRET') || randomBytes(48).toString('base64url');
-      const password = existing.get('ADMIN_PASSWORD') || randomBytes(24).toString('base64url');
+      const password = existing.get('ADMIN_PASSWORD') || 'Aa1!'+randomBytes(24).toString('base64url');
       mask(jwt); mask(password);
-      if (jwt.length < 32 || jwt.includes('cambiame') || password.length < 15 || Buffer.byteLength(password)>72) throw new Error('Los secretos existentes no cumplen los requisitos. Corrígelos en Render.');
+      if (jwt.length < 32 || jwt.includes('cambiame') || password.length < passwordRules.minLength || Buffer.byteLength(password)>passwordRules.maxBytes) throw new Error('Los secretos existentes no cumplen los requisitos. Corrígelos en Render.');
       const databaseUrl=cloud.databaseUrl || existing.get('DATABASE_URL'),supabaseUrl=cloud.supabaseUrl || existing.get('SUPABASE_URL'),serverKey=cloud.serverKey || existing.get('SUPABASE_SECRET_KEY') || existing.get('SUPABASE_SERVICE_ROLE_KEY');
       if(!databaseUrl||!supabaseUrl||!serverKey)throw new Error('Configura DATABASE_URL, SUPABASE_URL y SUPABASE_SECRET_KEY como secretos de GitHub Actions');
       let database,storage;
