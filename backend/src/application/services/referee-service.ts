@@ -2,7 +2,7 @@ import type { RefereeRepository } from '../ports/out/referee.repository';
 import type { MatchRepository } from '../ports/out/match.repository';
 import type { QrPaymentRepository } from '../ports/out/qr-payment.repository';
 import type { PaymentDebt } from '../../domain/payments';
-import { REFEREE_TOTAL, refereeDeadline, splitReferee,parseSettledShares, type MatchRefereeView } from '../../domain/referee';
+import { REFEREE_TOTAL, refereeDeadline, refereeReceiptOnTime, splitReferee,parseSettledShares, type MatchRefereeView } from '../../domain/referee';
 import type { Match } from '../../domain/entities';
 import { NotFoundError, ValidationError } from '../../domain/errors';
 import { allocateRefereeCredits } from '../../domain/referee-credit';
@@ -54,8 +54,8 @@ export class RefereeService {
         const creditTransferred=deposited.reduce((sum,receipt)=>sum+sent(receipt.id),0);
         const directPaid=deposited.reduce((sum,receipt)=>sum+receipt.amount,0)-creditTransferred;
         const paid=directPaid+creditApplied;
-        const paidOnTime=deposited.filter(receipt=>Date.parse(receipt.paidAt)<=Date.parse(dueAt)).reduce((sum,receipt)=>sum+receipt.amount-sent(receipt.id),0)+
-          carried.filter(part=>Date.parse(part.receipt.paidAt)<=Date.parse(dueAt)).reduce((sum,part)=>sum+part.amount,0);
+        const paidOnTime=deposited.filter(receipt=>refereeReceiptOnTime(receipt,dueAt)).reduce((sum,receipt)=>sum+receipt.amount-sent(receipt.id),0)+
+          carried.filter(part=>refereeReceiptOnTime(part.receipt,dueAt)).reduce((sum,part)=>sum+part.amount,0);
         const pending=related.filter(receipt=>receipt.status==='pendiente').reduce((sum,receipt)=>sum+receipt.amount,0);
         const amount=shares.get(row.playerId)??0,attending=shares.has(row.playerId);
         const free=total===0&&!cancelled&&row.eligible&&(!enrolled||enrolled.has(row.playerId));

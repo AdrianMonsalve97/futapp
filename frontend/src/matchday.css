@@ -127,7 +127,7 @@
   display: block;
   color: #e8d7a5;
 }
-.match-kickoff-rival > div > p:last-child {
+.match-kickoff-rival > div > p:not(.sport-eyebrow) {
   font-size: 0.7rem;
   color: #b8c4cc;
 }
@@ -200,4 +200,11 @@
     width: 44px;
     height: 44px;
   }
+}
+
+.match-kickoff-score {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0.75rem;
 }

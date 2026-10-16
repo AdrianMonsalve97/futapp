@@ -1,27 +1,19 @@
-import { formatKickoffDate } from "../../utils/match-clock";
-import { pitchSlotsFrom } from "../../utils/lineup-slots";
 import { MatchDayHero } from "../../organisms/MatchDayHero";
 import { ClubActionGrid } from "../../organisms/ClubActionGrid";
 import { ClubHomeExtras } from "../../organisms/ClubHomeExtras";
 import { ClubMatchStrip } from "../../organisms/ClubMatchStrip";
-import { AttendancePanel } from "../../organisms/AttendancePanel";
 import { Link } from "react-router-dom";
 import { useFetch } from "../../hooks/useFetch";
-import { useTeamFormat } from "../../context/SettingsContext";
 import { PageHeader } from "../../templates/PageHeader";
 import { Alert } from "../../atoms/Alert";
-import { Badge } from "../../atoms/Badge";
 import { Card, CardBody, CardTitle } from "../../atoms/Card";
 import { EmptyState } from "../../atoms/EmptyState";
 import { Icon } from "../../atoms/Icon";
 import { Spinner } from "../../atoms/Spinner";
 import { StatCardsRow } from "../../organisms/StatCardsRow";
 import { RatingTrendChart } from "../../organisms/RatingTrendChart";
-import { FormationPitch, pitchSizeClass } from "../../organisms/FormationPitch";
-import { MatchMeta } from "../../molecules/MatchMeta";
 import { StatusBadge } from "../../molecules/StatusBadge";
 import { Money } from "../../molecules/Money";
-import { formatBadge } from "../../data/formations";
 import { formatRating, pendingAmount } from "../../utils/format";
 import type { DashboardPlayer, MeMatchesResponse } from "../../types/api";
 
@@ -31,8 +23,6 @@ export function PlayerDashboardPage() {
     "/api/dashboard/player",
   );
   const matches = useFetch<MeMatchesResponse>("/api/me/matches");
-  /** §12.7.2 — aspecto del pitch según el formato del próximo partido. */
-  const profile = useTeamFormat(data?.upcomingMatch?.format);
 
   if (loading) {
     return (
@@ -84,7 +74,6 @@ export function PlayerDashboardPage() {
   const pending = inscription
     ? pendingAmount(inscription.amount, inscription.paid)
     : 0;
-  const mySlot = upcomingMatch?.lineupSlot ?? null;
 
   const opponents = new Map(
     (matches.data?.finished ?? []).map((match) => [match.id, match.opponent]),
@@ -96,18 +85,6 @@ export function PlayerDashboardPage() {
       label: opponents.get(stat.matchId) ?? `#${stat.matchId}`,
       value: stat.rating,
     }));
-
-  const pitchSlots = upcomingMatch
-    ? pitchSlotsFrom(
-        upcomingMatch.formation,
-        upcomingMatch.lineup,
-        upcomingMatch.format,
-      ).map((slot) =>
-        slot.slotIndex === mySlot?.slotIndex
-          ? { ...slot, playerName: slot.playerName ?? "Tú", highlighted: true }
-          : slot,
-      )
-    : [];
 
   return (
     <>
@@ -123,17 +100,19 @@ export function PlayerDashboardPage() {
       />
 
       <MatchDayHero match={upcomingMatch} />
-      <ClubMatchStrip match={upcomingMatch} />
+      <ClubMatchStrip
+        match={upcomingMatch}
+        matches={[
+          ...(matches.data?.upcoming ?? []),
+          ...(matches.data?.finished ?? []),
+        ]}
+        loading={matches.loading}
+        error={matches.error}
+        onRetry={matches.reload}
+      />
       <ClubActionGrid />
-      {upcomingMatch && (
-        <AttendancePanel
-          matchId={upcomingMatch.id}
-          tournamentId={upcomingMatch.tournamentId}
-          onChanged={reload}
-        />
-      )}
-
       <StatCardsRow
+        columns={3}
         tiles={[
           {
             label: "Inscripción",
@@ -144,29 +123,15 @@ export function PlayerDashboardPage() {
             ),
             icon: "dinero",
             tone: inscription?.status === "pagada" ? "success" : "warning",
-            hint:
-              inscription && pending > 0 ? (
-                <>
-                  Falta <Money value={pending} />
-                </>
-              ) : (
-                "Sin deuda pendiente"
-              ),
-          },
-          {
-            label: "Próximo partido",
-            value: upcomingMatch
-              ? formatKickoffDate(upcomingMatch.kickOff, {
-                  weekday: "short",
-                  day: "numeric",
-                  month: "short",
-                })
-              : "Sin partidos",
-            icon: "calendar",
-            tone: "info",
-            hint: upcomingMatch
-              ? upcomingMatch.opponent
-              : "A la espera del próximo fixture",
+            hint: !inscription ? (
+              "El administrador debe generar tu inscripción."
+            ) : pending > 0 ? (
+              <>
+                Falta <Money value={pending} />
+              </>
+            ) : (
+              "Sin deuda pendiente"
+            ),
           },
           {
             label: "Calificación promedio",
@@ -192,114 +157,27 @@ export function PlayerDashboardPage() {
 
       <div className="grid gap-4 mt-4 lg:grid-cols-2">
         <Card>
-          <CardBody className="gap-3">
-            <CardTitle className="text-base">Próximo partido</CardTitle>
-            {upcomingMatch ? (
-              <>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-lg font-bold">{upcomingMatch.opponent}</p>
-                  <div className="flex items-center gap-2">
-                    <Badge tone="info" size="sm">
-                      {formatBadge(
-                        upcomingMatch.format ?? profile.format,
-                        upcomingMatch.minutes ?? profile.matchMinutes,
-                      )}
-                    </Badge>
-                    <Badge tone="primary" size="sm">
-                      {upcomingMatch.formation}
-                    </Badge>
-                  </div>
-                </div>
-                <MatchMeta match={upcomingMatch} />
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  {mySlot ? (
-                    <>
-                      <Badge tone="success" size="sm">
-                        Estás en el {profile.playersOnPitch} inicial
-                      </Badge>
-                      <span className="text-base-content/60">
-                        Jugás de{" "}
-                        <span className="font-semibold">{mySlot.label}</span>
-                      </span>
-                    </>
-                  ) : (
-                    <Badge tone="neutral" size="sm">
-                      Todavía no estás en el {profile.playersOnPitch} inicial
-                    </Badge>
-                  )}
-                </div>
-                <div className={pitchSizeClass(profile.format)}>
-                  <FormationPitch slots={pitchSlots} format={profile.format} />
-                </div>
-                <Link
-                  to={`/jugador/partidos/${upcomingMatch.id}`}
-                  className="btn btn-outline btn-sm self-start"
-                >
-                  Ver detalle del partido
-                  <Icon name="arrowRight" size={14} />
-                </Link>
-              </>
-            ) : (
-              <EmptyState
-                title="Sin próximo partido"
-                message="Cuando se programe un encuentro vas a ver acá tu posición en el campo."
-                icon="futbol"
-              />
-            )}
+          <CardBody className="gap-2">
+            <CardTitle className="text-base">Últimos 5 partidos</CardTitle>
+            <RatingTrendChart points={trendPoints} />
           </CardBody>
         </Card>
 
-        <div className="space-y-4">
-          <Card>
-            <CardBody className="gap-2">
-              <CardTitle className="text-base">Últimos 5 partidos</CardTitle>
-              <RatingTrendChart points={trendPoints} />
-            </CardBody>
-          </Card>
-
-          {inscription && inscription.status !== "pagada" ? (
-            <Alert tone="warning" title="Inscripción no saldada">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span>
-                  Pagaste <Money value={inscription.paid} /> de{" "}
-                  <Money value={inscription.amount} /> · falta{" "}
-                  <Money value={pending} />
-                </span>
-                <Link
-                  to="/jugador/inscripcion"
-                  className="btn btn-xs btn-outline"
-                >
-                  Ver detalle
-                </Link>
-              </div>
-            </Alert>
-          ) : inscription ? (
-            <Alert tone="success" title="Inscripción al día">
-              Tu inscripción está saldada. ¡Gracias!
-            </Alert>
-          ) : (
-            <Alert tone="info" title="Prepara tu inscripción">
-              El administrador debe generar tu inscripción de la temporada.
-              Consulta tus torneos para verificar tu convocatoria.
-            </Alert>
-          )}
-
-          <Card>
-            <CardBody className="gap-2">
-              <CardTitle className="text-base">Uniformes</CardTitle>
-              <div className="flex flex-wrap items-center gap-4 text-sm">
-                <span className="inline-flex items-center gap-2">
-                  <Icon name="camiseta" size={16} className="text-primary" />
-                  {uniforms.issued.length} en uso
-                </span>
-                <span className="inline-flex items-center gap-2">
-                  <Icon name="clipboard" size={16} className="text-primary" />
-                  {uniforms.pendingRequests} solicitudes pendientes
-                </span>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
+        <Card>
+          <CardBody className="gap-2">
+            <CardTitle className="text-base">Uniformes</CardTitle>
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <span className="inline-flex items-center gap-2">
+                <Icon name="camiseta" size={16} className="text-primary" />
+                {uniforms.issued.length} en uso
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Icon name="clipboard" size={16} className="text-primary" />
+                {uniforms.pendingRequests} solicitudes pendientes
+              </span>
+            </div>
+          </CardBody>
+        </Card>
       </div>
       <ClubHomeExtras />
     </>

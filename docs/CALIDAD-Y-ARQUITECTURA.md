@@ -88,3 +88,35 @@ las páginas conservan solo la composición. El jugador ve el sistema publicado 
 los administradores acceden al borrador; ningún atributo deportivo se inventa.
 La presentación usa el estadio del club, un monograma neutral para el rival sin
 escudo registrado, y animación CSS que respeta ambas preferencias de movimiento.
+
+
+## Consolidación de pantallas y preparación deportiva
+
+- El inicio presenta el próximo encuentro una vez, en `MatchDayHero`. `ClubMatchStrip`
+  se limita al último resultado y las otras fechas: recibe datos del calendario del
+  padre y no vuelve a consultarlos. El jugador reutiliza `/api/me/matches`, también
+  utilizado para etiquetar su gráfico. Asistencia y alineación se gestionan en el
+  partido; se retiraron sus copias completas del inicio y los indicadores repetidos.
+- El calendario y la sala del partido comparten `MatchFormModal` y `useMatchEditor`.
+  Se retiraron `MatchDataEditor` y `useMatchDataForm`. El editor conserva formato,
+  duración, torneo, ubicación, marcador y notas. No consulta torneos cuando está
+  cerrado, no sustituye un borrador escrito al llegar una consulta y bloquea sus
+  campos durante el envío. `MatchKickoffPanel` concentra identidad, fecha, formato
+  y resultado; esos datos ya no se repiten debajo en la ficha.
+- Dirección deportiva tiene tareas separadas: plan del equipo, jugadas, enfoque
+  individual y modelo/datos. `useCoachingWorkspace` concentra transporte y acciones;
+  los paneles se cargan según la tarea. Cambiar entre plan y jugadas conserva el
+  análisis, sin repetir la petición. `TacticalBoard` presenta la propuesta y la
+  alineación; `TacticalPlayDetails` comparte las instrucciones de las jugadas con
+  el enfoque individual. Se conservan la preparación específica del portero y las
+  referencias de FIFA, sin inventar búsquedas ni métricas.
+- Plantilla → Sala táctica asigna todo el ancho al tablero. Se retiró la tarjeta
+  lateral estrecha con un segundo resumen del inicial; contador y contexto van
+  debajo. La consulta del próximo encuentro reutiliza la selección cronológica
+  del calendario, incluida su conversión de hora Colombia.
+- El total y el plazo del arbitraje viven en `domain/referee-rules.json`, compartido
+  con los textos de cliente. El corte es 24 horas antes: transferencia y aprobación
+  deben cumplirlo para titularidad. La función pura `refereeReceiptOnTime` reconoce
+  timestamps SQL en UTC, rechaza fechas de aprobación ausentes y conserva saldos
+  válidos para suplencia. Las aplicaciones de saldo usan las fechas originales.
+  Se prueba el límite inclusivo, revisión tardía, IA y persistencia SQLite/PostgreSQL.

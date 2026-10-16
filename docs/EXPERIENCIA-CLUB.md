@@ -21,7 +21,7 @@ noticias, resultados o jugadores ficticios del mockup.
   transferencia por el QR del equipo → soporte a revisión. Los saldos, fechas,
   comprobantes e históricos mantienen sus verificaciones y permisos.
 - Partido: consultar fecha y cancha, confirmar asistencia, pagar arbitraje y
-  consultar la alineación publicada. El arbitraje conserva el plazo de 48 horas,
+  consultar la alineación publicada. El arbitraje conserva el plazo de 24 horas para pago y aprobación,
   suplencia por pago tardío y saldo para próximas fechas si no se asiste.
 - Tienda: imágenes de los uniformes guardados, elección de prenda/talla/destinatario,
   solicitud, seguimiento de pedido y pago.

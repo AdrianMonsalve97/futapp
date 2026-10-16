@@ -555,3 +555,43 @@ html[data-motion="off"] .fc-position[aria-pressed="true"] {
   color: #f0d48a;
   font-weight: 850;
 }
+
+.fc-squad-context {
+  display: grid;
+  grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
+  gap: clamp(1.5rem, 4vw, 4rem);
+  align-items: center;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #b1ced326;
+}
+.fc-squad-context .fc-console-help {
+  margin: 0;
+  font-size: 0.8rem;
+}
+.fc-squad-context .match-countdown-digits strong {
+  font-size: 2rem;
+}
+.fc-coaching-plan .btn-outline {
+  color: #e6eef1;
+  border-color: #b1ced344;
+}
+.fc-coaching-explanation {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 1rem;
+  color: #c3d1d8;
+  line-height: 1.8;
+}
+.fc-coaching-explanation h3 {
+  color: #fff;
+  font-weight: 750;
+}
+.fc-coaching-explanation p {
+  font-size: 0.85rem;
+}
+@media (max-width: 760px) {
+  .fc-squad-context {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

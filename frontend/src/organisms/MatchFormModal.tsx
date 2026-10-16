@@ -35,7 +35,7 @@ export function MatchFormModal(props: MatchEditorProps) {
     >
       <div className="space-y-3">
         {error ? <Alert tone="error">{error}</Alert> : null}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <fieldset disabled={busy} className="grid gap-3 sm:grid-cols-2">
           <FormField
             label="Torneo y normativa"
             className="sm:col-span-2"
@@ -278,7 +278,7 @@ export function MatchFormModal(props: MatchEditorProps) {
               placeholder="Indicaciones generales…"
             />
           </FormField>
-        </div>
+        </fieldset>
       </div>
     </Modal>
   );

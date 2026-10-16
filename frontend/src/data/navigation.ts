@@ -29,7 +29,7 @@ export const MENU_BY_ROLE: Record<Role, MenuItem[]> = {
     { to: "/admin/transmisiones", label: "Transmisiones", icon: "video" },
     { to: "/admin/sanciones", label: "Sanciones", icon: "tarjeta" },
     { to: "/admin/estadisticas", label: "Estadísticas", icon: "clipboard" },
-    { to: "/admin/ia", label: "Inteligencia artificial", icon: "sparkles" },
+    { to: "/admin/ia", label: "Dirección deportiva", icon: "sparkles" },
     { to: "/admin/configuracion", label: "Configuración", icon: "settings" },
   ],
   player: [

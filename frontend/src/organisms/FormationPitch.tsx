@@ -41,11 +41,6 @@ const VIEW_HEIGHT = PITCH_HEIGHT;
 
 const W = 100;
 
-/** Ancho del bloque del pitch según formato (clases literales para Tailwind). */
-export function pitchSizeClass(format: TeamFormat): string {
-  return format === 11 ? "max-w-[420px] mx-auto" : "max-w-[500px] mx-auto";
-}
-
 /** Columna izquierda del grid del editor/AI según formato (literales Tailwind). */
 export function pitchGridClass(format: TeamFormat): string {
   return format === 11

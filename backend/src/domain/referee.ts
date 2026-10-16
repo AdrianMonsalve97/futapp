@@ -1,7 +1,9 @@
 import { ValidationError } from './errors';
+import rules from './referee-rules.json';
+import type { PaymentReceipt } from './payments';
 
-export const REFEREE_TOTAL = 120000;
-export const REFEREE_NOTICE_HOURS = 48;
+export const REFEREE_TOTAL = rules.total;
+export const REFEREE_NOTICE_HOURS = rules.noticeHours;
 export type RefereePaymentStatus = 'sin_cobro' | 'no_asiste' | 'pendiente' | 'en_revision' | 'a_tiempo' | 'tardio';
 export interface RefereePaymentRow {
   playerId: number; playerName: string; amount: number; paid: number; paidOnTime: number;
@@ -29,7 +31,16 @@ export function parseSettledShares(value:string,total:number):SettledRefereeShar
 }
 /** Match schedules use Colombia local time, regardless of the host's time zone. */
 export function refereeDeadline(kickOff: string): string {
-  return new Date(Date.parse(kickOff + '-05:00') - REFEREE_NOTICE_HOURS * 3600000).toISOString();
+  const value = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(kickOff) ? kickOff + '-05:00' : kickOff;
+  return new Date(Date.parse(value) - REFEREE_NOTICE_HOURS * 3600000).toISOString();
+}
+/** SQL stores review timestamps in UTC without an offset; both events must meet the inclusive cutoff. */
+export function refereeReceiptOnTime(receipt: Pick<PaymentReceipt, 'status' | 'paidAt' | 'reviewedAt'>, dueAt: string): boolean {
+  if (receipt.status !== 'aprobado' || !receipt.reviewedAt) return false;
+  const reviewed = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(receipt.reviewedAt)
+    ? receipt.reviewedAt.replace(' ', 'T') + 'Z' : receipt.reviewedAt;
+  const paid = Date.parse(receipt.paidAt), approved = Date.parse(reviewed), cutoff = Date.parse(dueAt);
+  return Number.isFinite(paid) && Number.isFinite(approved) && Number.isFinite(cutoff) && paid <= cutoff && approved <= cutoff;
 }
 /** Whole Colombian pesos; the remainder is distributed in stable player-id order. */
 export function splitReferee(total: number, playerIds: number[]): Map<number, number> {

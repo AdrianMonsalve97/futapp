@@ -1,3 +1,4 @@
+import { TacticalPlayDetails } from "../molecules/TacticalPlayDetails";
 import { pitchSlotsFrom } from "../utils/lineup-slots";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -304,26 +305,7 @@ export function IndividualPreparation({
                 play={play}
                 slots={slots}
               />
-              <div className="space-y-3">
-                <h4 className="font-semibold">{play.title}</h4>
-                <p>{play.objective}</p>
-                <ol className="list-decimal pl-5 space-y-3 text-sm">
-                  {play.steps.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ol>
-                <p className="text-sm rounded-xl bg-base-200 p-4">
-                  {play.coaching}
-                </p>
-                <a
-                  className="link text-sm"
-                  href={play.source.url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Referencia deportiva: FIFA Training Centre
-                </a>
-              </div>
+              <TacticalPlayDetails play={play} headingLevel={4} />
             </div>
           ) : null}
         </div>

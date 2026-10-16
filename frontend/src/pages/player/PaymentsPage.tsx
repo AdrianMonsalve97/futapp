@@ -1,3 +1,4 @@
+import refereeRules from "../../../../backend/src/domain/referee-rules.json";
 import { useSearchParams, Link } from "react-router-dom";
 import { Icon, type IconName } from "../../atoms/Icon";
 import { QrPaymentPanel } from "../../organisms/QrPaymentPanel";
@@ -71,7 +72,7 @@ export function PaymentsPage() {
       </ol>
       <p className="club-payment-note">
         {kind === "referee"
-          ? "Confirma tu asistencia en el partido para generar tu aporte. Transfiere al menos 48 horas antes del encuentro para optar al equipo inicial. El soporte debe ser aprobado; un pago tardío habilita suplencia. Si pagas y no asistes, el saldo se acumula para la siguiente fecha."
+          ? `Confirma tu asistencia para generar tu aporte. El pago completo debe estar realizado y aprobado al menos ${refereeRules.noticeHours} horas antes del partido para ser titular. Un pago o aprobación tardíos habilitan suplencia. Si pagas y no asistes, el saldo se acumula para la siguiente fecha.`
           : kind === "uniform"
             ? "Primero solicita la prenda en la tienda. Aquí encontrarás su concepto de pago y podrás seguir la revisión del comprobante."
             : "La inscripción la genera el administrador. Tu transferencia queda en revisión hasta que valide el soporte."}

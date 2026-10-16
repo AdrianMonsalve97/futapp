@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type SetStateAction } from "react";
 import { useFetch } from "./useFetch";
 import { useSettings } from "../context/SettingsContext";
 import { api, errorMessage } from "../services/api";
@@ -82,36 +82,46 @@ export function useMatchEditor({
   teamFormat,
   onSaved,
 }: MatchEditorProps) {
-  const tournaments = useFetch<Tournament[]>("/api/tournaments");
+  const tournaments = useFetch<Tournament[]>(open ? "/api/tournaments" : null);
   const { settings } = useSettings();
   const [rulesSelected, setRulesSelected] = useState(false);
-  const [form, setForm] = useState<FormState>(() => toForm(match, teamFormat));
+  const [form, setFormState] = useState<FormState>(() =>
+    toForm(match, teamFormat),
+  );
+  const dirty = useRef(false);
+  const setForm = (update: SetStateAction<FormState>) => {
+    dirty.current = true;
+    setFormState(update);
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) {
-      setRulesSelected(false);
-      const next = toForm(match, teamFormat);
-      const defaultTournament = !match
-        ? (tournaments.data ?? []).find(
-            (row) =>
-              row.id === settings.defaultTournamentId &&
-              row.status === "publicado",
-          )
-        : null;
-      if (defaultTournament) {
-        next.tournamentId = defaultTournament.id;
-        next.competition = defaultTournament.name;
-        next.format = defaultTournament.rules.format;
-        next.minutes =
-          defaultTournament.rules.periods *
-          defaultTournament.rules.minutesPerPeriod;
-        next.formation = defaultTournament.rules.allowedFormations[0];
-      }
-      setForm(next);
-      setError(null);
+    if (!open) {
+      dirty.current = false;
+      return;
     }
+    if (dirty.current) return;
+    setRulesSelected(false);
+    const next = toForm(match, teamFormat);
+    const defaultTournament = !match
+      ? (tournaments.data ?? []).find(
+          (row) =>
+            row.id === settings.defaultTournamentId &&
+            row.status === "publicado",
+        )
+      : null;
+    if (defaultTournament) {
+      next.tournamentId = defaultTournament.id;
+      next.competition = defaultTournament.name;
+      next.format = defaultTournament.rules.format;
+      next.minutes =
+        defaultTournament.rules.periods *
+        defaultTournament.rules.minutesPerPeriod;
+      next.formation = defaultTournament.rules.allowedFormations[0];
+    }
+    setFormState(next);
+    setError(null);
   }, [open, match, teamFormat, tournaments.data, settings.defaultTournamentId]);
 
   const submit = async () => {

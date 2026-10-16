@@ -5,7 +5,7 @@ import { useFetch } from "../../hooks/useFetch";
 import { useTeamFormat } from "../../context/SettingsContext";
 import { MatchRulesNotice } from "../../molecules/MatchRulesNotice";
 import { SectionNavigation } from "../../molecules/SectionNavigation";
-import { MatchMeta } from "../../molecules/MatchMeta";
+import { Button } from "../../atoms/Button";
 import { PageHeader } from "../../templates/PageHeader";
 import { Alert } from "../../atoms/Alert";
 import { Card, CardBody, CardTitle } from "../../atoms/Card";
@@ -15,13 +15,13 @@ import { AttendancePanel } from "../../organisms/AttendancePanel";
 import { RefereePaymentPanel } from "../../organisms/RefereePaymentPanel";
 import { MatchBroadcast } from "../../organisms/MatchBroadcast";
 import { MatchVenueMap } from "../../organisms/MatchVenueMap";
-import { MatchDataEditor } from "../../organisms/MatchDataEditor";
+import { MatchFormModal } from "../../organisms/MatchFormModal";
 import { MatchStrategyEditor } from "../../organisms/MatchStrategyEditor";
 import { NotifyMatchButton } from "../../organisms/NotifyMatchButton";
 import { StatsEntryForm } from "../../organisms/StatsEntryForm";
 import type { MatchDetailResponse, PlayerListItem } from "../../types/api";
 
-type Section = "partido" | "convocatoria" | "tactica" | "rendimiento" | "datos";
+type Section = "partido" | "convocatoria" | "tactica" | "rendimiento";
 
 export function MatchBuilderPage() {
   const { id } = useParams(),
@@ -31,6 +31,7 @@ export function MatchBuilderPage() {
     valid ? `/api/matches/${matchId}` : null,
   );
   const [section, setSection] = useState<Section>("tactica");
+  const [editing, setEditing] = useState(false);
   const players = useFetch<PlayerListItem[]>(
     section === "tactica" || section === "rendimiento" ? "/api/players" : null,
   );
@@ -53,10 +54,17 @@ export function MatchBuilderPage() {
   return (
     <>
       <PageHeader
-        title={`${match.isHome ? "vs." : "en"} ${match.opponent}`}
-        subtitle={`${match.competition} · ${profile.name} · ${match.minutes} minutos`}
+        title="Sala de partido"
+        subtitle="Convocatoria, táctica y rendimiento del equipo"
         actions={
           <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditing(true)}
+            >
+              Editar partido
+            </Button>
             <Link className="btn btn-outline btn-sm" to="/admin/partidos">
               ← Calendario
             </Link>
@@ -72,7 +80,6 @@ export function MatchBuilderPage() {
         }
       />
       <MatchKickoffPanel match={match} />
-      <MatchRulesNotice match={match} />
       <SectionNavigation
         label="Gestionar partido"
         value={section}
@@ -82,21 +89,13 @@ export function MatchBuilderPage() {
           { key: "convocatoria", label: "Asistencia y arbitraje" },
           { key: "tactica", label: "Alineación y plan" },
           { key: "rendimiento", label: "Rendimiento" },
-          { key: "datos", label: "Editar partido" },
         ]}
       />
       {section === "partido" && (
         <>
+          <MatchRulesNotice match={match} />
           <Card>
             <CardBody>
-              <MatchMeta match={match} />
-              {match.status === "jugado" &&
-                match.goalsFor !== null &&
-                match.goalsAgainst !== null && (
-                  <p className="text-5xl font-black tabular-nums">
-                    {match.goalsFor} – {match.goalsAgainst}
-                  </p>
-                )}
               {match.notes && (
                 <p className="text-sm text-base-content/70">{match.notes}</p>
               )}
@@ -194,9 +193,13 @@ export function MatchBuilderPage() {
           </CardBody>
         </Card>
       )}
-      {section === "datos" && (
-        <MatchDataEditor match={match} onSaved={detail.reload} />
-      )}
+      <MatchFormModal
+        open={editing}
+        onClose={() => setEditing(false)}
+        match={match}
+        teamFormat={profile.format}
+        onSaved={detail.reload}
+      />
     </>
   );
 }

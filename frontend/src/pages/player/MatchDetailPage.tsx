@@ -21,8 +21,6 @@ import { MatchBroadcast } from "../../organisms/MatchBroadcast";
 import { SectionNavigation } from "../../molecules/SectionNavigation";
 import { MyMatchPerformance } from "../../organisms/MyMatchPerformance";
 import { MatchVenueMap } from "../../organisms/MatchVenueMap";
-import { MatchMeta } from "../../molecules/MatchMeta";
-import { StatusBadge } from "../../molecules/StatusBadge";
 import { formatBadge } from "../../data/formations";
 import type { MatchDetailResponse } from "../../types/api";
 
@@ -87,8 +85,8 @@ export function MatchDetailPage() {
   return (
     <>
       <PageHeader
-        title={`${match.isHome ? "vs." : "en"} ${match.opponent}`}
-        subtitle={match.competition}
+        title="Mi partido"
+        subtitle="Tu asistencia, el plan y tu actuación"
         actions={
           <Link to="/jugador/partidos" className="btn btn-outline btn-sm">
             <Icon name="arrowLeft" size={14} />
@@ -98,7 +96,6 @@ export function MatchDetailPage() {
       />
 
       <MatchKickoffPanel match={match} />
-      <MatchRulesNotice match={match} />
       <SectionNavigation
         label="Explorar partido"
         value={section}
@@ -110,32 +107,16 @@ export function MatchDetailPage() {
         ]}
       />
 
-      <Card className="mb-4">
-        {!match.lineupPublishedAt && match.status !== "jugado" && (
-          <p className="px-6 pt-5 text-sm text-base-content/60">
-            El equipo técnico está preparando la alineación. Aparecerá aquí
-            cuando se publique.
-          </p>
-        )}
-        <CardBody className="gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <MatchMeta match={match} />
-            <div className="flex items-center gap-2">
-              <StatusBadge status={match.status} size="md" />
-              {match.status === "jugado" &&
-              match.goalsFor !== null &&
-              match.goalsAgainst !== null ? (
-                <span className="text-2xl font-bold tabular-nums">
-                  {match.goalsFor} – {match.goalsAgainst}
-                </span>
-              ) : null}
-            </div>
-          </div>
-          {match.notes ? (
-            <p className="text-sm text-base-content/60">{match.notes}</p>
-          ) : null}
-        </CardBody>
-      </Card>
+      {section === "partido" && (
+        <>
+          <MatchRulesNotice match={match} />
+          {match.notes && (
+            <Alert tone="info" className="mb-4">
+              {match.notes}
+            </Alert>
+          )}
+        </>
+      )}
 
       {section === "partido" &&
         ["programado", "pospuesto"].includes(match.status) && (
@@ -164,6 +145,12 @@ export function MatchDetailPage() {
         <div className="match-plan-layout">
           <Card>
             <CardBody className="gap-3">
+              {!match.lineupPublishedAt && match.status !== "jugado" && (
+                <Alert tone="info">
+                  El equipo técnico está preparando la alineación. Aparecerá
+                  aquí cuando se publique.
+                </Alert>
+              )}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <CardTitle className="text-base">Alineación</CardTitle>
                 <div className="flex max-w-full flex-wrap items-center gap-2">

@@ -5,21 +5,15 @@ import type { Match } from "../types/api";
 
 export interface MatchMetaProps {
   match: Match;
-  /** Incluye la línea de sede y estado. */
+  /** Incluye la lÃ­nea de sede y estado. */
   compact?: boolean;
   className?: string;
 }
 
-/** Cabecera meta de un partido: competencia, fecha/hora, sede y localía. */
-export function MatchMeta({
-  match,
-  compact = false,
-  className = "",
-}: MatchMetaProps) {
+/** Cabecera meta de un partido: competencia, fecha/hora, sede y localÃ­a. */
+export function MatchMeta({ match }: MatchMetaProps) {
   return (
-    <div
-      className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-base-content/70 ${className}`.trim()}
-    >
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-base-content/70">
       <span className="inline-flex items-center gap-1.5">
         <Icon name="shield" size={15} className="text-primary" />
         {match.competition}
@@ -37,7 +31,7 @@ export function MatchMeta({
       <Badge tone={match.isHome ? "success" : "neutral"} size="xs">
         {match.isHome ? "Local" : "Visita"}
       </Badge>
-      {compact ? null : <span className="capitalize">{match.status}</span>}
+      <span className="capitalize">{match.status}</span>
     </div>
   );
 }

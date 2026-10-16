@@ -8,7 +8,7 @@ import {gzipSync,gunzipSync} from 'node:zlib';
 import bcrypt from 'bcryptjs';
 import sharp from 'sharp';
 import Database from 'better-sqlite3';
-import {refereeDeadline,splitReferee} from '../backend/src/domain/referee';
+import {refereeDeadline,refereeReceiptOnTime,splitReferee} from '../backend/src/domain/referee';
 import {testPostgres} from './postgres-helper.mts';
 
 const directory=fs.mkdtempSync(path.join(os.tmpdir(),'futapp-referee-tests-'));
@@ -32,7 +32,12 @@ const game=(hours=96)=>c.matchService.create({opponent:'Rival arbitraje',competi
 async function receipt(instance:typeof c,matchId:number,userId:number,amount:number,paidAt=iso(),key=randomUUID()) {
   return instance.qrPaymentService.submit(userId,{kind:'referee',targetId:matchId,amount,reference:'REF-'+key,paidAt,idempotencyKey:key},'pago.png',image);
 }
-async function approve(instance:typeof c,id:number){return instance.qrPaymentService.review(id,1,'aprobado','Fecha, hora y monto verificados en el comprobante');}
+async function approve(instance:typeof c,id:number,reviewedAt?:string,database:any=db){
+  const result=await instance.qrPaymentService.review(id,1,'aprobado','Fecha, hora y monto verificados en el comprobante');
+  // Historical reviews are fixture data in the isolated database, never a production API capability.
+  if(reviewedAt)await database.prepare('UPDATE payment_receipts SET reviewed_at=? WHERE id=?').run(reviewedAt,id);
+  return result;
+}
 const admin=(await c.authService.login({email:'admin@referee.test',password})).token;
 const playerToken=(await c.authService.login({email:players[0].user.email,password})).token;
 const server=createHttpServer({notifications:c.notificationService,qrPayments:c.qrPaymentService,tournaments:c.tournamentService,media:c.mediaService,auth:c.authService,me:c.meService,players:c.playerService,inscriptions:c.inscriptionService,uniforms:c.uniformService,matches:c.matchService,sanctions:c.sanctionService,stats:c.statsService,ai:c.aiService,dashboard:c.dashboardService,settings:c.settingsService,migration:c.migrationService}).listen(0,'127.0.0.1');
@@ -41,14 +46,37 @@ const base=`http://127.0.0.1:${address.port}/api`;
 after(async()=>{await new Promise<void>(resolve=>server.close(()=>resolve()));closeDb();assert.equal(path.dirname(directory),os.tmpdir());fs.rmSync(directory,{recursive:true,force:true});});
 afterEach(()=>{db.exec("DELETE FROM match_referee_transfers; DELETE FROM payment_receipts; DELETE FROM matches; DELETE FROM media_assets WHERE purpose='receipt'");});
 
-test('referee deadline is 48 hours in Colombia and integer shares sum to exactly 120000',()=>{
-  assert.equal(refereeDeadline('2026-10-11T18:00'),'2026-10-09T23:00:00.000Z');
+test('referee deadline is 24 hours in Colombia and integer shares sum to exactly 120000',()=>{
+  assert.equal(refereeDeadline('2026-10-11T18:00'),'2026-10-10T23:00:00.000Z');
   for(const count of [0,1,7,8,9,12,22]){
     const split=splitReferee(120000,Array.from({length:count},(_,i)=>i+1));
     assert.equal([...split.values()].reduce((sum,value)=>sum+value,0),count?120000:0);
     assert([...split.values()].every(Number.isInteger));
   }
   assert.deepEqual([...splitReferee(120000,[3,1,2,1])],[[1,40000],[2,40000],[3,40000]]);
+});
+
+test('the 24-hour cutoff requires both transfer and approval, including SQL UTC timestamps and the exact boundary',()=>{
+  const due=refereeDeadline('2026-10-11T18:00');
+  assert.equal(due,refereeDeadline('2026-10-11T23:00:00Z'));
+  const approved={status:'aprobado' as const,paidAt:'2026-10-10T22:59:00Z',reviewedAt:'2026-10-10 23:00:00'};
+  assert.equal(refereeReceiptOnTime(approved,due),true);
+  assert.equal(refereeReceiptOnTime({...approved,reviewedAt:'2026-10-10T18:00:00-05:00'},due),true);
+  assert.equal(refereeReceiptOnTime({...approved,reviewedAt:'2026-10-10 23:00:01'},due),false);
+  assert.equal(refereeReceiptOnTime({...approved,paidAt:'2026-10-10T23:00:01Z'},due),false);
+  assert.equal(refereeReceiptOnTime({...approved,status:'pendiente'},due),false);
+  assert.equal(refereeReceiptOnTime({...approved,reviewedAt:null},due),false);
+  assert.equal(refereeReceiptOnTime({...approved,reviewedAt:'invalid'},due),false);
+});
+
+test('an on-time transfer approved after the cutoff keeps its money but cannot enter the initial lineup',async()=>{
+  const match=await game(23);await c.matchService.setAttendance(match.id,players[0].user.id,'confirmado');
+  const proof=await receipt(c,match.id,players[0].user.id,120000,refereeDeadline(match.kickOff));
+  await approve(c,proof.id);
+  const row=(await c.matchService.referee(match.id)).rows.find(row=>row.playerId===players[0].player.id)!;
+  assert.equal(row.paid,120000);assert.equal(row.paidOnTime,0);assert.equal(row.starterEligible,false);assert.equal(row.benchEligible,true);
+  const lineup=await c.aiService.recommendXi(match.id);
+  assert(lineup.lineup.every(slot=>slot.playerId===null));assert(lineup.bench?.some(player=>player.playerId===players[0].player.id));
 });
 
 test('date confirmation creates referee billing; only confirmed attendees share it and own financial views stay private',async()=>{
@@ -64,12 +92,12 @@ test('date confirmation creates referee billing; only confirmed attendees share 
 });
 
 test('pending and partial payments cannot start; complete late payments appear only on the AI bench',async()=>{
-  const match=await c.matchService.create({opponent:'Control del plazo',competition:'Liga',kickOff:kickoff(47),isHome:true,tournamentId:null,format:8});
+  const match=await c.matchService.create({opponent:'Control del plazo',competition:'Liga',kickOff:kickoff(23),isHome:true,tournamentId:null,format:8});
   for(const player of players.slice(0,8))await c.matchService.setAttendance(match.id,player.user.id,'confirmado');
   const due=refereeDeadline(match.kickOff);
-  for(const player of players.slice(0,6))await approve(c,(await receipt(c,match.id,player.user.id,15000,due)).id);
+  for(const player of players.slice(0,6))await approve(c,(await receipt(c,match.id,player.user.id,15000,due)).id,due);
   const pending=await receipt(c,match.id,players[6].user.id,15000,due);
-  await approve(c,(await receipt(c,match.id,players[7].user.id,7500,due)).id);
+  await approve(c,(await receipt(c,match.id,players[7].user.id,7500,due)).id,due);
   assert.equal((await c.matchService.attendance(match.id)).find(row=>row.playerId===players[7].player.id)!.benchEligible,false);
   await approve(c,(await receipt(c,match.id,players[7].user.id,7500,iso())).id);
   const attendance=await c.matchService.attendance(match.id),late=attendance.find(row=>row.playerId===players[7].player.id)!;
@@ -86,7 +114,7 @@ test('pending and partial payments cannot start; complete late payments appear o
   await assert.rejects(()=>c.matchService.setLineup(match.id,slots));await assert.rejects(()=>c.matchService.publishLineup(match.id));
   await c.matchService.setAttendance(match.id,players[8].user.id,'confirmado');
   const share=(await c.matchService.referee(match.id)).rows.find(row=>row.playerId===players[8].player.id)!.amount;
-  await approve(c,(await receipt(c,match.id,players[8].user.id,share,due)).id);await approve(c,pending.id);
+  await approve(c,(await receipt(c,match.id,players[8].user.id,share,due)).id,due);await approve(c,pending.id,due);
   const complete=await c.aiService.recommendXi(match.id);assert.equal(complete.lineup.filter(slot=>slot.playerId!==null).length,8);
   await c.matchService.setLineup(match.id,complete.lineup);await c.matchService.publishLineup(match.id);
   await c.matchService.setAttendance(match.id,players[0].user.id,'no_disponible');
@@ -125,7 +153,7 @@ test('rescheduling recomputes the deadline and removes players who no longer mee
   await approve(c,(await receipt(c,match.id,players[0].user.id,120000)).id);
   const slots=getFormation('1-3-3-1',8).slots.map(slot=>({...slot,playerId:slot.role==='POR'?players[0].player.id:null}));
   await c.matchService.setLineup(match.id,slots);assert.equal((await c.matchService.get(match.id)).lineup[0].playerId,players[0].player.id);
-  await c.matchService.update(match.id,{kickOff:kickoff(24)});
+  await c.matchService.update(match.id,{kickOff:kickoff(23)});
   const row=(await c.matchService.referee(match.id)).rows.find(row=>row.playerId===players[0].player.id)!;assert.equal(row.status,'tardio');assert.equal(row.benchEligible,true);
   assert((await c.matchService.get(match.id)).lineup.every(slot=>slot.playerId===null));
 });
@@ -216,7 +244,7 @@ test('surplus accumulates across dates and changing attendance releases allocati
 });
 
 test('carried credits retain the original transfer time; pending proofs provide no credit and late full coverage only allows the bench',async()=>{
-  const first=await game(24),next=await game(36),later=await game(96);
+  const first=await game(12),next=await game(18),later=await game(96);
   await c.matchService.setAttendance(first.id,players[0].user.id,'confirmado');
   const proof=await receipt(c,first.id,players[0].user.id,120000);
   await c.matchService.setAttendance(first.id,players[0].user.id,'no_disponible');
@@ -289,9 +317,9 @@ test('PostgreSQL upgrades the old receipt CHECK without losing records and enfor
     const previous=await instance.qrPaymentService.submit(a.user.id,{kind:'inscription',targetId:inscription.id,amount:100,reference:'LEGACY-REFERENCE',paidAt:'2026-10-07',idempotencyKey:'legacy_referee_test'},'anterior.png',image);
     await migratePostgres(pg);await migratePostgres(pg);
     assert.equal((await instance.qrPaymentService.view(1,true)).receipts.find(row=>row.id===previous.id)?.reference,'LEGACY-REFERENCE');
-    const match=await instance.matchService.create({opponent:'Rival',competition:'Liga',kickOff:kickoff(47),isHome:true,tournamentId:null,format:8});
+    const match=await instance.matchService.create({opponent:'Rival',competition:'Liga',kickOff:kickoff(23),isHome:true,tournamentId:null,format:8});
     await Promise.all([a,b].map(player=>instance.matchService.setAttendance(match.id,player.user.id,'confirmado')));
-    const due=refereeDeadline(match.kickOff);await approve(instance,(await receipt(instance,match.id,a.user.id,60000,due)).id);
+    const due=refereeDeadline(match.kickOff);await approve(instance,(await receipt(instance,match.id,a.user.id,60000,due)).id,due,pg);
     const late=await receipt(instance,match.id,b.user.id,60000);await Promise.all([0,1].map(()=>approve(instance,late.id)));
     const rebuilt=createContainer(cloud),xi=await rebuilt.aiService.recommendXi(match.id);
     assert.equal(xi.lineup.filter(slot=>slot.playerId!==null).length,1);assert.equal(xi.lineup.find(slot=>slot.role==='POR')?.playerId,a.player.id);assert(xi.bench?.some(row=>row.playerId===b.player.id));
@@ -300,6 +328,11 @@ test('PostgreSQL upgrades the old receipt CHECK without losing records and enfor
     await pg.prepare('UPDATE users SET active=0 WHERE id=?').run(b.user.id);
     assert.equal((await createContainer(cloud).matchService.referee(match.id)).rows.find(row=>row.playerId===b.player.id)?.amount,60000);
     await pg.prepare('UPDATE users SET active=1 WHERE id=?').run(b.user.id);
+    const delayed=await instance.matchService.create({opponent:'Revisión tardía',competition:'Liga',kickOff:kickoff(23),isHome:true,tournamentId:null,format:8});
+    await instance.matchService.setAttendance(delayed.id,a.user.id,'confirmado');
+    await approve(instance,(await receipt(instance,delayed.id,a.user.id,120000,refereeDeadline(delayed.kickOff))).id);
+    const reviewedLate=(await instance.matchService.referee(delayed.id)).rows.find(row=>row.playerId===a.player.id)!;
+    assert.equal(reviewedLate.starterEligible,false);assert.equal(reviewedLate.benchEligible,true);assert.equal(reviewedLate.paidOnTime,0);
     const source=await instance.matchService.create({opponent:'Origen saldo',competition:'Liga',kickOff:kickoff(96),isHome:true,tournamentId:null,format:8});
     await instance.matchService.setAttendance(source.id,a.user.id,'confirmado');
     await approve(instance,(await receipt(instance,source.id,a.user.id,120000)).id);

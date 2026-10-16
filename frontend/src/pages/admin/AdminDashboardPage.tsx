@@ -20,12 +20,13 @@ import { Money } from '../../molecules/Money';
 import { RatingBadge } from '../../molecules/RatingBadge';
 import { SanctionChip } from '../../molecules/SanctionChip';
 import { DateLabel } from '../../molecules/DateLabel';
-import { formatMoney, pendingAmount } from '../../utils/format';
-import type { DashboardAdmin, Inscription } from '../../types/api';
+import { pendingAmount } from '../../utils/format';
+import type { DashboardAdmin, Inscription, Match } from '../../types/api';
 
 /** Dashboard admin (SPEC §10.4): indicadores, próximo partido, cobros y alertas. */
 export function AdminDashboardPage() {
   const { data, loading, error, reload } = useFetch<DashboardAdmin>('/api/dashboard/admin');
+  const calendar = useFetch<Match[]>('/api/matches');
   const [payFor, setPayFor] = useState<Inscription | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -93,7 +94,7 @@ export function AdminDashboardPage() {
       ) : null}
 
       <MatchDayHero match={nextMatch} />
-      <ClubMatchStrip match={nextMatch} />
+      <ClubMatchStrip match={nextMatch} matches={calendar.data ?? []} loading={calendar.loading} error={calendar.error} onRetry={calendar.reload} />
       <ClubActionGrid />
 
       <StatCardsRow
@@ -138,7 +139,7 @@ export function AdminDashboardPage() {
       />
 
       <div className="grid gap-4 mt-4 lg:grid-cols-3">
-        <ClubPulse total={inscriptions.total} collected={inscriptions.collected} paidCount={inscriptions.paidCount} pendingCount={inscriptions.pendingCount} />
+        <ClubPulse total={inscriptions.total} collected={inscriptions.collected} />
 
         {/* Inscripciones pendientes */}
         <Card className="lg:col-span-2">
@@ -275,10 +276,6 @@ export function AdminDashboardPage() {
                 ))}
               </ul>
             )}
-            <div className="rounded-lg bg-base-200 px-3 py-2 text-sm">
-              <p className="text-xs text-base-content/60">Cobro total de la temporada</p>
-              <p className="font-bold">{formatMoney(inscriptions.collected)}</p>
-            </div>
           </CardBody>
         </Card>
       </div>

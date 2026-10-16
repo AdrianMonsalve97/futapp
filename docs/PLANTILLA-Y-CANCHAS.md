@@ -14,7 +14,7 @@ La gestión se carga bajo demanda y sus consultas viven en `useSquadManagement`;
 
 ## Menos tareas por pantalla
 
-- Partido del administrador: partido, asistencia/arbitraje, alineación/plan, rendimiento y edición.
+- Partido del administrador: partido, asistencia/arbitraje, alineación/plan y rendimiento. La edición se abre desde la cabecera y usa el mismo formulario del calendario.
 - Partido del jugador: voy al partido, alineación/plan y mi actuación.
 - Calendario: próximas fechas, resultados y cancelados en administración. **La próxima batalla** destaca un solo encuentro con duelo local/visitante, escudo real del club, contador en hora Colombia, acceso al partido y enlace a Maps cuando existe. Las demás fechas quedan debajo sin duplicar el destacado. Un aplazado no tiene contador ni muestra su antigua hora como nueva fecha confirmada.
 - Torneo: normativa/documentos, jugadores inscritos y afiche.
@@ -37,3 +37,10 @@ Referencias: [URLs universales de Maps](https://developers.google.com/maps/docum
 La columna nullable `matches.venue_maps_url` se agrega sin reconstruir ni borrar partidos. La migración PostgreSQL es idempotente. Los respaldos anteriores reciben la columna con `null` al validarse; se preservan cuentas, archivos, pagos y resultados. Los respaldos nuevos conservan la ubicación.
 
 `tests/squad-and-maps.test.mts` cubre enlaces, redirecciones inseguras, permisos de escritura/lectura, borrado de ubicación, agregación deportiva, privacidad, torneos en borrador, jugadores inactivos/pendientes y compatibilidad de respaldos en SQLite y PostgreSQL. GitHub Actions ejecuta además PostgreSQL real antes de desplegar el commit validado a Render.
+
+
+La Sala táctica da todo el ancho al inicial; conserva el contador y el estado de
+publicación debajo del tablero. El laboratorio se reorganiza como **Dirección
+deportiva**: Plan del equipo, Jugadas, Enfoque individual y Modelo y datos. El
+análisis colectivo no se repite como listado completo de jugadores al lado de la
+cancha. La comparación de sistemas y la normativa se abren cuando son necesarias.

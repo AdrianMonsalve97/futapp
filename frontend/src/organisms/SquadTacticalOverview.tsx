@@ -3,7 +3,6 @@ import { useAuth } from "../context/AuthContext";
 import { useSquadFixture } from "../hooks/useSquadFixture";
 import { pitchSlotsFrom } from "../utils/lineup-slots";
 import { TacticalBoard } from "./TacticalBoard";
-import { TacticalBalance } from "../molecules/TacticalBalance";
 import { MatchCountdown } from "../molecules/MatchCountdown";
 import { Alert } from "../atoms/Alert";
 import { Spinner } from "../atoms/Spinner";
@@ -66,25 +65,20 @@ export function SquadTacticalOverview({
           →
         </Link>
       </div>
-      <div className="fc-tactical-workspace">
-        <aside className="fc-tactical-console">
-          <p className="sport-eyebrow">SISTEMA {match.formation}</p>
-          <h3>{match.format} inicial</h3>
-          <MatchCountdown match={match} />
-          <TacticalBalance slots={slots} />
-          <p className="fc-console-help">
-            {user?.role === "admin"
-              ? "Vista del borrador del entrenador. Los jugadores consultan únicamente la alineación publicada."
-              : match.lineupPublishedAt
-                ? "Esta es la alineación publicada para tu equipo."
-                : "El entrenador aún está preparando la alineación. Las posiciones se completarán cuando publique el equipo."}
-          </p>
-        </aside>
-        <TacticalBoard
-          slots={slots}
-          format={match.format}
-          onPlayerSelect={onPlayerSelect}
-        />
+      <TacticalBoard
+        slots={slots}
+        format={match.format}
+        onPlayerSelect={onPlayerSelect}
+      />
+      <div className="fc-squad-context">
+        <MatchCountdown match={match} />
+        <p className="fc-console-help">
+          {user?.role === "admin"
+            ? "Borrador del entrenador. Revisa y publica el equipo desde la sala del partido."
+            : match.lineupPublishedAt
+              ? "Alineación publicada. Toca a un compañero para ver su rendimiento."
+              : "El entrenador está preparando el equipo. Las posiciones se completarán cuando publique la alineación."}
+        </p>
       </div>
     </section>
   );
