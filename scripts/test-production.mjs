@@ -49,9 +49,10 @@ try {
   assert.deepEqual(policy.get('script-src'), ["'self'"], 'Image permissions must not allow blob scripts');
   assert.deepEqual(policy.get('object-src'), ["'none'"]);
   const css = html.match(/href="(\/assets\/[^\"]+\.css)"/)[1];
-  const styles = await fetch(base + css); assert.equal(styles.status, 200); assert((await styles.text()).includes('.matchday-hero'));
+  const styles = await fetch(base + css); assert.equal(styles.status, 200); assert((await styles.text()).includes('.club-hero'));
   assert(html.includes('name="viewport"'));
   const defaultLogo = await fetch(base + '/brand/aag-logo.jpg'); assert.equal(defaultLogo.status, 200); assert(defaultLogo.headers.get('content-type').includes('image/jpeg'));
+  const stadium = await fetch(base + '/brand/stadium-night.webp'); assert.equal(stadium.status, 200); assert(stadium.headers.get('content-type').includes('image/webp')); assert((await stadium.arrayBuffer()).byteLength > 1000);
   const login = await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: environment.ADMIN_EMAIL, password: environment.ADMIN_PASSWORD }) });
   assert.equal(login.status, 200); const { token } = await login.json();
   const browserLogin = await fetch(base + '/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json',Origin:environment.RENDER_EXTERNAL_URL,'X-FutApp-Client':'web'}, body:JSON.stringify({email:environment.ADMIN_EMAIL,password:environment.ADMIN_PASSWORD}) });
@@ -78,7 +79,7 @@ try {
   assert((await privateImage.blob()).size > 0);
   const logo = await fetch(base + '/api/branding/logo'); assert.equal(logo.status, 200); assert(logo.headers.get('content-type').includes('image/webp'));
   assert(fs.readdirSync(path.join(directory, 'uploads')).length === 1);
-  console.log('Producción verificada: administrador inicial, controles de acceso, React y rutas directas, CSS, viewport móvil, escudo y carga persistente de imágenes.');
+  console.log('Producción verificada: acceso, cookies, permisos, rutas React, CSS, metadatos de viewport, escudo, estadio y persistencia de imágenes.');
 } finally {
   if (child && child.exitCode === null) { const exited = once(child, 'exit'); child.kill(); await exited; }
   assert.equal(path.dirname(directory), os.tmpdir());

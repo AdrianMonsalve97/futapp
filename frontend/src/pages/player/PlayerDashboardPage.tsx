@@ -1,5 +1,7 @@
 import { MatchDayHero } from '../../organisms/MatchDayHero';
-import { ClubActionGrid, ClubHomeExtras, ClubMatchStrip } from '../../organisms/ClubHomePanels';
+import { ClubActionGrid } from '../../organisms/ClubActionGrid';
+import { ClubHomeExtras } from '../../organisms/ClubHomeExtras';
+import { ClubMatchStrip } from '../../organisms/ClubMatchStrip';
 import { AttendancePanel } from '../../organisms/AttendancePanel';
 import { Link } from 'react-router-dom';
 import { useFetch } from '../../hooks/useFetch';

@@ -10,18 +10,23 @@ import {
   useMemo,
   useState,
   type ReactNode,
-} from 'react';
-import { useAuth } from './AuthContext';
-import { api, errorMessage } from '../services/api';
-import { getFormat } from '../data/formations';
-import type { FormatProfile, TeamSettings, TeamSettingsPayload } from '../types/api';
+} from "react";
+import { useAuth } from "./AuthContext";
+import { api, errorMessage } from "../services/api";
+import { getFormat } from "../data/formations";
+import type {
+  FormatProfile,
+  TeamSettings,
+  TeamSettingsPayload,
+} from "../types/api";
 
 /** Valores de respaldo mientras carga o si el endpoint no está disponible (backend legacy en f11). */
 const FALLBACK_SETTINGS: TeamSettings = {
-  logoUrl: '/brand/aag-logo.jpg', brandColor: '#d8b86a',
-  teamName: 'Club Portal',
+  logoUrl: "/brand/aag-logo.jpg",
+  brandColor: "#d8b86a",
+  teamName: "Club Portal",
   format: 11,
-  season: '2026',
+  season: "2026",
   profile: getFormat(11),
 };
 
@@ -45,7 +50,7 @@ interface SettingsContextValue {
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const { token } = useAuth();
+  const { authenticated } = useAuth();
   const [settings, setSettings] = useState<TeamSettings>(FALLBACK_SETTINGS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,9 +60,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    api<TeamSettings>(token ? '/api/settings' : '/api/branding')
+    api<TeamSettings>(authenticated ? "/api/settings" : "/api/branding")
       .then((result) => {
-        if (!cancelled) setSettings(withProfile({ ...FALLBACK_SETTINGS, ...result }));
+        if (!cancelled)
+          setSettings(withProfile({ ...FALLBACK_SETTINGS, ...result }));
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(errorMessage(err));
@@ -68,35 +74,66 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [token, version]);
+  }, [authenticated, version]);
 
-  useEffect(() => { document.documentElement.style.setProperty('--club-brand-color', settings.brandColor || '#d8b86a'); }, [settings.brandColor]);
-  useEffect(() => { document.title = `${settings.teamName} · Fútbol`; }, [settings.teamName]);
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--club-brand-color",
+      settings.brandColor || "#d8b86a",
+    );
+  }, [settings.brandColor]);
+  useEffect(() => {
+    document.title = `${settings.teamName} · Fútbol`;
+  }, [settings.teamName]);
   useEffect(() => {
     const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-    if (icon) { const logo = settings.logoUrl || '/brand/aag-logo.jpg'; icon.href = logo.startsWith('/api/media/') ? '/api/branding/logo?v=' + logo.split('/').pop() : logo; icon.removeAttribute('type'); }
+    if (icon) {
+      const logo = settings.logoUrl || "/brand/aag-logo.jpg";
+      icon.href = logo.startsWith("/api/media/")
+        ? "/api/branding/logo?v=" + logo.split("/").pop()
+        : logo;
+      icon.removeAttribute("type");
+    }
   }, [settings.logoUrl]);
 
   const reload = useCallback(() => setVersion((value) => value + 1), []);
 
-  const save = useCallback(async (input: TeamSettingsPayload): Promise<TeamSettings> => {
-    const result = await api<TeamSettings>('/api/settings', { method: 'PUT', json: input });
-    const next = withProfile(result);
-    setSettings(next);
-    return next;
-  }, []);
+  const save = useCallback(
+    async (input: TeamSettingsPayload): Promise<TeamSettings> => {
+      const result = await api<TeamSettings>("/api/settings", {
+        method: "PUT",
+        json: input,
+      });
+      const next = withProfile(result);
+      setSettings(next);
+      return next;
+    },
+    [],
+  );
 
   const value = useMemo<SettingsContextValue>(
-    () => ({ settings, profile: settings.profile, loading, error, reload, save }),
+    () => ({
+      settings,
+      profile: settings.profile,
+      loading,
+      error,
+      reload,
+      save,
+    }),
     [settings, loading, error, reload, save],
   );
 
-  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
+  return (
+    <SettingsContext.Provider value={value}>
+      {children}
+    </SettingsContext.Provider>
+  );
 }
 
 export function useSettings(): SettingsContextValue {
   const ctx = useContext(SettingsContext);
-  if (!ctx) throw new Error('useSettings debe usarse dentro de <SettingsProvider>.');
+  if (!ctx)
+    throw new Error("useSettings debe usarse dentro de <SettingsProvider>.");
   return ctx;
 }
 

@@ -12,14 +12,7 @@ import { Modal } from '../atoms/Modal';
 const PaymentHistoryPanel=lazy(()=>import('./PaymentHistoryPanel').then(module=>({default:module.PaymentHistoryPanel})));
 const PaymentDetailDialog=lazy(()=>import('./PaymentDetailDialog').then(module=>({default:module.PaymentDetailDialog})));
 import { formatMoney } from '../utils/format';
-import type { PaymentReceipt, QrPaymentView,PaymentHistoryEntry } from '../types/payments';
-
-export async function downloadReceipt(row: PaymentReceipt) {
-  const blob = await apiBlob('/api/media/'+row.assetId);
-  const url=URL.createObjectURL(blob), link=document.createElement('a');
-  link.href=url;link.download=`soporte-${row.id}.${blob.type==='application/pdf'?'pdf':'webp'}`;link.click();
-  window.setTimeout(()=>URL.revokeObjectURL(url),1000);
-}
+import type { QrPaymentView,PaymentHistoryEntry } from '../types/payments';
 export function QrPaymentPanel({ kind, onSaved, refreshKey,matchId }: {kind:'inscription'|'uniform'|'referee';onSaved:()=>void;refreshKey?:unknown;matchId?:number}) {
   const view=useFetch<QrPaymentView>('/api/me/payment-receipts',[refreshKey]);
   const [target,setTarget]=useState(''),[amount,setAmount]=useState(''),[reference,setReference]=useState('');

@@ -35,6 +35,7 @@ import { FileMediaStorage } from './adapters/out/persistence/media-storage';
 import { SqliteTournamentRepository } from './adapters/out/persistence/repositories/tournament.repository';
 import { SqliteLeagueRepository } from './adapters/out/persistence/repositories/league.repository';
 import { TournamentService } from './application/services/tournament-service';
+import { LeagueService } from './application/services/league-service';
 import { MediaService } from './application/services/media-service';
 import { QrPaymentService } from './application/services/qr-payment-service';
 import { RefereeService } from './application/services/referee-service';
@@ -85,7 +86,8 @@ export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaSto
   const stats = new SqliteStatsRepository(db);
   const settings = new SqliteSettingsRepository(db);
   const tournaments = new SqliteTournamentRepository(db);
-  const tournamentService = new TournamentService(tournaments, players, matches, uow, new SqliteLeagueRepository(db), settings);
+  const leagueService = new LeagueService(tournaments, matches, new SqliteLeagueRepository(db), settings, uow);
+  const tournamentService = new TournamentService(tournaments, players, matches, uow, leagueService);
   const mediaStorage = cloud?.media ?? new FileMediaStorage(db);
   const mediaService = new MediaService(mediaStorage, users, uniforms, settings, tournaments, uow, players);
   const modelStore = cloud?.model ?? new FileModelStore();

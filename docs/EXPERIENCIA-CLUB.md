@@ -1,5 +1,8 @@
 # Experiencia del club y clasificación
 
+La organización del código y las reglas de mantenimiento se describen en
+[Calidad y arquitectura](CALIDAD-Y-ARQUITECTURA.md).
+
 La identidad visual sigue el escudo y el color configurados. La primera entrada
 al nuevo diseño activa el modo estadio (oscuro); el usuario puede alternar modo
 día y noche y pausar animaciones. Se respeta `prefers-reduced-motion`. Las rutas

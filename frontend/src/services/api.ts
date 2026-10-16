@@ -3,7 +3,7 @@
 
 import type { ApiErrorBody } from '../types/api';
 
-export const TOKEN_KEY = 'token';
+const STORED_TOKEN_KEY = 'token';
 export const AUTH_EXPIRED_EVENT = 'auth:expired';
 
 export class ApiError extends Error {
@@ -18,8 +18,9 @@ export class ApiError extends Error {
   }
 }
 
-export function clearToken(): void {
-  window.localStorage.removeItem(TOKEN_KEY);
+/** Clear credentials left in storage by earlier clients; current sessions never read them. */
+export function clearStoredCredentials(): void {
+  window.localStorage.removeItem(STORED_TOKEN_KEY);
 }
 
 export type ApiOptions = RequestInit & { json?: unknown };
@@ -33,9 +34,9 @@ function resolveUrl(path: string): string {
 /**
  * Fetch genérico del contrato API (SPEC §7).
  * - Agrega `Content-Type: application/json` cuando hay `json`.
- * - Adjunta `Authorization: Bearer <token>` si existe token.
+ * - La sesión viaja en su cookie HttpOnly; no se expone una credencial en JavaScript.
  * - `!res.ok` lanza `ApiError` con el `error.message` del cuerpo.
- * - `401` borra el token y emite `auth:expired` (lo escucha `AuthContext`).
+ * - `401` limpia credenciales almacenadas y emite `auth:expired` para cerrar la sesión.
  */
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const { json, ...rest } = options;
@@ -69,7 +70,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
 
   if (!res.ok) {
     const errBody = (body ?? {}) as ApiErrorBody;
-    if(res.status===401&&!isLogin){clearToken();window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT,{detail:{code:errBody.error?.code}}));}
+    if(res.status===401&&!isLogin){clearStoredCredentials();window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT,{detail:{code:errBody.error?.code}}));}
     const message = errBody.error?.message ?? `Ocurrió un error (HTTP ${res.status}).`;
     throw new ApiError(message, res.status, errBody.error?.code);
   }
@@ -84,13 +85,13 @@ export function errorMessage(error: unknown): string {
   return 'Ocurrió un error inesperado.';
 }
 
-/** Protected files are fetched with the session header, never a token in the URL. */
+/** Protected files use the HttpOnly session cookie; URLs contain no credentials. */
 export async function apiBlob(path: string): Promise<Blob> {
   if (!path.startsWith('/api/')) throw new Error('Ruta de archivo inválida');
   const res = await fetch(path, { credentials:'same-origin',headers:{'X-FutApp-Client':'web'} });
   if (res.status === 401) {
     const body=await res.json().catch(()=>({})) as ApiErrorBody;
-    clearToken();window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT,{detail:{code:body.error?.code}}));
+    clearStoredCredentials();window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT,{detail:{code:body.error?.code}}));
   }
   if (!res.ok) throw new ApiError('No se pudo descargar el archivo', res.status);
   return res.blob();

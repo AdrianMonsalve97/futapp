@@ -10,6 +10,22 @@
   --radius-field: 0.65rem;
   font-family: Inter, "Segoe UI", sans-serif;
   font-synthesis: none;
+  --color-primary: color-mix(
+    in srgb,
+    var(--club-brand-color, #d8b86a) 55%,
+    #241a08
+  );
+  --color-primary-content: #fff;
+  --color-secondary: #28241b;
+  --color-secondary-content: #fff;
+  --color-base-100: #fff;
+  --color-base-200: #f5f3ed;
+  --color-base-300: #e5e0d6;
+  --color-base-content: #28251e;
+  --color-success: #15734a;
+  --color-warning: #976109;
+  --radius-selector: 0.55rem;
+  --club-ink: #10100e;
 }
 [data-theme="dark"] {
   color-scheme: dark;

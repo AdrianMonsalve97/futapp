@@ -815,12 +815,14 @@ export class ApiError extends Error { status: number; code?: string }
 export async function api<T>(path: string, options?: RequestInit & { json?: unknown }): Promise<T>
 ```
 * `Content-Type: application/json` cuando hay `json`.
-* Token de `localStorage.getItem('token')` → header `Authorization`.
+* La sesión del navegador usa una cookie HttpOnly enviada con `credentials: 'same-origin'`.
+  El frontend no lee ni almacena un JWT. La API admite bearer para clientes externos,
+  conservando la validación y revocación de sesión del servidor.
 * `!res.ok` → lanza `ApiError` con `message` del cuerpo `error.message`.
-* `401` → borra token y redirige a `/login` (event `auth:expired` escuchado por `AuthContext`).
+* `401` → limpia la sesión y redirige a `/login` (evento `auth:expired` escuchado por `AuthContext`).
 * `hooks/useFetch.ts`: `const { data, loading, error, reload } = useFetch<T>(path, deps)`.
-* `context/AuthContext.tsx`: `{ user, player, token, loading, login, register, logout, refresh }`;
-  al montar, si hay token llama `GET /api/auth/me`; si falla, limpia.
+* `context/AuthContext.tsx`: `{ user, player, authenticated, loading, login, register, logout, refresh }`;
+  al montar comprueba la cookie con `GET /api/auth/me`; si falla, limpia la sesión.
 
 ### 10.3 Rutas (router.tsx)
 
@@ -879,9 +881,10 @@ con nombre/rol y botón cerrar sesión + contenido con `PageHeader`), `PageHeade
 
 **`pages/`** — contenido obligatorio por página:
 
-* **LoginPage**: tarjeta centrada, email/password, botón "Ingresar", link a registro, credenciales
-  demo visibles en un `alert-info`.
-* **RegisterPage**: nombre, email, teléfono, contraseña, posición y dorsal; redirige a `/jugador/inicio`.
+* **LoginPage**: email/password, botón "Ingresar", enlaces de registro y recuperación.
+  No muestra credenciales de demostración.
+* **RegisterPage**: invitación, cuenta y perfil deportivo en dos pasos; solicita
+  el aval del administrador y confirma el estado pendiente, sin iniciar sesión.
 * **PlayerDashboardPage**: `GET /api/dashboard/player` → 4 `StatTile` (estado de inscripción,
   próximo partido, calificación promedio, sanciones), tarjeta "Próximo partido" con fecha/rival y
   posición asignada en el pitch, últimos 5 ratings (`RatingTrendChart`), alerta si la inscripción no

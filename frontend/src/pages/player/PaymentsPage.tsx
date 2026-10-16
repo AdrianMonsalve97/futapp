@@ -1,6 +1,7 @@
 import { useSearchParams, Link } from "react-router-dom";
 import { Icon, type IconName } from "../../atoms/Icon";
 import { QrPaymentPanel } from "../../organisms/QrPaymentPanel";
+import { ClubPageIntro } from "../../molecules/ClubPageIntro";
 
 const categories: {
   kind: "inscription" | "referee" | "uniform";
@@ -34,14 +35,13 @@ export function PaymentsPage() {
     "inscription";
   return (
     <>
-      <div className="club-route-heading">
-        <Icon name="dinero" />
-        <div>
-          <small>FUERA DE LA CANCHA, TAMBIÉN SOMOS EQUIPO</small>
-          <h1>Tu aporte mueve al club.</h1>
-          <p>Un solo lugar para pagar y consultar tus comprobantes.</p>
-        </div>
-      </div>
+      <ClubPageIntro
+        icon="dinero"
+        eyebrow="FUERA DE LA CANCHA, TAMBIÉN SOMOS EQUIPO"
+        title="Tu aporte mueve al club."
+      >
+        Un solo lugar para pagar y consultar tus comprobantes.
+      </ClubPageIntro>
       <div className="club-payment-categories" aria-label="Tipo de pago">
         {categories.map((row) => (
           <button
@@ -76,7 +76,9 @@ export function PaymentsPage() {
             ? "Primero solicita la prenda en la tienda. Aquí encontrarás su concepto de pago y podrás seguir la revisión del comprobante."
             : "La inscripción la genera el administrador. Tu transferencia queda en revisión hasta que valide el soporte."}
       </p>
-      <div key={kind} className="page-enter"><QrPaymentPanel kind={kind} onSaved={() => {}} /></div>
+      <div key={kind} className="page-enter">
+        <QrPaymentPanel kind={kind} onSaved={() => {}} />
+      </div>
       <div className="flex flex-wrap gap-5 mt-5">
         <Link className="club-text-link" to="/jugador/inscripcion">
           Detalle de mi inscripción <Icon name="arrowRight" size={16} />

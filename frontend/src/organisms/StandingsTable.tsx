@@ -1,4 +1,4 @@
-import type { LeagueView } from "../../../backend/src/domain/standings";
+import type { LeagueView } from "../types/league";
 
 export function StandingsTable({ league }: { league: LeagueView }) {
   return (

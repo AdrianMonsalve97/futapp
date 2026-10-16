@@ -21,9 +21,9 @@ const dateTime: Rule = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\
 function check(value: unknown, shape: Shape, required: string[] = []): void {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new ValidationError('Se esperaba un objeto JSON');
   const body = value as Record<string, unknown>;
-  for (const key of required) if (!(key in body)) throw new ValidationError(`El campo ${key} es obligatorio`);
+  for (const key of required) if (!Object.hasOwn(body, key)) throw new ValidationError(`El campo ${key} es obligatorio`);
   for (const [key, item] of Object.entries(body)) {
-    if (!shape[key]) throw new ValidationError(`Campo no permitido: ${key}`);
+    if (!Object.hasOwn(shape, key)) throw new ValidationError(`Campo no permitido: ${key}`);
     if (!shape[key](item)) throw new ValidationError(`Valor inválido para ${key}`);
   }
 }

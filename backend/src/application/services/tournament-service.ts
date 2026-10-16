@@ -7,16 +7,10 @@ import type { Tournament, TournamentRoster } from "../../domain/tournament";
 import type { PlayerRepository } from "../ports/out/player.repository";
 import type { MatchRepository } from "../ports/out/match.repository";
 import type { UnitOfWork } from "../ports/out/unit-of-work";
-import { AppError, NotFoundError, ValidationError } from "../../domain/errors";
-import {
-  calculateLeague,
-  teamKey,
-  validScore,
-  type LeagueConfig,
-  type LeagueView,
-} from "../../domain/standings";
-import type { LeagueRepository } from "../ports/out/league.repository";
-import type { SettingsRepository } from "../ports/out/settings.repository";
+import { NotFoundError, ValidationError } from "../../domain/errors";
+import type { LeagueConfig, LeagueView } from "../../domain/standings";
+import type { LeaguePort } from "../ports/in/league.port";
+
 import { formationsFor } from "../../domain/formations";
 import { isTeamFormat } from "../../domain/formats";
 
@@ -26,159 +20,13 @@ export class TournamentService implements TournamentPort {
     private readonly players: PlayerRepository,
     private readonly matches: MatchRepository,
     private readonly uow: UnitOfWork,
-    private readonly leagues: LeagueRepository,
-    private readonly settings: SettingsRepository,
+    private readonly leagues: LeaguePort,
   ) {}
-  async standings(id: number, admin: boolean): Promise<LeagueView> {
-    await this.get(id, admin);
-    const matches = (await this.matches.list()).filter(
-        (match) => match.tournamentId === id,
-      ),
-      config = await this.leagues.get(id);
-    // Deleted or moved fixtures must not leave an uneditable round assignment.
-    config.matchRounds = Object.fromEntries(
-      Object.entries(config.matchRounds).filter(([key]) =>
-        matches.some((match) => String(match.id) === key),
-      ),
-    );
-    return calculateLeague(
-      config,
-      matches,
-      (await this.settings.get()).teamName,
-    );
+  standings(id: number, admin: boolean): Promise<LeagueView> {
+    return this.leagues.get(id, admin);
   }
-  async saveStandings(id: number, input: LeagueConfig): Promise<LeagueView> {
-    return this.uow.run(async () => {
-      await this.get(id, true);
-      if (
-        !input ||
-        !Number.isSafeInteger(input.version) ||
-        input.version < 0 ||
-        !Array.isArray(input.teams) ||
-        input.teams.length > 100 ||
-        !Array.isArray(input.results) ||
-        input.results.length > 2000 ||
-        !input.rules ||
-        !input.matchRounds ||
-        typeof input.matchRounds !== "object" ||
-        Array.isArray(input.matchRounds)
-      )
-        throw new ValidationError("Configuración de clasificación inválida");
-      const old = await this.leagues.get(id);
-      if (old.version !== input.version)
-        throw new AppError(
-          "La clasificación cambió en otra sesión. Recarga antes de guardar.",
-          409,
-        );
-      const { win, draw, loss, tiebreak } = input.rules;
-      if (
-        [win, draw, loss].some(
-          (value) => !Number.isInteger(value) || value < 0 || value > 20,
-        ) ||
-        !["difference", "goals"].includes(tiebreak)
-      )
-        throw new ValidationError(
-          "Indica puntos entre 0 y 20 y un criterio de desempate válido",
-        );
-      const club = teamKey((await this.settings.get()).teamName);
-      const validName = (value: unknown): value is string =>
-        typeof value === "string" &&
-        value.trim().length > 0 &&
-        value.trim().length <= 100 &&
-        !/[\u0000-\u001f]/.test(value);
-      if (
-        input.teams.some(
-          (name) => !validName(name) || teamKey(name) === club,
-        ) ||
-        new Set(input.teams.map(teamKey)).size !== input.teams.length
-      )
-        throw new ValidationError(
-          "Usa nombres de equipos distintos; tu club se agrega automáticamente",
-        );
-      const teams = input.teams.map((name) => name.trim().replace(/\s+/g, " "));
-      const allMatches = (await this.matches.list()).filter(
-        (match) => match.tournamentId === id,
-      );
-      const allowedTeams = new Set(
-        [...teams, ...allMatches.map((match) => match.opponent)].map(teamKey),
-      );
-      const ids = new Set<string>(),
-        fixtures = new Set<string>();
-      const results = input.results.map((row) => {
-        if (
-          !row ||
-          typeof row.id !== "string" ||
-          !/^[a-zA-Z0-9_-]{1,80}$/.test(row.id) ||
-          ids.has(row.id) ||
-          !Number.isInteger(row.matchday) ||
-          row.matchday < 1 ||
-          row.matchday > 1000 ||
-          !validName(row.home) ||
-          !validName(row.away) ||
-          teamKey(row.home) === teamKey(row.away) ||
-          !["programado", "jugado", "pospuesto", "cancelado"].includes(
-            row.status,
-          )
-        )
-          throw new ValidationError(
-            "Revisa la jornada, los equipos y el estado de cada encuentro",
-          );
-        const home = teamKey(row.home),
-          away = teamKey(row.away);
-        if (home === club || away === club)
-          throw new ValidationError(
-            "Los resultados de tu club se registran en Partidos para evitar contarlos dos veces",
-          );
-        if (!allowedTeams.has(home) || !allowedTeams.has(away))
-          throw new ValidationError("Agrega primero los equipos participantes");
-        if (
-          (row.homeGoals !== null && !validScore(row.homeGoals)) ||
-          (row.awayGoals !== null && !validScore(row.awayGoals)) ||
-          (row.status === "jugado" &&
-            (!validScore(row.homeGoals) || !validScore(row.awayGoals)))
-        )
-          throw new ValidationError(
-            "Un resultado jugado necesita ambos marcadores enteros entre 0 y 99",
-          );
-        const key = JSON.stringify([row.matchday, ...[home, away].sort()]);
-        if (fixtures.has(key))
-          throw new ValidationError(
-            "Ese encuentro ya está registrado en la jornada",
-          );
-        fixtures.add(key);
-        ids.add(row.id);
-        return {
-          id: row.id,
-          matchday: row.matchday,
-          home: row.home.trim(),
-          away: row.away.trim(),
-          homeGoals: row.homeGoals,
-          awayGoals: row.awayGoals,
-          status: row.status,
-        };
-      });
-      const matchRounds: Record<string, number> = {};
-      for (const [matchId, round] of Object.entries(input.matchRounds)) {
-        if (
-          !allMatches.some((match) => String(match.id) === matchId) ||
-          !Number.isInteger(round) ||
-          round < 1 ||
-          round > 1000
-        )
-          throw new ValidationError(
-            "Asigna una jornada válida a un partido de este torneo",
-          );
-        matchRounds[matchId] = round;
-      }
-      await this.leagues.save(id, {
-        version: input.version,
-        teams,
-        results,
-        matchRounds,
-        rules: { win, draw, loss, tiebreak },
-      });
-      return this.standings(id, true);
-    });
+  saveStandings(id: number, input: LeagueConfig): Promise<LeagueView> {
+    return this.leagues.save(id, input);
   }
   async roster(
     id: number,
