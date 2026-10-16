@@ -118,6 +118,9 @@ export function IndividualPreparation({
             <TacticalBoard
               slots={slots}
               format={plan.format}
+              formation={plan.formation}
+              phaseFormations={plan.phaseFormations}
+              allowedFormations={plan.allowedFormations}
               phase={phase}
               onPhaseChange={setPhase}
               focusRole={plan.role}
@@ -276,6 +279,9 @@ export function IndividualPreparation({
                 play={play}
                 slots={slots}
                 format={plan.format}
+                formation={plan.formation}
+                phaseFormations={plan.phaseFormations}
+                allowedFormations={plan.allowedFormations}
               />
               <TacticalPlayDetails play={play} headingLevel={4} />
             </div>

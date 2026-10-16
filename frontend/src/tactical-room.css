@@ -632,6 +632,35 @@ html[data-motion="off"] .fc-position[aria-pressed="true"] {
   gap: 0.3rem 0.75rem;
   padding: 0 0.75rem 0.25rem;
 }
+
+.fc-phase-system {
+  display: grid;
+  gap: .35rem;
+  margin: .7rem 0;
+  padding: .6rem .75rem;
+  border-inline-start: 2px solid var(--club-gold, #d8b76c);
+  background: #ffffff05;
+  font-size: .75rem;
+  overflow-wrap: anywhere;
+}
+
+.fc-phase-system > span,
+.fc-phase-system > small {
+  opacity: .7;
+}
+
+.fc-phase-system-control {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem 1rem;
+}
+
+.fc-phase-system-control .select {
+  width: auto;
+  min-width: 9rem;
+  min-height: 44px;
+}
 .fc-support-toggle {
   min-height: 44px;
   padding: 0.5rem 0.75rem;

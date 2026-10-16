@@ -136,6 +136,8 @@ export interface UniformRequestRow {
 }
 
 export interface MatchRow {
+  phase_formations?: string | null;
+  published_phase_formations?: string | null;
   venue_maps_url?: string | null;
   stream_url?:string|null;
   tournament_id?: number | null;
@@ -353,6 +355,8 @@ export function mapMatch(row: MatchRow): Match {
     tournamentRules: row.tournament_rules ? JSON.parse(row.tournament_rules) : null,
     lineupPublishedAt: row.lineup_published_at ?? null,
     publishedFormation: row.published_formation ?? null,
+    phaseFormations: row.phase_formations ? JSON.parse(row.phase_formations) : null,
+    publishedPhaseFormations: row.published_phase_formations ? JSON.parse(row.published_phase_formations) : null,
     id: row.id,
     opponent: row.opponent,
     competition: row.competition,

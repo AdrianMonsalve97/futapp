@@ -1,11 +1,10 @@
-import type { PitchPhase } from "../types/tactics";
 
 export const TACTICAL_TILE_HEIGHT = 48;
 
 /** Fit the whole pitch in its container without changing the stored formation. */
 export function tacticalLayout<
   T extends { x: number; y: number; role: string },
->(slots: T[], phase: PitchPhase, fieldWidth = 320) {
+>(slots: T[], fieldWidth = 320) {
   const rows: number[][] = [];
   for (const y of [...new Set(slots.map((slot) => slot.y))].sort(
     (a, b) => a - b,
@@ -16,15 +15,7 @@ export function tacticalLayout<
   const projected = slots.map((slot) => {
     const row = rows.findIndex((values) => values.includes(slot.y));
     const position = rows.length < 2 ? 50 : 14 + (row * 76) / (rows.length - 1);
-    const shift =
-      slot.role === "POR"
-        ? 0
-        : phase === "ataque"
-          ? -2
-          : phase === "repliegue"
-            ? 2
-            : 0;
-    const depth = Math.max(10, Math.min(92, position + shift)) / 100;
+    const depth = Math.max(10, Math.min(92, position)) / 100;
     return {
       ...slot,
       left: 50 + (slot.x - 50) * (0.68 + 0.28 * depth),

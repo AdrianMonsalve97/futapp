@@ -1,3 +1,4 @@
+import type { PhaseFormations } from '../../../../domain/tactical-phases';
 import { Router } from 'express';
 import type {
   CreateMatchInput,
@@ -16,8 +17,8 @@ export function matchRoutes(matches: MatchPort): Router {
   const router = Router();
   const admin = [requireAuth, requireRole('admin')];
 
-  router.get('/matches', requireAuth, async (_req, res) => {
-    res.json((await matches.list()));
+  router.get('/matches', requireAuth, async (req, res) => {
+    res.json((await matches.list(getAuth(req).role === 'player')));
   });
 
   router.get('/matches/:id', requireAuth, async (req, res) => {
@@ -93,8 +94,8 @@ export function matchRoutes(matches: MatchPort): Router {
   });
 
   router.put('/matches/:id/lineup', ...admin, async (req, res) => {
-    const body = jsonBody<{ slots?: LineupEntryInput[] }>(req);
-    res.json((await matches.setLineup(paramId(req), body.slots ?? [])));
+    const body = jsonBody<{ slots?: LineupEntryInput[]; phaseFormations?: PhaseFormations }>(req);
+    res.json((await matches.setLineup(paramId(req), body.slots ?? [], body.phaseFormations)));
   });
 
   router.post('/matches/:id/lineup/auto', ...admin, async (req, res) => {

@@ -95,6 +95,11 @@ export function LineupEditor(props: LineupEditorProps) {
           </p>
         </aside>
         <TacticalBoard
+          formation={state.formationKey}
+          phaseFormations={state.phaseFormations}
+          allowedFormations={props.allowedFormations}
+          onPhaseFormationChange={state.changePhaseFormation}
+          phaseEditingDisabled={state.busy !== null}
           slots={state.slots}
           format={props.format}
           selectedSlotIndex={state.pendingSlot?.slotIndex}

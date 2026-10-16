@@ -61,6 +61,8 @@ export function CoachingPlaysPanel({
               play={activePlay}
               slots={plan.recommendation.lineup}
               format={plan.match.format}
+              formation={plan.recommendation.formation}
+              phaseFormations={plan.recommendation.phaseFormations}
             />
             <div className="space-y-3">
               <TacticalPlayDetails play={activePlay} />

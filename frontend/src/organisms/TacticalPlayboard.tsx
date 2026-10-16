@@ -1,3 +1,8 @@
+import {
+  phaseSlots,
+  resolvePhaseFormations,
+} from "../../../backend/src/domain/tactical-phases";
+import type { PhaseFormations } from "../types/tactics";
 import { Button } from "../atoms/Button";
 import type { TeamFormat } from "../types/api";
 import type { PitchSlot, TacticalPlay } from "../types/tactics";
@@ -9,10 +14,16 @@ export function TacticalPlayboard({
   play,
   slots,
   format,
+  formation,
+  phaseFormations,
+  allowedFormations,
 }: {
   play: TacticalPlay;
   slots: PitchSlot[];
   format: TeamFormat;
+  formation: string;
+  phaseFormations?: PhaseFormations | null;
+  allowedFormations?: string[];
 }) {
   const route = tacticalRoute(play.route, slots);
   const sequence = `${play.id}:${play.phase}:${route.map((slot) => `${slot.slotIndex}/${slot.playerId ?? "vacante"}`).join(",")}`;
@@ -21,6 +32,15 @@ export function TacticalPlayboard({
     route.length,
   );
   const phase = tacticalPlayPhase(play.phase, step);
+  const systems = resolvePhaseFormations(
+    formation,
+    format,
+    phaseFormations,
+    allowedFormations,
+  );
+  const activeSystem = phase === "estructura" ? formation : systems[phase];
+  const activeSlots =
+    phase === "estructura" ? slots : phaseSlots(slots, activeSystem, format);
   const receiver = route[step];
   return (
     <section
@@ -30,7 +50,7 @@ export function TacticalPlayboard({
       <div className="fc-board-heading">
         <div>
           <p className="sport-eyebrow">
-            PLAY REPLAY · F{format} · {play.phase}
+            PLAY REPLAY · F{format} · {play.phase} · {activeSystem}
           </p>
           <h3>{play.title}</h3>
         </div>
@@ -40,7 +60,7 @@ export function TacticalPlayboard({
         </span>
       </div>
       <TacticalField
-        slots={slots}
+        slots={activeSlots}
         format={format}
         phase={phase}
         playback={{ route: play.route, step }}

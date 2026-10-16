@@ -35,14 +35,14 @@ export class SqliteMatchRepository implements MatchRepository {
     (await this.db.transaction(async () => {
             (await this.db.prepare('DELETE FROM published_lineups WHERE match_id = ?').run(matchId));
             (await this.db.prepare('INSERT INTO published_lineups SELECT match_id, slot_index, player_id, x, y, role, label FROM lineups WHERE match_id = ?').run(matchId));
-            (await this.db.prepare("UPDATE matches SET lineup_published_at = ?, published_formation = formation WHERE id = ?").run(new Date().toISOString(), matchId));
+            (await this.db.prepare("UPDATE matches SET lineup_published_at = ?, published_formation = formation, published_phase_formations = phase_formations WHERE id = ?").run(new Date().toISOString(), matchId));
           })());
     return (await this.findById(matchId)) as Match;
   }
 
   async unpublishLineup(matchId: number): Promise<void> {
     (await this.db.prepare('DELETE FROM published_lineups WHERE match_id = ?').run(matchId));
-    (await this.db.prepare('UPDATE matches SET lineup_published_at = NULL, published_formation = NULL WHERE id = ?').run(matchId));
+    (await this.db.prepare('UPDATE matches SET lineup_published_at = NULL, published_formation = NULL, published_phase_formations = NULL WHERE id = ?').run(matchId));
   }
 
   async listAttendance(matchId: number): Promise<MatchAttendance[]> {
@@ -116,6 +116,7 @@ export class SqliteMatchRepository implements MatchRepository {
     if (input.venue !== undefined) set('venue', 'venue', input.venue);
     if (input.isHome !== undefined) set('is_home', 'isHome', input.isHome ? 1 : 0);
     if (input.status !== undefined) set('status', 'status', input.status);
+    if (input.phaseFormations !== undefined) set('phase_formations', 'phaseFormations', input.phaseFormations ? JSON.stringify(input.phaseFormations) : null);
     if (input.formation !== undefined) set('formation', 'formation', input.formation);
     if (input.format !== undefined) set('format', 'format', input.format);
     if (input.minutes !== undefined) set('minutes', 'minutes', input.minutes);

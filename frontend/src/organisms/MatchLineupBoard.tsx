@@ -1,3 +1,4 @@
+import type { PhaseFormations } from "../types/tactics";
 import type { PitchSlot } from "../types/tactics";
 import { useState } from "react";
 import type { SquadMember } from "../../../backend/src/domain/squad";
@@ -12,10 +13,16 @@ import { Alert } from "../atoms/Alert";
 export function MatchLineupBoard({
   slots,
   format,
+  formation,
+  phaseFormations,
+  allowedFormations,
   tournamentId,
 }: {
   slots: PitchSlot[];
   format: TeamFormat;
+  formation: string;
+  phaseFormations?: PhaseFormations | null;
+  allowedFormations?: string[];
   tournamentId?: number | null;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
@@ -30,6 +37,9 @@ export function MatchLineupBoard({
       <TacticalBoard
         slots={slots}
         format={format}
+        formation={formation}
+        phaseFormations={phaseFormations}
+        allowedFormations={allowedFormations}
         onPlayerSelect={setSelected}
       />
       <p className="text-xs text-base-content/60 mt-3">

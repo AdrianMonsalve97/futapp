@@ -1,3 +1,4 @@
+import { phaseSlots, resolvePhaseFormations } from "../backend/src/domain/tactical-phases";
 import {after,test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -53,15 +54,17 @@ test('individual coaching is available for every registered role before match hi
 
 test('compact-format maps separate portraits and captions, including historical stored geometry',()=>{
   for(const format of [5,7,8] as const)for(const formation of formationsFor(format)) {
-    const original=structuredClone(formation.slots),slots=tacticalLayout(original,'estructura').slots;
+    const original=structuredClone(formation.slots),slots=tacticalLayout(original).slots;
     assert.deepEqual(original,formation.slots);assert.equal(slots.length,format);
     for(let i=0;i<slots.length;i++)for(let j=i+1;j<slots.length;j++) {
       const separation=Math.hypot(slots[i].left-slots[j].left,slots[i].top-slots[j].top);
       assert(separation>=20,`${format}/${formation.key}: cramped slots ${i}, ${j}`);
     }
-    const advanced=tacticalLayout(original,'ataque').slots,defending=tacticalLayout(original,'repliegue').slots;
-    assert.equal(advanced.find(slot=>slot.role==='POR')?.top,slots.find(slot=>slot.role==='POR')?.top);
-    assert(advanced.filter(slot=>slot.role!=='POR').every((slot,i)=>slot.top<defending.filter(s=>s.role!=='POR')[i].top));
+    const systems=resolvePhaseFormations(formation.key,format);
+    const advanced=phaseSlots(original,systems.ataque,format),defending=phaseSlots(original,systems.repliegue,format);
+    assert.equal(advanced.find(slot=>slot.role==='POR')?.y,defending.find(slot=>slot.role==='POR')?.y);
+    assert.equal(advanced.length,defending.length);
+    if(systems.ataque!==systems.repliegue) assert.notDeepEqual(advanced,defending);
   }
 });
 

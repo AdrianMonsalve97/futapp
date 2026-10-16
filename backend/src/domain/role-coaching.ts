@@ -1,6 +1,9 @@
+import type { PhaseFormations } from './tactical-phases';
 import type { Position,LineupSlot } from './entities';
 import type { TacticalStyle,TacticalPlay } from './tactics';
 export interface RolePreparation {
+  phaseFormations:PhaseFormations|null;
+  allowedFormations:string[];
   matchId:number|null;opponent:string|null;format:5|7|8|11;minutes:number;formation:string;publishedAt:string|null;
   lineup:LineupSlot[];trainingLineup:LineupSlot[];trainingScope:'plantel'|'partido';
   teammates:{playerId:number;playerName:string;avatarUrl:string|null;shirtNumber:number|null;position:Position}[];

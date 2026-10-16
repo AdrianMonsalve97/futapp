@@ -1,3 +1,4 @@
+import { publishedMatch } from '../../domain/published-match';
 import type { AiPort } from '../ports/in/ai.port';
 import type { DashboardPort } from '../ports/in/dashboard.port';
 import type { StatsPort } from '../ports/in/stats.port';
@@ -141,7 +142,7 @@ export class DashboardService implements DashboardPort {
     if (!match) return null;
     const lineup = (await this.refereePayments.publishedLineup(match.id));
     const lineupSlot = playerId !== null ? lineup.find((s) => s.playerId === playerId) ?? null : null;
-    return { ...match, formation: match.publishedFormation ?? match.formation, lineupSlot, lineup };
+    return { ...publishedMatch(match), lineupSlot, lineup };
   }
 
 }

@@ -1,3 +1,4 @@
+import type { PhaseFormations } from '../../../domain/tactical-phases';
 import type {
   LineupSlot,
   Match,
@@ -27,7 +28,7 @@ export interface CreateMatchInput {
   notes?: string | null;
 }
 
-export type UpdateMatchInput = Partial<CreateMatchInput>;
+export type UpdateMatchInput = Partial<CreateMatchInput> & { phaseFormations?: PhaseFormations | null };
 
 export interface CreateStrategyInput {
   matchId: number;

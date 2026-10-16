@@ -1,3 +1,4 @@
+import type { PhaseFormations } from '../../../domain/tactical-phases';
 import type {
   LineupSlot,
   Match,
@@ -75,7 +76,7 @@ export interface XiSuggestion {
 /** Casos de uso de partidos (§7.3). */
 export interface MatchPort {
   referee(id:number,userId?:number):Promise<import('../../../domain/referee').MatchRefereeView>;
-  list(): Promise<Match[]>;
+  list(playerView?: boolean): Promise<Match[]>;
   get(id: number, playerView?: boolean): Promise<MatchDetail>;
   publishLineup(id: number): Promise<Match>;
   attendance(id: number, userId?: number): Promise<import('../../../domain/entities').MatchAttendance[]>;
@@ -87,7 +88,7 @@ export interface MatchPort {
   addStrategy(matchId: number, input: StrategyInput): Promise<Strategy>;
   updateStrategy(id: number, input: Partial<StrategyInput>): Promise<Strategy>;
   removeStrategy(id: number): Promise<{ ok: true }>;
-  setLineup(id: number, slots: LineupEntryInput[]): Promise<{ lineup: LineupSlot[] }>;
+  setLineup(id: number, slots: LineupEntryInput[], phaseFormations?: PhaseFormations): Promise<{ lineup: LineupSlot[] }>;
   autoLineup(id: number, formation?: string): Promise<XiSuggestion>;
   saveStats(matchId: number, entries: Array<Partial<MatchStat> & { playerId: number }>): Promise<{ entries: MatchStat[] }>;
   getStats(matchId: number): Promise<{ entries: MatchStat[] }>;

@@ -55,6 +55,8 @@ export function CoachingPlanPanel({
             plan.match.format,
           )}
           format={plan.match.format}
+          formation={plan.recommendation.formation}
+          phaseFormations={plan.recommendation.phaseFormations}
         />
         <div className="fc-coaching-explanation">
           <h3>Por qué este sistema</h3>

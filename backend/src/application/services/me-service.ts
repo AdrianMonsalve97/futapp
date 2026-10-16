@@ -1,3 +1,4 @@
+import { publishedMatch } from '../../domain/published-match';
 import type { UnitOfWork } from '../ports/out/unit-of-work';
 import { uniformRecipient } from '../../domain/uniform-order';
 import * as bcrypt from 'bcryptjs';
@@ -181,8 +182,7 @@ export class MeService implements MePort {
     const lineup = (await this.refereePayments.publishedLineup(match.id));
     const mySlot: LineupSlot | null = lineup.find((slot) => slot.playerId === playerId) ?? null;
     return {
-      ...match,
-      formation: match.publishedFormation ?? match.formation,
+      ...publishedMatch(match),
       mySlot,
       strategiesCount: (await this.matches.listStrategies(match.id)).length,
       lineupFilled: lineup.filter((slot) => slot.playerId !== null).length,

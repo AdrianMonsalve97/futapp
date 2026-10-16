@@ -1,3 +1,4 @@
+import { resolvePhaseFormations } from '../../domain/tactical-phases';
 import type { AiPort, XiSuggestion } from '../ports/in/ai.port';
 import type { TacticalPlan, TacticalStyle } from '../../domain/tactics';
 import { buildPlays } from '../../domain/coaching';
@@ -313,7 +314,7 @@ export class AiService implements AiPort {
       ? `Cambios ilimitados durante ${match.minutes} min. Planifica relevos por función y carga observada; ${rules.rollingSubstitutions===null?'reingreso pendiente de confirmar':rules.rollingSubstitutions?'se permite reingresar':'no se permite reingresar'}.`
       : `Partido de ${match.minutes} min. ${rules ? 'Máximo '+rules.maxSubstitutions+' cambios.' : 'Confirma los cambios permitidos con la liga.'}`;
     return {match:{id:match.id,opponent:match.opponent,format:match.format,minutes:match.minutes},style,
-      recommendation:{...recommendation,formation:recommendation.formation!,bench:recommendation.bench??[]},
+      recommendation:{...recommendation,phaseFormations:resolvePhaseFormations(recommendation.formation!,match.format,match.phaseFormations,match.tournamentRules?.allowedFormations),formation:recommendation.formation!,bench:recommendation.bench??[]},
       formations,positions,plays:buildPlays(lineup,style),rotation,
       methodology:'Alineación basada en rendimiento, disponibilidad y encaje de posiciones. Las jugadas son propuestas adaptadas por reglas deportivas y referencias de entrenamiento, para revisar con el entrenador.'};
   }
@@ -511,7 +512,7 @@ export class AiService implements AiPort {
     const slots=definition.slots.map(s=>({...s,playerId:null,...visualLineup.find(p=>p.slotIndex===s.slotIndex)}));
     const minutes=next?.minutes??(rules?rules.periods*rules.minutesPerPeriod:getFormat(format).matchMinutes),role=own?.role??row.player.position,style=rules?.tacticalStyle??'equilibrado';
     const coaching=roleCoaching(role,style,minutes,rules?.periods??0,!!rules&&rules.maxSubstitutions===null);
-    const preparation={matchId:next?.id??null,opponent:next?.opponent??null,format,minutes,formation,publishedAt:next?.lineupPublishedAt??null,lineup:published,
+    const preparation={allowedFormations:rules?.allowedFormations??formationsFor(format).map(item=>item.key),phaseFormations:next?.lineupPublishedAt ? next.publishedPhaseFormations ?? null : resolvePhaseFormations(formation,format,null,rules?.allowedFormations),matchId:next?.id??null,opponent:next?.opponent??null,format,minutes,formation,publishedAt:next?.lineupPublishedAt??null,lineup:published,
       trainingLineup,trainingScope:next?'partido' as const:'plantel' as const,
       teammates:candidates.map(({playerId,playerName,avatarUrl,shirtNumber,position})=>({playerId,playerName,avatarUrl:avatarUrl??null,shirtNumber,position})),role,
       assignment:!next?'sin_partido' as const:!next.lineupPublishedAt?'sin_publicar' as const:own?'titular' as const:'fuera_inicial' as const,style,...coaching,plays:buildPlays(slots,style),

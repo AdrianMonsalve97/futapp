@@ -163,6 +163,9 @@ export function migrate(db: Database = getDb()): void {
     db.exec('ALTER TABLE payments ADD COLUMN idempotency_key TEXT');
   }
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_idempotency ON payments(inscription_id, idempotency_key) WHERE idempotency_key IS NOT NULL');
+  for (const column of ['phase_formations', 'published_phase_formations']) {
+    if (!hasColumn(db, 'matches', column)) db.exec(`ALTER TABLE matches ADD COLUMN ${column} TEXT`);
+  }
   const legacyLineups = !hasColumn(db, 'matches', 'lineup_published_at');
   if (legacyLineups) db.exec('ALTER TABLE matches ADD COLUMN lineup_published_at TEXT');
   if (!hasColumn(db, 'matches', 'published_formation')) db.exec('ALTER TABLE matches ADD COLUMN published_formation TEXT');

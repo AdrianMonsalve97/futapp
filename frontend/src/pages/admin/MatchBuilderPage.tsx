@@ -150,6 +150,7 @@ export function MatchBuilderPage() {
                 <LineupEditor
                   matchId={matchId}
                   formation={match.formation}
+                  phaseFormations={match.phaseFormations}
                   lineup={detail.data.lineup}
                   players={players.data ?? []}
                   format={profile.format}

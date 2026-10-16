@@ -68,6 +68,9 @@ export function SquadTacticalOverview({
       <TacticalBoard
         slots={slots}
         format={match.format}
+        formation={match.formation}
+        phaseFormations={match.phaseFormations}
+        allowedFormations={match.tournamentRules?.allowedFormations}
         onPlayerSelect={onPlayerSelect}
       />
       <div className="fc-squad-context">

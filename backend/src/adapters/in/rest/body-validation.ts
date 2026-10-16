@@ -99,7 +99,7 @@ export function validateBody(path: string, method: string, body: unknown): void 
   if (/^\/matches(\/\d+)?$/.test(path)) return check(body, match, create ? ['opponent', 'kickOff'] : []);
   if (path.endsWith('/formation')) return check(body, { formation: match.formation }, ['formation']);
   if (path.endsWith('/lineup/auto')) return check(body, { formation: match.formation });
-  if (path.endsWith('/lineup')) return check(body, { slots: v => {
+  if (path.endsWith('/lineup')) return check(body, { phaseFormations: v => { check(v, { ataque: nonempty(40), repliegue: nonempty(40) }, ['ataque', 'repliegue']); return true; }, slots: v => {
     if (!Array.isArray(v) || v.length > 11) return false;
     for (const slot of v) check(slot, { slotIndex: integer(0, 10), playerId: nullable(integer(1)), x: number(0, 100), y: number(0, 100), role: position, label: text(30) }, ['slotIndex', 'playerId']);
     return true;

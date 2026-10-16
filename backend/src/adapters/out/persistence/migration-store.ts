@@ -1,3 +1,5 @@
+import { validatePhaseFormations } from '../../../domain/tactical-phases';
+import { isTeamFormat } from '../../../domain/formats';
 import Database from 'better-sqlite3';
 import type { Database as Sqlite } from 'better-sqlite3';
 import fs from 'node:fs';
@@ -92,6 +94,11 @@ export class FileMigrationStore implements MigrationPort {
     if (matches && Array.isArray(matches.columns) && Array.isArray(matches.rows) && matches.rows.every(Array.isArray) && !matches.columns.includes('venue_maps_url')) {
       matches.columns.push('venue_maps_url'); matches.rows = matches.rows.map(row => [...row, null]);
     }
+    if (matches && Array.isArray(matches.columns) && Array.isArray(matches.rows) && matches.rows.every(Array.isArray)) {
+      for (const column of ['phase_formations', 'published_phase_formations']) {
+        if (!matches.columns.includes(column)) { matches.columns.push(column); matches.rows = matches.rows.map(row => [...row, null]); }
+      }
+    }
     const sessions=p.tables.auth_sessions;
     if(sessions&&Array.isArray(sessions.columns)&&Array.isArray(sessions.rows)&&sessions.rows.every(Array.isArray)&&!sessions.columns.includes('last_activity_at')) {
       sessions.columns.push('last_activity_at');sessions.rows=sessions.rows.map(row=>[...row,0]);
@@ -176,6 +183,15 @@ export class FileMigrationStore implements MigrationPort {
     const packet = this.validate(file);
     const matches = packet.tables.matches, mapColumn = matches.columns.indexOf('venue_maps_url');
     for (const row of matches.rows) {
+      for (const column of ['phase_formations', 'published_phase_formations']) {
+        const value = row[matches.columns.indexOf(column)];
+        if (value !== null) {
+          const format = row[matches.columns.indexOf('format')];
+          if (typeof format !== 'number' || !isTeamFormat(format)) throw new ValidationError('Formato de fase inválido en el respaldo');
+          try { validatePhaseFormations(JSON.parse(String(value)), format); }
+          catch { throw new ValidationError('Sistemas tácticos inválidos en el respaldo'); }
+        }
+      }
       const value = row[mapColumn];
       if (value !== null && typeof value !== 'string') throw new ValidationError('El respaldo contiene una ubicación de cancha inválida');
       venueMap(value);

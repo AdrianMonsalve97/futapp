@@ -1,3 +1,4 @@
+import type { PhaseFormations } from '../../../backend/src/domain/tactical-phases';
 // Espejo EXACTO de docs/SPEC.md §5 (domain/entities.ts).
 // Si algo cambia en el SPEC, cambia acá: el frontend consume estos tipos tal cual.
 
@@ -201,6 +202,8 @@ export interface Match {
   tournamentRules?: import("./tournament").TournamentSnapshot | null;
   lineupPublishedAt?: string | null;
   publishedFormation?: string | null;
+  phaseFormations?: PhaseFormations | null;
+  publishedPhaseFormations?: PhaseFormations | null;
   id: number;
   opponent: string;
   competition: string;
@@ -358,6 +361,8 @@ export interface ModelInfo {
 export interface AiPlayerInsight {
   avatarUrl?: string | null;
   preparation: {
+    phaseFormations: PhaseFormations | null;
+    allowedFormations: string[];
     matchId: number | null;
     opponent: string | null;
     format: TeamFormat;

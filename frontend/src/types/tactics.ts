@@ -1,3 +1,5 @@
+import type { PhaseFormations } from "../../../backend/src/domain/tactical-phases";
+export type { PitchPhase, PhaseFormations } from "../../../backend/src/domain/tactical-phases";
 import type {
   CoachingSource,
   TacticalPlay,
@@ -11,12 +13,13 @@ export type {
 } from "../../../backend/src/domain/tactics";
 import type { LineupSlot, Position, TeamFormat } from "./api";
 import type { LeagueContext } from "./tournament";
-export type PitchPhase = "estructura" | "ataque" | "repliegue";
+
 
 export interface TacticalPlan {
   match: { id: number; opponent: string; format: TeamFormat; minutes: number };
   style: TacticalStyle;
   recommendation: {
+    phaseFormations: PhaseFormations;
     formation: string;
     lineup: LineupSlot[];
     explanation: string;

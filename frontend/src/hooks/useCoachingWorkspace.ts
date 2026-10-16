@@ -94,6 +94,7 @@ export function useCoachingWorkspace() {
       await api(`/api/matches/${plan.match.id}/lineup`, {
         method: "PUT",
         json: {
+          phaseFormations: plan.recommendation.phaseFormations,
           slots: plan.recommendation.lineup.map((s) => ({
             slotIndex: s.slotIndex,
             playerId: s.playerId,

@@ -1,3 +1,4 @@
+import { phaseSlots, resolvePhaseFormations } from "../backend/src/domain/tactical-phases";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -51,7 +52,7 @@ test("the complete compact field fits mobile and desktop without clipping or ove
         const slots = pitchSlotsFrom(formation.key, [], format),
           original = structuredClone(slots);
         for (const width of [224, 256, 320, 390, 768, 860]) {
-          const layout = tacticalLayout(slots, phase, width);
+          const layout = tacticalLayout(phase === "estructura" ? slots : phaseSlots(slots, resolvePhaseFormations(formation.key, format)[phase], format), width);
           assert.equal(layout.slots.length, format);
           assert.equal(
             layout.slots.filter((slot) => slot.role === "POR").length,

@@ -1,3 +1,4 @@
+import type { PhaseFormations } from './tactical-phases';
 /**
  * Tipos de dominio (§5 del SPEC).
  * Este archivo es el espejo exacto de `frontend/src/types/api.ts`.
@@ -75,6 +76,8 @@ export interface Match {
   tournamentRules?: import('./tournament').TournamentSnapshot | null;
   lineupPublishedAt?: string | null;
   publishedFormation?: string | null;
+  phaseFormations?: PhaseFormations | null;
+  publishedPhaseFormations?: PhaseFormations | null;
   id: number; opponent: string; competition: string; kickOff: string; venue: string | null;
   isHome: boolean; status: MatchStatus; formation: string;
   format: TeamFormat;   // 5 | 7 | 8 | 11 (§12.4): formato propio del partido

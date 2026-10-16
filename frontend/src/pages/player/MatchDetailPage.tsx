@@ -164,6 +164,9 @@ export function MatchDetailPage() {
               </div>
               <div className="match-tactical-board">
                 <MatchLineupBoard
+                formation={match.formation}
+                phaseFormations={match.phaseFormations}
+                allowedFormations={match.tournamentRules?.allowedFormations}
                   slots={slots}
                   format={profile.format}
                   tournamentId={match.tournamentId}

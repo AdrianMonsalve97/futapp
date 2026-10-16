@@ -1,3 +1,5 @@
+import { resolvePhaseFormations } from "../../../backend/src/domain/tactical-phases";
+import type { PhaseFormations } from "../types/tactics";
 import { assignLineupSlot, pitchSlotsFrom } from "../utils/lineup-slots";
 import type { PitchSlot } from "../types/tactics";
 import { useEffect, useState } from "react";
@@ -18,6 +20,7 @@ import type {
 export interface LineupEditorProps {
   matchId: number;
   formation: string;
+  phaseFormations?: PhaseFormations | null;
   lineup: LineupSlot[];
   players: PlayerListItem[];
   /** §12.7.3 — formato del partido: filtra las formaciones y fija el cupo. */
@@ -43,6 +46,7 @@ export function useLineupEditor({
   format,
   onChanged,
   allowedFormations,
+  phaseFormations: savedPhases,
 }: LineupEditorProps) {
   const attendance = useFetch<MatchAttendance[]>(
     `/api/matches/${matchId}/attendance`,
@@ -52,6 +56,15 @@ export function useLineupEditor({
     pitchSlotsFrom(formation, lineup, format),
   );
   const [formationKey, setFormationKey] = useState(formation);
+  const [phaseFormations, setPhaseFormations] = useState(() =>
+    resolvePhaseFormations(formation, format, savedPhases, allowedFormations),
+  );
+  const phaseSignature = JSON.stringify(savedPhases);
+  useEffect(() => {
+    setPhaseFormations(
+      resolvePhaseFormations(formation, format, savedPhases, allowedFormations),
+    );
+  }, [matchId, phaseSignature, format, JSON.stringify(allowedFormations)]);
   const [pendingSlot, setPendingSlot] = useState<PitchSlot | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [busy, setBusy] = useState<Busy>(null);
@@ -161,6 +174,7 @@ export function useLineupEditor({
     setNotice(null);
     try {
       const payload = {
+        phaseFormations,
         slots: slots.map((slot) => ({
           slotIndex: slot.slotIndex,
           playerId: slot.playerId ?? null,
@@ -233,6 +247,14 @@ export function useLineupEditor({
     attendance.reload();
   };
   return {
+    phaseFormations,
+    changePhaseFormation: (phase: "ataque" | "repliegue", key: string) => {
+      if (busy !== null) return;
+      setPhaseFormations((previous) => ({ ...previous, [phase]: key }));
+      setNotice(
+        "Sistema de fase modificado. Guarda el borrador o publica para compartirlo.",
+      );
+    },
     openSlot,
     attendance,
     slots,

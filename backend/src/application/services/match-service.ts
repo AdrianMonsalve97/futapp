@@ -1,3 +1,5 @@
+import { publishedMatch } from '../../domain/published-match';
+import { resolvePhaseFormations, validatePhaseFormations, type PhaseFormations } from '../../domain/tactical-phases';
 import type {
   CreateMatchInput,
   LineupEntryInput,
@@ -55,7 +57,7 @@ export class MatchService implements MatchPort {
     private readonly notifications?: NotificationEvents,
   ) {}
 
-  async list(): Promise<Match[]> {
+  async list(playerView = false): Promise<Match[]> {
     const all = (await this.matches.list());
     const upcoming = all
       .filter((m) => UPCOMING.includes(m.status))
@@ -63,7 +65,7 @@ export class MatchService implements MatchPort {
     const finished = all
       .filter((m) => !UPCOMING.includes(m.status))
       .sort((a, b) => b.kickOff.localeCompare(a.kickOff));
-    return [...upcoming, ...finished];
+    return [...upcoming, ...finished].map(match => playerView ? publishedMatch(match) : match);
   }
 
   async get(id: number, playerView = false): Promise<MatchDetail> {
@@ -71,9 +73,9 @@ export class MatchService implements MatchPort {
     const original=playerView?await this.matches.getPublishedLineup(id):await this.lineupFor(match);
     const allowed=['programado','pospuesto'].includes(match.status)?new Set((await this.attendance(id)).filter(row=>row.eligible).map(row=>row.playerId)):null;
     const lineup=original.map(slot=>!allowed||slot.playerId===null||allowed.has(slot.playerId)?slot:{...slot,playerId:null,playerName:null,shirtNumber:null,playerPosition:null,avatarUrl:null});
-    const visibleMatch=original.some((slot,index)=>slot.playerId!==lineup[index].playerId)?{...match,lineupPublishedAt:null,publishedFormation:null}:match;
+    const visibleMatch=original.some((slot,index)=>slot.playerId!==lineup[index].playerId)?{...match,lineupPublishedAt:null,publishedFormation:null,publishedPhaseFormations:null}:match;
     return {
-      match: playerView ? { ...visibleMatch, formation: visibleMatch.publishedFormation ?? visibleMatch.formation } : visibleMatch,
+      match: playerView ? publishedMatch(visibleMatch) : visibleMatch,
       strategies: (await this.matches.listStrategies(id)),
       lineup,
       stats: (await this.stats.list({ matchId: id })),
@@ -122,7 +124,7 @@ export class MatchService implements MatchPort {
           if (!UPCOMING.includes(match.status)) throw new ValidationError('Solo se publica la alineación de partidos pendientes');
           const slots = (await this.lineupFor(match));
           if (slots.some(slot => slot.playerId === null)) throw new ValidationError('Completa todas las posiciones antes de publicar');
-          (await this.setLineup(id, slots));
+          (await this.setLineup(id, slots, resolvePhaseFormations(match.formation, match.format, match.phaseFormations, match.tournamentRules?.allowedFormations)));
           return (await this.matches.publishLineup(id));
         }));
   }
@@ -190,7 +192,7 @@ export class MatchService implements MatchPort {
           if ((await this.stats.list({ matchId: id })).some(row => row.minutes > minutes)) throw new ValidationError('La duración no puede ser menor que los minutos ya registrados');
           const closing=input.status==='jugado'&&current.status!=='jugado';
           // Freeze charges and credits using the final schedule and roster of this same update.
-          const updated = (await this.matches.update(id, { ...input, status:closing?'programado':input.status,tournamentRules: rules, formation, format, minutes }));
+          const updated = (await this.matches.update(id, { ...input, status:closing?'programado':input.status,tournamentRules: rules, formation, format, minutes, phaseFormations: current.phaseFormations ? resolvePhaseFormations(formation, format, current.phaseFormations, rules?.allowedFormations) : undefined }));
           if(closing){await this.refereePayments.settle(id);await this.matches.update(id,{status:'jugado'});}
           await this.refereePayments.reconcile(id);
 
@@ -198,7 +200,7 @@ export class MatchService implements MatchPort {
           if (formatChanged || formation !== current.formation) {
             (await this.realignLineup(id, formation, format));
           }
-          if (formatChanged || (rules && current.publishedFormation && !rules.allowedFormations.includes(current.publishedFormation))) (await this.matches.unpublishLineup(id));
+          if (formatChanged || (rules && current.publishedPhaseFormations && Object.values(current.publishedPhaseFormations).some(key => !rules.allowedFormations.includes(key))) || (rules && current.publishedFormation && !rules.allowedFormations.includes(current.publishedFormation))) (await this.matches.unpublishLineup(id));
           if (input.tournamentId !== undefined && input.tournamentId !== current.tournamentId) {
             (await this.matches.unpublishLineup(id));
             if (updated.tournamentId) {
@@ -271,9 +273,10 @@ export class MatchService implements MatchPort {
     return { ok: true };
   }
 
-  async setLineup(id: number, slots: LineupEntryInput[]): Promise<{ lineup: LineupSlot[] }> {
+  async setLineup(id: number, slots: LineupEntryInput[], phaseFormations?: PhaseFormations): Promise<{ lineup: LineupSlot[] }> {
     return this.uow.run(async()=>{
     const match = (await this.requireMatch(id));
+    if (phaseFormations !== undefined) validatePhaseFormations(phaseFormations, match.format, match.tournamentRules?.allowedFormations);
     const profile = getFormat(match.format);
     if (!Array.isArray(slots)) {
       throw new ValidationError('Debes enviar la lista de posiciones de la alineación');
@@ -339,7 +342,9 @@ export class MatchService implements MatchPort {
         label: target.label,
       };
     });
-    return { lineup: (await this.matches.replaceLineup(id, lineupSlots)) };
+    const lineup = await this.matches.replaceLineup(id, lineupSlots);
+    if (phaseFormations !== undefined) await this.matches.update(id, { phaseFormations });
+    return { lineup };
     });
   }
 

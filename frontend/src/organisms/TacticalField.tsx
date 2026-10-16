@@ -30,7 +30,7 @@ export function TacticalField({
   playback?: { route: number[]; step: number };
 }) {
   const field = useElementWidth();
-  const layout = tacticalLayout(slots, phase, field.width ?? 320);
+  const layout = tacticalLayout(slots, field.width ?? 320);
   const route = tacticalRoute(playback?.route ?? [], layout.slots);
   const points = route.map((slot) =>
     tacticalBallPoint(slot, layout.tileWidth, field.width ?? 320),
