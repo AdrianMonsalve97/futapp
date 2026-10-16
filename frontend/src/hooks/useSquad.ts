@@ -14,6 +14,7 @@ export function useSquad() {
   const squad = useFetch<SquadMember[]>(
     `/api/squad${tournament ? `?tournamentId=${encodeURIComponent(tournament)}` : ""}`,
   );
+  const [view, setView] = useState<"gallery" | "system">("gallery");
   const [role, setRole] = useState("TODOS");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("number");
@@ -42,6 +43,8 @@ export function useSquad() {
     [squad.data, role, search, sort],
   );
   return {
+    view,
+    setView,
     squad,
     tournaments,
     tournament,

@@ -6,7 +6,7 @@ El frontend conserva Atomic Design:
 | --- | --- | --- |
 | atoms | Controles y presentación básicos, sin consultas | Button, Modal, Icon, Alert |
 | molecules | Combinaciones de controles o resúmenes pequeños | ClubPageIntro, LeagueSummary |
-| organisms | Paneles funcionales y formularios compuestos | LeagueConfigEditor, LeagueResultDialog, LeagueResultsPanel, ClubMobileNavigation |
+| organisms | Paneles funcionales y formularios compuestos | LeagueConfigEditor, LeagueResultDialog, LeagueResultsPanel, ClubNavigation |
 | templates | Distribución general y navegación de la pantalla | DashboardLayout, AuthLayout |
 | pages | Selección de ruta/entidad y composición de paneles | StandingsPage |
 | hooks/services | Estado de interacción, consultas y transporte | useTournamentLeague, useFetch, api |
@@ -56,3 +56,14 @@ salud o contacto. La ubicación de canchas se valida en `domain/venue-map.ts` y 
 resuelve mediante el puerto `MapsLinkResolver`, compuesto con su adaptador en
 `container.ts`. Los respaldos anteriores incorporan el campo nullable sin perder
 filas; también se validan los enlaces importados. Ver [Plantilla y canchas](PLANTILLA-Y-CANCHAS.md).
+
+
+La navegación autenticada se compone únicamente con `ClubNavigation`; se retiraron
+`Sidebar`, `Topbar` y `ClubMobileNavigation`, junto con sus selectores sin uso.
+El inventario de rutas por rol vive en `data/navigation.ts`. `TacticalBoard`
+comparte la presentación de la alineación entre administrador, jugador y plantilla;
+`useLineupEditor` conserva sus escrituras y reglas de elegibilidad. Los tipos de
+slots viven en `types/tactics.ts`, sin dependencias de moléculas hacia organismos.
+Las posiciones se proyectan con funciones puras y se comprueban sus distancias
+para todos los formatos. La cancha con anotaciones de IA mantiene su componente
+específico porque permite jugadas y enfoque individual que requieren esas capas.

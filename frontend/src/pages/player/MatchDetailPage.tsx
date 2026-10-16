@@ -1,3 +1,5 @@
+import { pitchSlotsFrom } from "../../utils/lineup-slots";
+import { MatchKickoffPanel } from "../../organisms/MatchKickoffPanel";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useFetch } from "../../hooks/useFetch";
@@ -10,7 +12,7 @@ import { Badge } from "../../atoms/Badge";
 import { Card, CardBody, CardTitle } from "../../atoms/Card";
 import { Icon } from "../../atoms/Icon";
 import { Spinner } from "../../atoms/Spinner";
-import { pitchSizeClass, pitchSlotsFrom } from "../../organisms/FormationPitch";
+
 import { MatchLineupBoard } from "../../organisms/MatchLineupBoard";
 import { StrategyList } from "../../organisms/StrategyList";
 import { AttendancePanel } from "../../organisms/AttendancePanel";
@@ -95,6 +97,7 @@ export function MatchDetailPage() {
         }
       />
 
+      <MatchKickoffPanel match={match} />
       <MatchRulesNotice match={match} />
       <SectionNavigation
         label="Explorar partido"
@@ -158,7 +161,7 @@ export function MatchDetailPage() {
       )}
       {section === "rendimiento" && <MyMatchPerformance myStat={myStat} />}
       {section === "plan" && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="match-plan-layout">
           <Card>
             <CardBody className="gap-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -172,7 +175,7 @@ export function MatchDetailPage() {
                   </Badge>
                 </div>
               </div>
-              <div className={pitchSizeClass(profile.format)}>
+              <div className="match-tactical-board">
                 <MatchLineupBoard
                   slots={slots}
                   format={profile.format}

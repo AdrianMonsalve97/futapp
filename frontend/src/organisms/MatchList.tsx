@@ -10,7 +10,7 @@ import { StatusBadge } from "../molecules/StatusBadge";
 import { ConfirmAction } from "../molecules/ConfirmAction";
 import { useSettings } from "../context/SettingsContext";
 import { getFormat } from "../data/formations";
-import { formatDateTime, formatWeekdayShort } from "../utils/format";
+import { formatKickoffDate } from "../utils/match-clock";
 import type { LineupSlot, Match } from "../types/api";
 
 export type MatchListMatch = Match & {
@@ -80,11 +80,10 @@ export function MatchList({
               <div className="flex items-center gap-4 min-w-0">
                 <div className="club-fixture-date w-16 shrink-0 text-center rounded-xl bg-primary/10 text-primary py-2">
                   <p className="text-lg font-bold leading-none">
-                    {formatWeekdayShort(match.kickOff).split(",")[1]?.trim() ??
-                      "—"}
+                    {formatKickoffDate(match.kickOff, { day: "2-digit" })}
                   </p>
                   <p className="text-[11px] uppercase">
-                    {formatWeekdayShort(match.kickOff).split(",")[0]}
+                    {formatKickoffDate(match.kickOff, { weekday: "short" })}
                   </p>
                 </div>
                 <div className="min-w-0">
@@ -107,7 +106,7 @@ export function MatchList({
                     {match.competition}
                   </p>
                   <p className="text-xs text-base-content/50">
-                    {formatDateTime(match.kickOff)}
+                    {formatKickoffDate(match.kickOff)}
                     {match.venue ? ` · ${match.venue}` : ""}
                     {match.venueMap ? " · Mapa disponible" : ""}
                   </p>

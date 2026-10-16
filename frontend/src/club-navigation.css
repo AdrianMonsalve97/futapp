@@ -1,0 +1,287 @@
+.club-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+.club-shell > .club-content {
+  flex: 1;
+  width: 100%;
+  max-width: 1600px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 28px clamp(16px, 3vw, 48px) 32px;
+}
+.club-footer {
+  text-align: center;
+  font-size: 0.68rem;
+  color: color-mix(in srgb, var(--color-base-content) 45%, transparent);
+  padding: 1.5rem;
+}
+.club-navigation {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid var(--club-hairline);
+  background: color-mix(in srgb, var(--color-base-100) 94%, transparent);
+  backdrop-filter: blur(20px);
+}
+.club-navigation-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 1600px;
+  margin: auto;
+  min-height: 82px;
+  padding: 12px clamp(16px, 3vw, 48px);
+}
+.club-navigation-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  flex-shrink: 0;
+}
+.club-navigation-brand > span {
+  display: grid;
+  gap: 0.3rem;
+}
+.club-navigation-brand strong {
+  font-size: 0.8rem;
+  font-weight: 850;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.club-navigation-brand small {
+  font-size: 0.43rem;
+  letter-spacing: 0.17em;
+  opacity: 0.5;
+}
+.club-navigation-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  margin: auto;
+}
+.club-navigation-links > a,
+.club-navigation-more > summary {
+  position: relative;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 1rem 0.85rem;
+  text-transform: uppercase;
+  font-weight: 750;
+  font-size: 0.65rem;
+  letter-spacing: 0.09em;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 0.4rem;
+}
+.club-navigation-more > summary::-webkit-details-marker {
+  display: none;
+}
+.club-navigation-links > a:hover,
+.club-navigation-more > summary:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+.club-navigation-links > a.is-active {
+  color: var(--color-primary);
+}
+.club-navigation-links > a.is-active:after {
+  content: "";
+  height: 2px;
+  position: absolute;
+  bottom: 0.25rem;
+  left: 0.85rem;
+  right: 0.85rem;
+  background: currentColor;
+}
+.club-navigation-more {
+  position: relative;
+}
+.club-navigation-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 460px;
+  max-width: calc(100vw - 32px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  padding: 18px;
+  background: var(--color-base-100);
+  border: 1px solid var(--club-hairline);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px #0006;
+}
+.club-navigation-menu > p {
+  grid-column: 1/-1;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  opacity: 0.5;
+  margin-bottom: 0.6rem;
+}
+.club-navigation-menu > a {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  padding: 0.6rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+}
+.club-navigation-menu > a:hover,
+.club-navigation-menu > a[aria-current="page"] {
+  background: color-mix(in srgb, var(--color-primary) 9%, transparent);
+  color: var(--color-primary);
+}
+.club-navigation-account {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.club-navigation-user {
+  font-size: 0.75rem;
+  font-weight: 750;
+  max-width: 85px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 0.6rem;
+}
+.club-navigation-user small {
+  display: block;
+  font-size: 0.48rem;
+  letter-spacing: 0.15em;
+  opacity: 0.5;
+  margin-top: 0.25rem;
+}
+.club-navigation-toggle {
+  display: none;
+}
+@media (max-width: 1150px) {
+  .club-navigation-inner {
+    gap: 0.8rem;
+  }
+  .club-navigation-brand strong {
+    max-width: 120px;
+    font-size: 0.72rem;
+  }
+  .club-navigation-brand small {
+    display: none;
+  }
+  .club-navigation-links > a,
+  .club-navigation-more > summary {
+    padding-inline: 0.6rem;
+    font-size: 0.6rem;
+  }
+  .club-navigation-user {
+    display: none;
+  }
+}
+@media (max-width: 850px) {
+  .club-navigation-inner {
+    flex-wrap: wrap;
+    min-height: 72px;
+    padding-block: 12px;
+    gap: 0.75rem;
+  }
+  .club-navigation-brand {
+    flex: 1;
+  }
+  .club-navigation-brand strong {
+    max-width: 170px;
+  }
+  .club-navigation-toggle {
+    display: inline-flex;
+    order: 3;
+  }
+  .club-navigation-account {
+    order: 2;
+  }
+  .club-navigation-links {
+    display: none;
+    order: 4;
+    flex-basis: 100%;
+    width: 100%;
+    max-height: calc(100dvh - 100px);
+    overflow: auto;
+    align-items: stretch;
+    padding: 0.75rem 0 0.5rem;
+    border-top: 1px solid var(--club-hairline);
+    margin: 0;
+  }
+  .club-navigation-links.is-open {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+  .club-navigation-links > a {
+    justify-content: flex-start;
+    padding: 1rem;
+    font-size: 0.7rem;
+    border: 1px solid var(--club-hairline);
+  }
+  .club-navigation-more {
+    grid-column: 1/-1;
+  }
+  .club-navigation-more > summary {
+    justify-content: space-between;
+    padding: 1rem;
+    font-size: 0.7rem;
+  }
+  .club-navigation-menu {
+    position: static;
+    width: 100%;
+    max-width: none;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+    padding: 0.5rem;
+  }
+  .club-navigation-menu > a {
+    font-size: 0.7rem;
+  }
+}
+@media (max-width: 480px) {
+  .club-navigation-account {
+    gap: 0;
+  }
+  .club-navigation-account .btn {
+    width: 30px;
+    padding: 0;
+    min-width: 30px;
+  }
+  .club-navigation-brand .w-11 {
+    width: 34px;
+    height: 34px;
+  }
+  .club-navigation-brand strong {
+    max-width: 120px;
+    font-size: 0.65rem;
+  }
+  .club-navigation-brand {
+    gap: 0.5rem;
+  }
+  .club-navigation-inner {
+    gap: 0.4rem;
+  }
+  .club-shell > .club-content {
+    padding-top: 18px;
+  }
+  .club-navigation-menu {
+    grid-template-columns: 1fr;
+  }
+  .club-navigation-brand strong {
+    max-width: 90px;
+  }
+  .club-navigation-brand > span {
+    min-width: 0;
+  }
+}

@@ -47,34 +47,10 @@ a {
   font-family: "Bahnschrift", "Arial Narrow", sans-serif;
   letter-spacing: -0.045em;
 }
-.club-sidebar {
-  color: #b0c0b6;
-}
 .club-emblem {
   color: var(--club-ink);
   background: var(--club-gold);
   clip-path: polygon(8% 0, 92% 0, 100% 65%, 50% 100%, 0 65%);
-}
-.club-nav-link {
-  padding: 0.75rem 0.9rem;
-}
-.club-nav-active {
-  box-shadow: 0 3px 18px #d8b86a13;
-}
-.club-nav-active:hover {
-  color: var(--club-ink);
-  background: var(--club-gold);
-  box-shadow: 0 3px 18px #d8b86a13;
-}
-.sidebar-season {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--club-gold);
-}
-.appearance-button {
-  font-size: 19px;
-  min-width: 34px;
 }
 .club-card {
   transition:
@@ -724,14 +700,6 @@ main {
   }
 }
 @media (max-width: 767px) {
-  .club-topbar .btn {
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0.5rem;
-  }
-  .club-topbar .navbar {
-    min-height: 64px;
-  }
   main .card-body {
     padding: 1rem;
   }
@@ -746,8 +714,7 @@ main {
   .modal-action > .btn {
     flex: 1 1 8rem;
   }
-  .page-actions > .btn,
-  .lineup-actions > .btn {
+  .page-actions > .btn {
     flex: 1 1 12rem;
   }
   [role="tablist"] .tab {

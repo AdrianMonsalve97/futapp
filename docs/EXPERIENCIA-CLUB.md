@@ -87,3 +87,29 @@ Prompt final:
 > The site will overlay its own real crest and real kit photos, so leave the
 > stadium free of invented club identity. Deliver a background photograph only,
 > not a website mockup.
+
+
+## Navegación y sala táctica
+
+Una sola navegación superior reúne Inicio, Plantilla, Partidos, La liga y Tienda;
+Más conserva las demás rutas por rol. En móvil se despliega desde la misma cabecera.
+La barra lateral y el menú inferior se retiraron.
+
+El inicio recupera el próximo rival, la cancha, la fecha y una cuenta regresiva
+sobre la hora de Colombia. El contador se actualiza por segundo mientras la pestaña
+está visible. Alcanzar la hora prevista no se presenta como una transmisión en vivo.
+Los partidos pospuestos, cancelados y jugados tienen mensajes propios.
+
+La gestión abre en la sala táctica: consola lateral de formación, IA y distribución,
+cancha en perspectiva con fichas de nombre/dorsal/función y acciones de guardar o
+publicar. Elegir una posición abre una lista con fotos de los jugadores elegibles.
+Mover un jugador deja libre su posición anterior y no lo duplica. Las reglas de
+asistencia, arbitraje y publicación siguen validadas en el servidor.
+
+Plantilla separa El vestuario, con retratos más grandes, y Sala táctica, con el sistema
+del próximo partido. Los jugadores consultan la alineación publicada; el administrador
+puede preparar su borrador. Los retratos completos dejan de repetirse en el inicio.
+
+La referencia visual de FC aportada por el usuario se recrea mediante HTML, SVG y CSS
+propios; los controles de formación, IA y publicación usan las operaciones reales.
+No se presentan valores ficticios de química, atributos físicos o rendimiento.

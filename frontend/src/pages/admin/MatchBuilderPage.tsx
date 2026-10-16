@@ -1,3 +1,4 @@
+import { MatchKickoffPanel } from "../../organisms/MatchKickoffPanel";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useFetch } from "../../hooks/useFetch";
@@ -29,7 +30,7 @@ export function MatchBuilderPage() {
   const detail = useFetch<MatchDetailResponse>(
     valid ? `/api/matches/${matchId}` : null,
   );
-  const [section, setSection] = useState<Section>("partido");
+  const [section, setSection] = useState<Section>("tactica");
   const players = useFetch<PlayerListItem[]>(
     section === "tactica" || section === "rendimiento" ? "/api/players" : null,
   );
@@ -70,6 +71,7 @@ export function MatchBuilderPage() {
           </>
         }
       />
+      <MatchKickoffPanel match={match} />
       <MatchRulesNotice match={match} />
       <SectionNavigation
         label="Gestionar partido"
@@ -136,12 +138,9 @@ export function MatchBuilderPage() {
         </>
       )}
       {section === "tactica" && (
-        <div className="space-y-5">
+        <div className="space-y-5 match-tactics-page">
           <Card>
             <CardBody>
-              <CardTitle>
-                {profile.playersOnPitch} inicial · {match.formation}
-              </CardTitle>
               {players.error ? (
                 <Alert tone="error" onClose={players.reload}>
                   {players.error}

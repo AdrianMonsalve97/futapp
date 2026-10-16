@@ -1,8 +1,10 @@
+import type { PitchSlot } from "../types/tactics";
 import { useState } from "react";
 import type { SquadMember } from "../../../backend/src/domain/squad";
 import type { TeamFormat } from "../types/api";
 import { useFetch } from "../hooks/useFetch";
-import { FormationPitch, type PitchSlot } from "./FormationPitch";
+
+import { TacticalBoard } from "./TacticalBoard";
 import { PlayerPerformanceDetail } from "./PlayerPerformanceDetail";
 import { Spinner } from "../atoms/Spinner";
 import { Alert } from "../atoms/Alert";
@@ -25,13 +27,13 @@ export function MatchLineupBoard({
   const member = squad.data?.find((row) => row.playerId === selected);
   return (
     <>
-      <FormationPitch
+      <TacticalBoard
         slots={slots}
         format={format}
         onPlayerSelect={setSelected}
       />
       <p className="text-xs text-base-content/60 mt-3">
-        Toca la foto de un compañero para explorar sus números y últimas
+        Selecciona la ficha de un compañero para explorar sus números y últimas
         actuaciones.
       </p>
       {selected !== null && squad.loading && (

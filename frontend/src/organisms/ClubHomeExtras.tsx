@@ -4,10 +4,8 @@ import { useFetch } from "../hooks/useFetch";
 import { Icon } from "../atoms/Icon";
 import { useSettings } from "../context/SettingsContext";
 import { ClubLogo } from "../atoms/ClubLogo";
-import { MediaImage } from "../atoms/MediaImage";
 import { UniformProductImage } from "../molecules/UniformProductImage";
-import { initials } from "../utils/format";
-import type { Tournament, TournamentRoster } from "../types/tournament";
+import type { Tournament } from "../types/tournament";
 import type { Uniform, MeUniformsResponse } from "../types/api";
 import type { LeagueView } from "../types/league";
 
@@ -24,9 +22,6 @@ export function ClubHomeExtras() {
     tournaments.data?.find((row) => row.status === "publicado");
   const league = useFetch<LeagueView>(
     tournament ? `/api/tournaments/${tournament.id}/standings` : null,
-  );
-  const roster = useFetch<TournamentRoster>(
-    tournament ? `/api/tournaments/${tournament.id}/players` : null,
   );
   const catalog = Array.isArray(uniforms.data)
     ? uniforms.data
@@ -104,68 +99,23 @@ export function ClubHomeExtras() {
           )}
         </section>
       </div>
-      {tournament && (
-        <section className="club-squad-section">
-          <div className="club-section-label">
-            <span>LOS QUE DEFIENDEN EL ESCUDO</span>
-            <Link
-              className="club-text-link"
-              to={`${base}/plantilla?torneo=${tournament.id}`}
-            >
-              Ver plantel <Icon name="arrowRight" size={15} />
-            </Link>
-          </div>
-          <h3>Nuestro equipo. Nuestra fuerza.</h3>
-          {roster.error ? (
-            <p className="club-muted">
-              No pudimos actualizar el plantel.{" "}
-              <button className="link" onClick={roster.reload}>
-                Reintentar
-              </button>
-            </p>
-          ) : roster.data?.players.some((row) => row.active) ? (
-            <div className="club-squad-gallery">
-              {roster.data.players
-                .filter((row) => row.active)
-                .map((row) => (
-                  <Link
-                    key={row.playerId}
-                    to={`${base}/plantilla?torneo=${tournament.id}`}
-                    className="club-player-card"
-                  >
-                    <div className="club-player-portrait">
-                      {row.avatarUrl ? (
-                        <MediaImage src={row.avatarUrl} alt={row.playerName} />
-                      ) : (
-                        <span>{initials(row.playerName)}</span>
-                      )}
-                      <b>{row.shirtNumber ?? "—"}</b>
-                    </div>
-                    <div>
-                      <strong>{row.playerName}</strong>
-                      <small>
-                        {
-                          {
-                            POR: "Portero",
-                            DEF: "Defensa",
-                            MED: "Mediocampista",
-                            DEL: "Delantero",
-                          }[row.position]
-                        }
-                      </small>
-                    </div>
-                  </Link>
-                ))}
-            </div>
-          ) : (
-            <p className="club-muted">
-              {roster.loading
-                ? "Preparando el vestuario…"
-                : "Los jugadores aparecerán cuando se confirme la plantilla de este torneo."}
-            </p>
-          )}
-        </section>
-      )}
+      <section className="club-roster-invite">
+        <ClubLogo className="w-20 h-20" />
+        <div>
+          <p className="sport-eyebrow">EL EQUIPO, EN SU VESTUARIO</p>
+          <h3>Conoce a quienes juegan contigo.</h3>
+          <p>
+            Fotos, posiciones y rendimiento de cada integrante, en la plantilla
+            del club.
+          </p>
+        </div>
+        <Link
+          className="btn btn-outline"
+          to={`${base}/plantilla${tournament ? `?torneo=${tournament.id}` : ""}`}
+        >
+          Entrar a la plantilla →
+        </Link>
+      </section>
     </>
   );
 }

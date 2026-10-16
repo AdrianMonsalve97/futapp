@@ -1,0 +1,41 @@
+/** Tournament fixtures are entered in Colombia time (UTC−05), independently of the viewing device. */
+export function kickoffTime(value: string): number {
+  const local = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value);
+  return Date.parse(local ? `${value}-05:00` : value);
+}
+
+const kickoffFormatter = new Intl.DateTimeFormat("es-CO", {
+  timeZone: "America/Bogota",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+export function formatKickoffDate(
+  value: string,
+  options?: Intl.DateTimeFormatOptions,
+): string {
+  const time = kickoffTime(value);
+  if (!Number.isFinite(time)) return "Horario por confirmar";
+  return options
+    ? new Intl.DateTimeFormat("es-CO", {
+        ...options,
+        timeZone: "America/Bogota",
+      }).format(time)
+    : kickoffFormatter.format(time);
+}
+
+export function matchClock(value: string, now: number) {
+  const kickoff = kickoffTime(value);
+  if (!Number.isFinite(kickoff)) return null;
+  const seconds = Math.max(0, Math.ceil((kickoff - now) / 1000));
+  return {
+    kickoff,
+    reached: seconds === 0,
+    days: Math.floor(seconds / 86400),
+    hours: Math.floor(seconds / 3600) % 24,
+    minutes: Math.floor(seconds / 60) % 60,
+    seconds: seconds % 60,
+  };
+}

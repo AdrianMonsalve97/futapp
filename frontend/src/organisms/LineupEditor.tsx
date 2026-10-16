@@ -1,313 +1,167 @@
-import { useEffect, useState } from 'react';
-import { FormationPitch, pitchGridClass, type PitchSlot } from './FormationPitch';
-import { formationsFor, getFormat, getFormation } from '../data/formations';
-import { api, errorMessage } from '../services/api';
-import { Alert } from '../atoms/Alert';
-import { Button } from '../atoms/Button';
-import { Modal } from '../atoms/Modal';
-import { FormField } from '../molecules/FormField';
-import { PositionBadge } from '../molecules/PositionBadge';
-import { Select } from '../atoms/Select';
-import { Spinner } from '../atoms/Spinner';
-import { useFetch } from '../hooks/useFetch';
-import type { MatchAttendance } from '../types/api';
-import type {
-  AutoLineupResponse,
-  LineupResponse,
-  LineupSlot,
-  MatchWithLineupResponse,
-  PlayerListItem,
-  TeamFormat,
-} from '../types/api';
+import {
+  useLineupEditor,
+  type LineupEditorProps,
+} from "../hooks/useLineupEditor";
+import { TacticalBoard } from "./TacticalBoard";
+import { PlayerAssignmentDialog } from "./PlayerAssignmentDialog";
+import { TacticalBalance } from "../molecules/TacticalBalance";
+import { Alert } from "../atoms/Alert";
+import { Button } from "../atoms/Button";
+import { Select } from "../atoms/Select";
 
-export interface LineupEditorProps {
-  matchId: number;
-  formation: string;
-  lineup: LineupSlot[];
-  players: PlayerListItem[];
-  /** §12.7.3 — formato del partido: filtra las formaciones y fija el cupo. */
-  format: TeamFormat;
-  /** Se invoca tras cada escritura para que la página recargue los datos. */
-  onChanged: () => void;
-  publishedAt?: string | null;
-  allowedFormations?: string[];
-}
-
-type Busy = 'formation' | 'suggest' | 'save' | 'publish' | null;
-
-const POSITION_ORDER: Record<string, number> = { POR: 0, DEF: 1, MED: 2, DEL: 3 };
-
-/** Convierte los slots del API (o el catálogo) a slots dibujables del pitch.
- * Siempre itera sobre el catálogo del formato: garantiza exactamente
- * `playersOnPitch` slots aunque la alineación guardada venga de otro formato. */
-function buildSlots(lineup: LineupSlot[], formationKey: string, format: TeamFormat): PitchSlot[] {
-  const catalog = getFormation(formationKey, format).slots;
-  const byIndex = new Map<number, LineupSlot>((lineup ?? []).map((slot) => [slot.slotIndex, slot]));
-  return catalog.map((item) => {
-    const saved = byIndex.get(item.slotIndex);
-    return {
-      slotIndex: item.slotIndex,
-      x: saved?.x ?? item.x,
-      y: saved?.y ?? item.y,
-      role: item.role,
-      label: item.label,
-      playerId: saved?.playerId ?? null,
-      playerName: saved?.playerName ?? null,
-      shirtNumber: saved?.shirtNumber ?? null,
-      avatarUrl: saved?.avatarUrl ?? null,
-    };
-  });
-}
-
-/**
- * Editor de alineación (SPEC §10.4 + §12.7.3): selector de formaciones del
- * FORMATO DEL PARTIDO, pitch editable (click en slot → elegir jugador),
- * contador "N / N en cancha", "Sugerir XI con IA" y "Guardar".
- */
-export function LineupEditor({ matchId, formation, lineup, players, format, onChanged, publishedAt, allowedFormations }: LineupEditorProps) {
-  const attendance = useFetch<MatchAttendance[]>(`/api/matches/${matchId}/attendance`, [lineup]);
-  const [slots, setSlots] = useState<PitchSlot[]>(() => buildSlots(lineup, formation, format));
-  const [formationKey, setFormationKey] = useState(formation);
-  const [pendingSlot, setPendingSlot] = useState<PitchSlot | null>(null);
-  const [selectedPlayerId, setSelectedPlayerId] = useState('');
-  const [busy, setBusy] = useState<Busy>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [bench, setBench] = useState<NonNullable<AutoLineupResponse['bench']>>([]);
-
-  const profile = getFormat(format);
-  const formationOptions = formationsFor(format).filter(item => !allowedFormations || allowedFormations.includes(item.key));
-  const playersOnPitch = profile.playersOnPitch;
-
-  // Sincroniza cuando el padre recarga (tras cada guardado).
-  useEffect(() => {
-    setSlots(buildSlots(lineup, formation, format));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lineup]);
-
-  useEffect(() => {
-    setFormationKey(formation);
-  }, [formation]);
-
-  useEffect(() => {
-    if (!pendingSlot) return;
-    setSelectedPlayerId(pendingSlot.playerId ? String(pendingSlot.playerId) : '');
-  }, [pendingSlot]);
-
-  const filled = slots.filter((slot) => slot.playerId).length;
-
-  const sortedPlayers = players.filter(item => item.user.active && attendance.data?.some(row => row.playerId === item.player.id && row.eligible)).sort((a, b) => {
-    const byPos = (POSITION_ORDER[a.player.position] ?? 9) - (POSITION_ORDER[b.player.position] ?? 9);
-    if (byPos !== 0) return byPos;
-    const byNumber = (a.player.shirtNumber ?? 99) - (b.player.shirtNumber ?? 99);
-    if (byNumber !== 0) return byNumber;
-    return a.user.fullName.localeCompare(b.user.fullName, 'es');
-  });
-
-  const changeFormation = async (key: string) => {
-    if (key === formationKey) return;
-    setBusy('formation');
-    setError(null);
-    setNotice(null);
-    try {
-      const res = await api<MatchWithLineupResponse>(`/api/matches/${matchId}/formation`, {
-        method: 'PUT',
-        json: { formation: key },
-      });
-      setFormationKey(res.match.formation);
-      setSlots(buildSlots(res.lineup, res.match.formation, format));
-      setNotice(`Formación ${key}: se conservaron los jugadores que siguen en pie. Revisá y guardá.`);
-      onChanged();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const suggestXi = async (compare = false) => {
-    setBusy('suggest');
-    setError(null);
-    setNotice(null);
-    try {
-      const res = await api<AutoLineupResponse>(`/api/matches/${matchId}/lineup/auto`, {
-        method: 'POST',
-        json: compare ? {} : { formation: formationKey },
-      });
-      const key = res.formation ?? formationKey;
-      setFormationKey(key);
-      setSlots(buildSlots(res.lineup, key, format));
-      setBench(res.bench ?? []);
-      setNotice(res.explanation);
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const save = async (publish = false) => {
-    setBusy(publish ? 'publish' : 'save');
-    setError(null);
-    setNotice(null);
-    try {
-      const payload = {
-        slots: slots.map((slot) => ({
-          slotIndex: slot.slotIndex,
-          playerId: slot.playerId ?? null,
-          x: slot.x,
-          y: slot.y,
-          role: slot.role,
-          label: slot.label,
-        })),
-      };
-      if (formationKey !== formation) await api(`/api/matches/${matchId}/formation`, { method: 'PUT', json: { formation: formationKey } });
-      await api<LineupResponse>(`/api/matches/${matchId}/lineup`, { method: 'PUT', json: payload });
-      if (publish) await api(`/api/matches/${matchId}/lineup/publish`, { method: 'POST' });
-      setNotice(publish ? 'Alineación publicada. Los jugadores ya pueden consultar sus posiciones.' : 'Borrador guardado. Publícalo cuando esté listo para el equipo.');
-      onChanged();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const assignPlayer = () => {
-    if (!pendingSlot) return;
-    const playerId = selectedPlayerId ? Number(selectedPlayerId) : null;
-    const found = playerId ? players.find((item) => item.player.id === playerId) : undefined;
-    setSlots((prev) =>
-      prev.map((slot) =>
-        slot.slotIndex !== pendingSlot.slotIndex
-          ? slot
-          : {
-              ...slot,
-              playerId,
-              playerName: found ? found.user.fullName : null,
-              shirtNumber: found ? found.player.shirtNumber : null,
-              avatarUrl: found?.user.avatarUrl ?? null,
-            },
-      ),
-    );
-    setPendingSlot(null);
-  };
-
+export function LineupEditor(props: LineupEditorProps) {
+  const state = useLineupEditor(props);
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 text-xs"><span className={`badge badge-sm ${publishedAt ? 'badge-success' : 'badge-warning'}`}>{publishedAt ? 'Hay una alineación publicada' : 'Sin publicar'}</span><span className="text-base-content/55">Estás editando el borrador. Los cambios aparecen al publicar.</span></div>
-      {/* Selector de formaciones del formato + acciones */}
-      <div className="flex flex-wrap items-center gap-2 justify-between">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Formaciones disponibles">
-          {formationOptions.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              className={`btn btn-sm ${formationKey === option.key ? 'btn-active btn-primary' : 'btn-outline'}`}
-              onClick={() => void changeFormation(option.key)}
-              disabled={busy !== null}
+    <section className="fc-lineup-workspace">
+      <div className="fc-lineup-heading">
+        <div>
+          <p className="sport-eyebrow">MATCH PREPARATION</p>
+          <h2>Tu equipo. Tu sistema.</h2>
+        </div>
+        <span
+          className={`badge ${props.publishedAt ? "badge-success" : "badge-warning"}`}
+        >
+          {props.publishedAt ? "Alineación publicada" : "Borrador sin publicar"}
+        </span>
+      </div>
+      {state.error && (
+        <Alert tone="error" onClose={() => state.setError(null)}>
+          {state.error}
+        </Alert>
+      )}
+      {state.notice && (
+        <Alert tone="info" onClose={() => state.setNotice(null)}>
+          {state.notice}
+        </Alert>
+      )}
+      <div className="fc-tactical-workspace">
+        <aside className="fc-tactical-console">
+          <p className="sport-eyebrow">TU PLAN DE PARTIDO</p>
+          <h3>Identidad táctica</h3>
+          <label className="fc-console-field">
+            Formación
+            <Select
+              value={state.formationKey}
+              disabled={state.busy !== null}
+              onChange={(event) =>
+                void state.changeFormation(event.target.value)
+              }
             >
-              {option.key}
-            </button>
+              {state.formationOptions.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.key}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <div className="fc-console-facts">
+            <span>
+              Formato <strong>F{props.format}</strong>
+            </span>
+            <span>
+              En cancha{" "}
+              <strong>
+                {state.filled}/{state.playersOnPitch}
+              </strong>
+            </span>
+          </div>
+          <TacticalBalance slots={state.slots} />
+          <div className="fc-console-assistant">
+            <p className="sport-eyebrow">ASISTENTE DEL ENTRENADOR</p>
+            <Button
+              size="sm"
+              onClick={() => void state.suggestXi()}
+              loading={state.busy === "suggest"}
+              disabled={state.busy !== null}
+            >
+              Proponer {state.playersOnPitch} inicial con IA
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void state.suggestXi(true)}
+              disabled={state.busy !== null}
+            >
+              Comparar sistemas con IA
+            </Button>
+            <p>
+              La propuesta usa rendimiento y disponibilidad; tú decides qué
+              equipo publicar.
+            </p>
+          </div>
+          <p className="fc-console-help">
+            Elige una ficha para asignar o mover un jugador. La convocatoria y
+            el pago de arbitraje determinan quién puede ser titular.
+          </p>
+        </aside>
+        <TacticalBoard
+          slots={state.slots}
+          format={props.format}
+          selectedSlotIndex={state.pendingSlot?.slotIndex}
+          onSlotSelect={state.busy === null ? state.openSlot : undefined}
+        />
+      </div>
+      {state.attendance.error && (
+        <Alert tone="error">
+          {state.attendance.error}{" "}
+          <button className="link" onClick={state.attendance.reload}>
+            Actualizar convocatoria
+          </button>
+        </Alert>
+      )}
+      {state.bench.length > 0 && (
+        <div className="fc-bench">
+          <strong>Suplentes sugeridos</strong>
+          {state.bench.map((player) => (
+            <span key={player.playerId}>
+              {player.playerName} <small>{player.position}</small>
+            </span>
           ))}
         </div>
-        <div className="lineup-actions flex flex-wrap items-center gap-3">
-          <span className="badge badge-ghost badge-sm">
-            {filled} / {playersOnPitch} en cancha
+      )}
+      <div className="fc-lineup-savebar">
+        <p>
+          <strong>
+            {state.filled === state.playersOnPitch
+              ? "Equipo completo"
+              : "Completa el inicial"}
+          </strong>
+          <span>
+            El equipo verá los cambios cuando publiques la alineación.
           </span>
-          <Button size="sm" variant="secondary" onClick={() => void suggestXi()} loading={busy === 'suggest'} disabled={busy !== null}>
-            Sugerir {playersOnPitch} inicial con IA
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => void suggestXi(true)} disabled={busy !== null}>Comparar formaciones con IA</Button>
-          <Button size="sm" variant="outline" onClick={() => void save()} loading={busy === 'save'} disabled={busy !== null}>
+        </p>
+        <div>
+          <Button
+            variant="outline"
+            onClick={() => void state.save()}
+            loading={state.busy === "save"}
+            disabled={state.busy !== null}
+          >
             Guardar borrador
           </Button>
-          <Button size="sm" onClick={() => void save(true)} loading={busy === 'publish'} disabled={filled !== playersOnPitch || busy !== null}>Publicar alineación</Button>
+          <Button
+            onClick={() => void state.save(true)}
+            loading={state.busy === "publish"}
+            disabled={
+              state.filled !== state.playersOnPitch || state.busy !== null
+            }
+          >
+            Publicar {state.playersOnPitch} inicial →
+          </Button>
         </div>
       </div>
-
-      {busy === 'formation' ? <Spinner size="sm" /> : null}
-      {error ? <Alert tone="error" onClose={() => setError(null)}>{error}</Alert> : null}
-      {notice ? (
-        <Alert tone="success" onClose={() => setNotice(null)}>
-          {notice}
-        </Alert>
-      ) : null}
-      {bench.length ? <p className="text-sm text-base-content/65"><strong>Suplentes sugeridos:</strong> {bench.map(row => `${row.playerName} (${row.position})`).join(' · ')}. Revisa la convocatoria y las reglas de cambios antes de publicar.</p> : null}
-
-      <div className={`grid gap-4 ${pitchGridClass(format)}`}>
-        <FormationPitch
-          slots={slots}
-          variant="edit"
-          format={format}
-          selectedSlotIndex={pendingSlot?.slotIndex ?? null}
-          onSlotClick={(slot) => setPendingSlot(slot)}
-          emptyMessage="Sin formación"
+      {state.pendingSlot && (
+        <PlayerAssignmentDialog
+          slot={state.pendingSlot}
+          players={state.sortedPlayers}
+          slots={state.slots}
+          selectedId={state.selectedPlayerId}
+          onSelect={state.setSelectedPlayerId}
+          onClose={() => state.setPendingSlot(null)}
+          onAssign={state.assignPlayer}
+          loading={state.attendance.loading}
         />
-
-        <div className="space-y-3">
-          <div className="rounded-xl border border-base-200 bg-base-100 p-4">
-            <h3 className="font-semibold text-sm mb-1">Cómo usar el editor</h3>
-            <ul className="text-sm text-base-content/70 space-y-1 list-disc pl-5">
-              <li>
-                {profile.name}: elegí una formación ({formationOptions.length} opciones): se reemplazan los
-                slots vacíos.
-              </li>
-              <li>Hacé click en un slot del pitch para asignar o vaciar un jugador.</li>
-              <li>
-                Se necesitan exactamente {playersOnPitch} jugadores en cancha para publicar la alineación
-                (actualmente {filled} / {playersOnPitch} en cancha).
-              </li>
-              <li>La IA considera rendimiento y disponibilidad. Guarda el borrador o publica el equipo completo.</li>
-            </ul>
-          </div>
-
-          <div className="rounded-xl border border-base-200 bg-base-100 p-4">
-            <h3 className="font-semibold text-sm mb-2">Alineación actual</h3>
-            <ul className="space-y-1.5">
-              {slots.map((slot) => (
-                <li key={slot.slotIndex} className="flex items-center gap-2 text-sm">
-                  <span className="w-12 shrink-0 text-xs text-base-content/50 font-mono">{slot.label}</span>
-                  <PositionBadge position={slot.role} size="xs" />
-                  <span className={slot.playerId ? 'font-medium' : 'text-base-content/40'}>
-                    {slot.playerId ? `${slot.shirtNumber ?? '—'} ${slot.playerName}` : 'Vacante'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <Modal
-        open={pendingSlot !== null}
-        onClose={() => setPendingSlot(null)}
-        title={pendingSlot ? `Slot ${pendingSlot.label} (${pendingSlot.role})` : ''}
-        size="sm"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setPendingSlot(null)}>
-              Cancelar
-            </Button>
-            <Button variant="danger" onClick={() => setSelectedPlayerId('')}>
-              Vaciar
-            </Button>
-            <Button onClick={assignPlayer}>Asignar</Button>
-          </>
-        }
-      >
-        <FormField label="Jugador" hint="Dejá “— Sin asignar —” para dejar el slot vacío.">
-          <Select value={selectedPlayerId} onChange={(event) => setSelectedPlayerId(event.target.value)}>
-            <option value="">— Sin asignar —</option>
-            {sortedPlayers.map((item) => (
-              <option key={item.player.id} value={item.player.id}>
-                {item.player.shirtNumber ?? '—'} · {item.user.fullName} ({item.player.position})
-                {item.user.active ? '' : ' · inactivo'}
-              </option>
-            ))}
-          </Select>
-        </FormField>
-      </Modal>
-    </div>
+      )}
+    </section>
   );
 }

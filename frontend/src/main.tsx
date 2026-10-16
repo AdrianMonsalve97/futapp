@@ -13,6 +13,10 @@ import "./kit-store.css";
 import "./commerce.css";
 import "./club-experience.css";
 import "./sport-experience.css";
+import "./club-navigation.css";
+import "./matchday.css";
+import "./tactical-room.css";
+import "./locker-room.css";
 
 const container = document.getElementById("root");
 if (!container) throw new Error("No se encontró el elemento #root.");

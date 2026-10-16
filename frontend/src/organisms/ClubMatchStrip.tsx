@@ -4,7 +4,7 @@ import { useFetch } from "../hooks/useFetch";
 import { Icon } from "../atoms/Icon";
 import { useSettings } from "../context/SettingsContext";
 import { ClubLogo } from "../atoms/ClubLogo";
-import { formatDateTime } from "../utils/format";
+import { formatKickoffDate } from "../utils/match-clock";
 import type { Match } from "../types/api";
 
 export function ClubMatchStrip({ match }: { match: Match | null }) {
@@ -44,7 +44,7 @@ export function ClubMatchStrip({ match }: { match: Match | null }) {
         </div>
         <p>
           {match
-            ? formatDateTime(match.kickOff)
+            ? formatKickoffDate(match.kickOff)
             : "Aquí verás la fecha, el rival y la cancha."}
         </p>
         {match && (
@@ -76,7 +76,7 @@ export function ClubMatchStrip({ match }: { match: Match | null }) {
               </strong>
               <span>{latest.opponent}</span>
             </div>
-            <p>{formatDateTime(latest.kickOff)}</p>
+            <p>{formatKickoffDate(latest.kickOff)}</p>
             <Link
               className="club-text-link"
               to={`${base}/partidos/${latest.id}`}
@@ -106,7 +106,7 @@ export function ClubMatchStrip({ match }: { match: Match | null }) {
                 <Link to={`${base}/partidos/${row.id}`}>
                   <span>
                     {row.opponent}
-                    <small>{formatDateTime(row.kickOff)}</small>
+                    <small>{formatKickoffDate(row.kickOff)}</small>
                   </span>
                   <Icon name="arrowRight" size={15} />
                 </Link>

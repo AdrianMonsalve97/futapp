@@ -101,7 +101,7 @@ export function MatchFormModal(props: MatchEditorProps) {
               }
             />
           </FormField>
-          <FormField label="Fecha y hora" required>
+          <FormField label="Fecha y hora (Colombia)" required>
             <Input
               type="datetime-local"
               value={form.kickOff}

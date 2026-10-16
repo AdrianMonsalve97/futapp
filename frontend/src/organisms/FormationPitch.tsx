@@ -1,6 +1,6 @@
+import type { PitchSlot } from "../types/tactics";
 import { shortName } from "../utils/format";
-import { getFormation } from "../data/formations";
-import type { LineupSlot, TeamFormat } from "../types/api";
+import type { TeamFormat } from "../types/api";
 import { useId, useState } from "react";
 import { Avatar } from "../atoms/Avatar";
 import { PitchPortrait, PITCH_COLORS } from "./PitchPortrait";
@@ -9,21 +9,6 @@ import {
   PITCH_HEIGHT,
   type PitchPhase,
 } from "../utils/pitch-layout";
-
-export interface PitchSlot {
-  slotIndex: number;
-  x: number;
-  y: number;
-  role: "POR" | "DEF" | "MED" | "DEL";
-  label: string;
-  playerId?: number | null;
-  playerName?: string | null;
-  shirtNumber?: number | null;
-  avatarUrl?: string | null;
-  playerPosition?: PitchSlot["role"] | null;
-  /** Resalta el slot (posición propia en vistas de jugador). */
-  highlighted?: boolean;
-}
 
 export interface FormationPitchProps {
   slots: PitchSlot[];
@@ -66,36 +51,6 @@ export function pitchGridClass(format: TeamFormat): string {
   return format === 11
     ? "lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]"
     : "xl:grid-cols-2";
-}
-
-/**
- * Slots dibujables a partir del catálogo de la formación, fusionados con la
- * alineación guardada (si existe). Garantiza los slots del formato.
- */
-export function pitchSlotsFrom(
-  formationKey: string,
-  lineup?: LineupSlot[] | null,
-  format?: TeamFormat,
-): PitchSlot[] {
-  const catalog = getFormation(formationKey, format).slots;
-  const byIndex = new Map<number, LineupSlot>(
-    (lineup ?? []).map((item) => [item.slotIndex, item]),
-  );
-  return catalog.map((item) => {
-    const saved = byIndex.get(item.slotIndex);
-    return {
-      slotIndex: item.slotIndex,
-      x: saved?.x ?? item.x,
-      y: saved?.y ?? item.y,
-      role: item.role,
-      label: item.label,
-      playerId: saved?.playerId ?? null,
-      playerName: saved?.playerName ?? null,
-      shirtNumber: saved?.shirtNumber ?? null,
-      avatarUrl: saved?.avatarUrl ?? null,
-      playerPosition: saved?.playerPosition ?? null,
-    };
-  });
 }
 
 /**

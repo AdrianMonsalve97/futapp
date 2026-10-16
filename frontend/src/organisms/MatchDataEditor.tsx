@@ -55,7 +55,7 @@ export function MatchDataEditor({
                 }
               />
             </FormField>
-            <FormField label="Fecha y hora">
+            <FormField label="Fecha y hora (Colombia)">
               <Input
                 type="datetime-local"
                 value={form.kickOff}

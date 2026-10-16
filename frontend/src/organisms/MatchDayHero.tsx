@@ -1,3 +1,4 @@
+import { MatchCountdown } from "../molecules/MatchCountdown";
 import { Link } from "react-router-dom";
 import { ClubLogo } from "../atoms/ClubLogo";
 import { Icon } from "../atoms/Icon";
@@ -47,14 +48,33 @@ export function MatchDayHero({ match }: { match: Match | null }) {
           </Link>
         </div>
       </div>
-      <div className="club-hero-identity" aria-hidden="true">
-        <ClubLogo className="club-hero-crest" />
-        <span>
-          UN ESCUDO.
-          <br />
-          TODAS NUESTRAS HISTORIAS.
-        </span>
-      </div>
+      {match ? (
+        <div className="club-hero-fixture">
+          <p className="club-eyebrow">PRÓXIMO PARTIDO · {match.competition}</p>
+          <div className="club-hero-fixture-teams">
+            <ClubLogo className="w-16 h-16" />
+            <div>
+              <small>{match.isHome ? "EN CASA" : "DE VISITANTE"}</small>
+              <strong>vs. {match.opponent}</strong>
+              <span>{match.venue || "Cancha por confirmar"}</span>
+            </div>
+          </div>
+          <MatchCountdown match={match} />
+          <Link className="club-text-link" to={`${base}/partidos/${match.id}`}>
+            {user?.role === "admin" ? "Preparar el partido" : "Voy al partido"}{" "}
+            →
+          </Link>
+        </div>
+      ) : (
+        <div className="club-hero-identity" aria-hidden="true">
+          <ClubLogo className="club-hero-crest" />
+          <span>
+            UN ESCUDO.
+            <br />
+            TODAS NUESTRAS HISTORIAS.
+          </span>
+        </div>
+      )}
       <div className="club-hero-bottom">
         <span>TEMPORADA {settings.season}</span>
         <span>
