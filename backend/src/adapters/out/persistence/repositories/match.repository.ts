@@ -76,8 +76,8 @@ export class SqliteMatchRepository implements MatchRepository {
   async create(input: CreateMatchInput): Promise<Match> {
     const result = (await this.db
           .prepare(
-            `INSERT INTO matches (opponent, competition, kick_off, venue, is_home, status, formation, format, minutes, goals_for, goals_against, notes, tournament_id, tournament_rules, stream_url)
-         VALUES (@opponent, @competition, @kickOff, @venue, @isHome, @status, @formation, @format, @minutes, @goalsFor, @goalsAgainst, @notes, @tournamentId, @tournamentRules, @streamUrl)`,
+            `INSERT INTO matches (opponent, competition, kick_off, venue, is_home, status, formation, format, minutes, goals_for, goals_against, notes, tournament_id, tournament_rules, stream_url, venue_maps_url)
+         VALUES (@opponent, @competition, @kickOff, @venue, @isHome, @status, @formation, @format, @minutes, @goalsFor, @goalsAgainst, @notes, @tournamentId, @tournamentRules, @streamUrl, @venueMapsUrl)`,
           )
           .run({
             tournamentId: input.tournamentId ?? null, tournamentRules: input.tournamentRules ? JSON.stringify(input.tournamentRules) : null,
@@ -85,6 +85,7 @@ export class SqliteMatchRepository implements MatchRepository {
             competition: input.competition?.trim() || 'Amistoso',
             kickOff: input.kickOff,
             venue: input.venue ?? null,
+            venueMapsUrl: input.venueMapsUrl ?? null,
             isHome: input.isHome === false ? 0 : 1,
             status: input.status ?? 'programado',
             formation: input.formation ?? getFormat(input.format ?? 8).defaultFormation,
@@ -111,6 +112,7 @@ export class SqliteMatchRepository implements MatchRepository {
     if (input.opponent !== undefined) set('opponent', 'opponent', input.opponent.trim());
     if (input.competition !== undefined) set('competition', 'competition', input.competition);
     if (input.kickOff !== undefined) set('kick_off', 'kickOff', input.kickOff);
+    if (input.venueMapsUrl !== undefined) set('venue_maps_url', 'venueMapsUrl', input.venueMapsUrl);
     if (input.venue !== undefined) set('venue', 'venue', input.venue);
     if (input.isHome !== undefined) set('is_home', 'isHome', input.isHome ? 1 : 0);
     if (input.status !== undefined) set('status', 'status', input.status);

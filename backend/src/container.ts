@@ -2,6 +2,7 @@
  * Composition root (§2 del SPEC): único punto que instancia clases concretas
  * (repositorios → servicios → rutas vía `createHttpServer`).
  */
+import { GoogleMapsResolver } from './adapters/out/maps/google-maps-resolver';
 import { FileModelStore } from './adapters/out/persistence/model-store';
 import path from 'node:path';
 import { env } from './config/env';
@@ -97,7 +98,7 @@ export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaSto
     matches, users, players, settings, qrRepository, uow, Date.now, tournaments);
 
   // Servicios de casos de uso
-  const statsService = new StatsService(stats);
+  const statsService = new StatsService(stats, tournaments);
   const settingsService = new SettingsService(settings, tournaments);
   const aiService = new AiService(
     stats,
@@ -144,7 +145,7 @@ export function createContainer(cloud?: { db:ApplicationDatabase; media:MediaSto
   const inscriptionService = new InscriptionService(inscriptions, players, uow);
   const qrPaymentService = new QrPaymentService(qrRepository, mediaStorage, players, inscriptionService, uow, notificationService,refereeService);
   const uniformService = new UniformService(uniforms, uniformIssues, uniformRequests, players, uow);
-  const matchService = new MatchService(matches, players, stats, aiService, settings, sanctions, uow, tournaments, refereeService,notificationService);
+  const matchService = new MatchService(matches, players, stats, aiService, settings, sanctions, uow, tournaments, refereeService,new GoogleMapsResolver(),notificationService);
   const sanctionService = new SanctionService(sanctions, players);
   const dashboardService = new DashboardService(
     users,

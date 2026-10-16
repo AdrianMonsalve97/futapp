@@ -46,3 +46,13 @@ Antes de publicar: typecheck, pruebas funcionales y de permisos, compilación,
 comprobación de producción y CI con PostgreSQL real y contenedores de ambas
 arquitecturas. Los respaldos y verificadores privados se guardan fuera de Git en
 `.local`; nunca se incluyen credenciales en el repositorio o en el bundle web.
+
+
+La experiencia deportiva añade `SquadCollection`, cartas de rendimiento y paneles
+específicos de torneo y partido. La edición de datos, estrategias y normativa usa
+hooks separados de la composición de rutas; las secciones de partidos se cargan
+bajo demanda. Las consultas deportivas devuelven un DTO explícito sin datos de
+salud o contacto. La ubicación de canchas se valida en `domain/venue-map.ts` y se
+resuelve mediante el puerto `MapsLinkResolver`, compuesto con su adaptador en
+`container.ts`. Los respaldos anteriores incorporan el campo nullable sin perder
+filas; también se validan los enlaces importados. Ver [Plantilla y canchas](PLANTILLA-Y-CANCHAS.md).

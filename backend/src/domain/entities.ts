@@ -68,6 +68,8 @@ export interface UniformRequest extends UniformRecipientInput {
   createdAt: string; reviewedAt: string | null;
 }
 export interface Match {
+  venueMapsUrl?: string | null;
+  venueMap?: { url: string; embedUrl: string; directionsUrl: string } | null;
   streamUrl?:string|null;
   tournamentId?: number | null;
   tournamentRules?: import('./tournament').TournamentSnapshot | null;

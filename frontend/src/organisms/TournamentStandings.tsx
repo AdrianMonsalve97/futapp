@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { SectionNavigation } from "../molecules/SectionNavigation";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import { useTournamentLeague } from "../hooks/useTournamentLeague";
@@ -20,6 +22,9 @@ export function TournamentStandings({
 }) {
   const { user } = useAuth(),
     { settings } = useSettings();
+  const [section, setSection] = useState<"table" | "results" | "config">(
+    "table",
+  );
   const admin = user?.role === "admin";
   const state = useTournamentLeague(tournament.id, settings.teamName);
   const { league, draft, busy, dirty, error, notice, editor, deleting } = state;
@@ -97,8 +102,20 @@ export function TournamentStandings({
               marcadores. No sumarán puntos hasta completarlos en Partidos.
             </Alert>
           )}
-          <StandingsTable league={league.data} />
-          {admin && draft && (
+          <SectionNavigation
+            label="Explorar clasificación"
+            value={section}
+            onChange={setSection}
+            items={[
+              { key: "table", label: "Clasificación" },
+              { key: "results", label: "Jornadas y resultados" },
+              ...(admin
+                ? [{ key: "config" as const, label: "Configurar liga" }]
+                : []),
+            ]}
+          />
+          {section === "table" && <StandingsTable league={league.data} />}
+          {section === "config" && admin && draft && (
             <LeagueConfigEditor
               draft={draft}
               busy={busy}
@@ -109,14 +126,16 @@ export function TournamentStandings({
               onSave={state.save}
             />
           )}
-          <LeagueResultsPanel
-            league={league.data}
-            draft={draft}
-            busy={busy}
-            onDraftChange={state.setDraft}
-            onEdit={state.editResult}
-            onDelete={state.setDeleting}
-          />
+          {section === "results" && (
+            <LeagueResultsPanel
+              league={league.data}
+              draft={draft}
+              busy={busy}
+              onDraftChange={state.setDraft}
+              onEdit={state.editResult}
+              onDelete={state.setDeleting}
+            />
+          )}
           {admin && dirty && draft && (
             <Button
               loading={busy}

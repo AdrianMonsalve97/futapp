@@ -4,6 +4,7 @@ import type {
   StatFilter,
   StatsRepository,
 } from '../../../../application/ports/out/stats.repository';
+import type { SquadIdentity, PerformanceEntry } from '../../../../domain/squad';
 import type { MatchStat } from '../../../../domain/entities';
 import { mapMatchStat, type MatchStatRow } from '../mappers';
 import { asAsyncDatabase, type ApplicationDatabase } from "../async-database";
@@ -21,6 +22,23 @@ const ORDER = `ORDER BY m.kick_off ASC, m.id ASC, p.shirt_number ASC, ms.player_
 export class SqliteStatsRepository implements StatsRepository {
   constructor(db: Database | ApplicationDatabase) {
       this.db = asAsyncDatabase(db);
+  }
+
+  async squadPlayers(tournamentId?: number): Promise<SquadIdentity[]> {
+    return await this.db.prepare(`SELECT p.id AS "playerId", u.full_name AS name, p.shirt_number AS "shirtNumber",
+      p.position, p.secondary_position AS "secondaryPosition", u.avatar_url AS "avatarUrl"
+      FROM players p JOIN users u ON u.id=p.user_id
+      WHERE u.active=1 AND NOT EXISTS(SELECT 1 FROM registration_requests r WHERE r.user_id=u.id AND r.status='pendiente')
+      ${tournamentId === undefined ? '' : 'AND EXISTS(SELECT 1 FROM tournament_players tp WHERE tp.player_id=p.id AND tp.tournament_id=?)'}
+      ORDER BY u.full_name, p.id`).all(...(tournamentId === undefined ? [] : [tournamentId])) as SquadIdentity[];
+  }
+
+  async playedStats(tournamentId: number | undefined, admin: boolean): Promise<PerformanceEntry[]> {
+    const rows = await this.db.prepare(`${SELECT_STAT.replace('SELECT ms.*,', 'SELECT m.opponent, m.kick_off, ms.*,')}
+      WHERE m.status='jugado' ${tournamentId === undefined ? '' : 'AND m.tournament_id=?'}
+      ${admin ? '' : "AND (m.tournament_id IS NULL OR EXISTS(SELECT 1 FROM tournaments t WHERE t.id=m.tournament_id AND t.status!='borrador'))"}
+      ${ORDER}`).all(...(tournamentId === undefined ? [] : [tournamentId])) as (MatchStatRow & {opponent:string;kick_off:string})[];
+    return rows.map(row => ({...mapMatchStat(row),opponent:row.opponent,kickOff:row.kick_off}));
   }
 
   async list(filter: StatFilter = {}): Promise<MatchStat[]> {

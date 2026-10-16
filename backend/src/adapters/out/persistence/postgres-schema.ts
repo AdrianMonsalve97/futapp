@@ -37,6 +37,7 @@ export async function migratePostgres(db: PostgresDatabase) {
           await db.prepare('UPDATE auth_sessions SET last_activity_at=?').run(Date.now());
         }
       }
+      if (table.name === 'matches') await db.execute('ALTER TABLE matches ADD COLUMN IF NOT EXISTS venue_maps_url TEXT');
       const columns=await db.query("SELECT column_name FROM information_schema.columns WHERE table_schema='futapp' AND table_name=$1",[table.name]);
       if(columns.map(row=>row.column_name).sort().join()!==[...table.columns].sort().join())throw new Error('El esquema de PostgreSQL necesita una migración de versión antes de iniciar');
     }

@@ -8,6 +8,7 @@ import type {
 } from '../../../domain/entities';
 
 export interface CreateMatchInput {
+  venueMapsUrl?: string | null;
   streamUrl?: string | null;
   tournamentId?: number | null;
   opponent: string;
@@ -24,6 +25,7 @@ export interface CreateMatchInput {
 }
 
 export interface UpdateMatchInput {
+  venueMapsUrl?: string | null;
   streamUrl?:string|null;
   tournamentId?: number | null;
   opponent?: string;

@@ -44,6 +44,7 @@ export function matchRoutes(matches: MatchPort): Router {
                 competition: body.competition ? String(body.competition) : 'Amistoso',
                 kickOff: String(body.kickOff ?? ''),
                 venue: body.venue ?? null,
+                venueMapsUrl: body.venueMapsUrl,
                 isHome: body.isHome !== false,
                 // §12.4: format y minutes son opcionales; el servicio deriva los defaults
                 // (team_settings.format y profile.matchMinutes) y valida la formación.

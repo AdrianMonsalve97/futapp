@@ -1,9 +1,12 @@
-import type { StatsPort } from '../ports/in/stats.port';
-import type { StatsRepository } from '../ports/out/stats.repository';
-import type { MatchStat, Position, TeamStats } from '../../domain/entities';
-import { round2, summarizeStats } from './shared';
+import type { SquadMember } from "../../domain/squad";
+import { NotFoundError } from "../../domain/errors";
+import type { TournamentRepository } from "../ports/out/tournament.repository";
+import type { StatsPort } from "../ports/in/stats.port";
+import type { StatsRepository } from "../ports/out/stats.repository";
+import type { MatchStat, Position, TeamStats } from "../../domain/entities";
+import { round2, summarizeStats } from "./shared";
 
-const POSITION_ORDER: Position[] = ['POR', 'DEF', 'MED', 'DEL'];
+const POSITION_ORDER: Position[] = ["POR", "DEF", "MED", "DEL"];
 const TOP_LIMIT = 10;
 
 interface PlayerAggregate {
@@ -38,21 +41,56 @@ function aggregateByPlayer(stats: MatchStat[]): PlayerAggregate[] {
     entry.assists += s.assists;
     entry.ratingSum += s.rating;
     entry.ratingCount += 1;
-    if (s.shirtNumber !== undefined && s.shirtNumber !== null) entry.shirtNumber = s.shirtNumber;
+    if (s.shirtNumber !== undefined && s.shirtNumber !== null)
+      entry.shirtNumber = s.shirtNumber;
     if (s.position) entry.position = s.position;
   }
   return [...map.values()];
 }
 
 export class StatsService implements StatsPort {
-  constructor(private readonly stats: StatsRepository) {}
+  constructor(
+    private readonly stats: StatsRepository,
+    private readonly tournaments: TournamentRepository,
+  ) {}
 
-  async list(filter: { matchId?: number; playerId?: number } = {}): Promise<MatchStat[]> {
-    return (await this.stats.list(filter));
+  async squad(
+    tournamentId: number | undefined,
+    admin: boolean,
+  ): Promise<SquadMember[]> {
+    if (tournamentId !== undefined) {
+      const tournament = await this.tournaments.find(tournamentId);
+      if (!tournament || (!admin && tournament.status === "borrador"))
+        throw new NotFoundError("Torneo no encontrado");
+    }
+    const [players, entries] = await Promise.all([
+      this.stats.squadPlayers(tournamentId),
+      this.stats.playedStats(tournamentId, admin),
+    ]);
+    const grouped = new Map<number, typeof entries>();
+    for (const entry of entries) {
+      const group = grouped.get(entry.playerId) ?? [];
+      group.push(entry);
+      grouped.set(entry.playerId, group);
+    }
+    return players.map((player) => {
+      const history = grouped.get(player.playerId) ?? [];
+      return {
+        ...player,
+        stats: summarizeStats(history),
+        recent: history.slice(-5).reverse(),
+      };
+    });
+  }
+
+  async list(
+    filter: { matchId?: number; playerId?: number } = {},
+  ): Promise<MatchStat[]> {
+    return await this.stats.list(filter);
   }
 
   async teamStats(): Promise<TeamStats> {
-    const all = (await this.stats.listAll());
+    const all = await this.stats.listAll();
     const aggregates = aggregateByPlayer(all);
 
     const ranked = (pick: (entry: PlayerAggregate) => number) =>
@@ -64,24 +102,38 @@ export class StatsService implements StatsPort {
           value: round2(pick(entry)),
         }))
         .filter((row) => row.value > 0)
-        .sort((a, b) => b.value - a.value || a.playerName.localeCompare(b.playerName))
+        .sort(
+          (a, b) =>
+            b.value - a.value || a.playerName.localeCompare(b.playerName),
+        )
         .slice(0, TOP_LIMIT);
 
     const byPosition = POSITION_ORDER.map((position) => {
       const entries = aggregates.filter((entry) => entry.position === position);
-      const ratings = all.filter((s) => s.position === position).map((s) => s.rating);
+      const ratings = all
+        .filter((s) => s.position === position)
+        .map((s) => s.rating);
       if (entries.length === 0) return null;
       return {
         position,
         count: entries.length,
-        avgRating: round2(ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0),
+        avgRating: round2(
+          ratings.length
+            ? ratings.reduce((a, b) => a + b, 0) / ratings.length
+            : 0,
+        ),
       };
-    }).filter((row): row is { position: Position; count: number; avgRating: number } => row !== null);
+    }).filter(
+      (row): row is { position: Position; count: number; avgRating: number } =>
+        row !== null,
+    );
 
     return {
       topScorers: ranked((e) => e.goals),
       topAssists: ranked((e) => e.assists),
-      topRated: ranked((e) => (e.ratingCount > 0 ? e.ratingSum / e.ratingCount : 0)),
+      topRated: ranked((e) =>
+        e.ratingCount > 0 ? e.ratingSum / e.ratingCount : 0,
+      ),
       byPosition,
       teamAverages: summarizeStats(all),
     };

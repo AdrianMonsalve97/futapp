@@ -1,6 +1,10 @@
+import { useState } from "react";
+import { LeagueFormGuide } from "../molecules/LeagueFormGuide";
+import { LeagueTeamDetail } from "./LeagueTeamDetail";
 import type { LeagueView } from "../types/league";
 
 export function StandingsTable({ league }: { league: LeagueView }) {
+  const [selected, setSelected] = useState<string | null>(null);
   return (
     <>
       <div
@@ -38,6 +42,7 @@ export function StandingsTable({ league }: { league: LeagueView }) {
               <th scope="col">
                 <abbr title="Diferencia de gol">DG</abbr>
               </th>
+              <th scope="col">Últimos 5</th>
               <th scope="col">Pts.</th>
             </tr>
           </thead>
@@ -46,7 +51,14 @@ export function StandingsTable({ league }: { league: LeagueView }) {
               <tr key={row.name} className={row.club ? "league-club" : ""}>
                 <td>{row.position}</td>
                 <th scope="row">
-                  {row.name}
+                  <button
+                    className="league-team-button"
+                    type="button"
+                    onClick={() => setSelected(row.name)}
+                    aria-label={`Explorar rendimiento de ${row.name}`}
+                  >
+                    {row.name} ↗
+                  </button>
                   {row.club ? (
                     <span className="text-primary"> · Tu club</span>
                   ) : (
@@ -63,14 +75,33 @@ export function StandingsTable({ league }: { league: LeagueView }) {
                   {row.difference > 0 ? "+" : ""}
                   {row.difference}
                 </td>
+                <td>
+                  <LeagueFormGuide form={row.form} />
+                </td>
                 <td>{row.points}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {selected && (
+        <LeagueTeamDetail
+          name={selected}
+          league={league}
+          onClose={() => setSelected(null)}
+        />
+      )}
+      {league.results.some(
+        (result) => result.status === "jugado" && !result.matchday,
+      ) && (
+        <p className="text-sm text-warning mt-3">
+          Hay resultados sin jornada asignada. Completa sus jornadas para que la
+          racha refleje el orden de la liga.
+        </p>
+      )}
       <p className="club-league-legend">
-        PJ: jugados · G: ganados · E: empatados · P: perdidos · GF/GC: goles a
+        La forma muestra hasta cinco resultados por jornada registrada. PJ:
+        jugados · G: ganados · E: empatados · P: perdidos · GF/GC: goles a
         favor/en contra · DG: diferencia. {league.config.rules.win} puntos por
         victoria, {league.config.rules.draw} por empate y{" "}
         {league.config.rules.loss} por derrota. Desempate:{" "}

@@ -7,6 +7,7 @@ import type {
   UpdateMatchInput,
   XiSuggestion,
 } from '../ports/in/match.port';
+import type { MapsLinkResolver } from '../ports/out/maps-link-resolver';
 import type { AiPort } from '../ports/in/ai.port';
 import type { MatchRepository } from '../ports/out/match.repository';
 import type { PlayerRepository } from '../ports/out/player.repository';
@@ -50,6 +51,7 @@ export class MatchService implements MatchPort {
     private readonly uow: UnitOfWork,
     private readonly tournaments: TournamentRepository,
     private readonly refereePayments: RefereeService,
+    private readonly maps: MapsLinkResolver,
     private readonly notifications?: NotificationEvents,
   ) {}
 
@@ -126,6 +128,7 @@ export class MatchService implements MatchPort {
   }
 
   async create(input: CreateMatchInput): Promise<Match> {
+    if (input.venueMapsUrl !== undefined) input = { ...input, venueMapsUrl: await this.maps.resolve(input.venueMapsUrl) };
     if (input.streamUrl !== undefined) input = {...input, streamUrl: broadcastUrl(input.streamUrl)};
     (await this.validateMatchInput(input));
     const tournamentId = input.tournamentId === undefined ? (await this.settings.get()).defaultTournamentId : input.tournamentId;
@@ -153,6 +156,7 @@ export class MatchService implements MatchPort {
   }
 
   async update(id: number, input: UpdateMatchInput): Promise<Match> {
+    if (input.venueMapsUrl !== undefined) input = { ...input, venueMapsUrl: await this.maps.resolve(input.venueMapsUrl) };
     if(input.streamUrl!==undefined)input={...input,streamUrl:broadcastUrl(input.streamUrl)};
     return (await this.uow.run(async () => {
           const current = (await this.requireMatch(id));

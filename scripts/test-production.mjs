@@ -48,6 +48,7 @@ try {
   assert.deepEqual(policy.get('img-src'), ["'self'", 'data:', 'blob:'], 'Private photo previews must be allowed as blob images');
   assert.deepEqual(policy.get('script-src'), ["'self'"], 'Image permissions must not allow blob scripts');
   assert.deepEqual(policy.get('object-src'), ["'none'"]);
+  assert.deepEqual(policy.get('frame-src'), ["'self'", 'https://www.youtube-nocookie.com', 'https://www.google.com/maps', 'https://www.google.com/maps/'], 'Only the approved video and Maps paths may be embedded');
   const css = html.match(/href="(\/assets\/[^\"]+\.css)"/)[1];
   const styles = await fetch(base + css); assert.equal(styles.status, 200); assert((await styles.text()).includes('.club-hero'));
   assert(html.includes('name="viewport"'));

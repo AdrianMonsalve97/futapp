@@ -1,3 +1,4 @@
+import { venueMap } from '../../../domain/venue-map';
 /**
  * Mappers: fila de SQLite → entidad en camelCase con booleanos (§2 del SPEC).
  */
@@ -135,6 +136,7 @@ export interface UniformRequestRow {
 }
 
 export interface MatchRow {
+  venue_maps_url?: string | null;
   stream_url?:string|null;
   tournament_id?: number | null;
   tournament_rules?: string | null;
@@ -344,6 +346,8 @@ export function mapUniformRequest(row: UniformRequestRow): UniformRequest {
 export function mapMatch(row: MatchRow): Match {
   const format = toTeamFormat(row.format);
   return {
+    venueMapsUrl: row.venue_maps_url ?? null,
+    venueMap: venueMap(row.venue_maps_url),
     streamUrl:row.stream_url??null,
     tournamentId: row.tournament_id ?? null,
     tournamentRules: row.tournament_rules ? JSON.parse(row.tournament_rules) : null,

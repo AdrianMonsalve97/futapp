@@ -1,8 +1,8 @@
-import { ClubLogo } from '../atoms/ClubLogo';
-import { NavLink } from 'react-router-dom';
-import { Icon, type IconName } from '../atoms/Icon';
-import { useSettings } from '../context/SettingsContext';
-import type { Role } from '../types/api';
+import { ClubLogo } from "../atoms/ClubLogo";
+import { NavLink } from "react-router-dom";
+import { Icon, type IconName } from "../atoms/Icon";
+import { useSettings } from "../context/SettingsContext";
+import type { Role } from "../types/api";
 
 export interface MenuItem {
   to: string;
@@ -12,33 +12,51 @@ export interface MenuItem {
 
 export const MENU_BY_ROLE: Record<Role, MenuItem[]> = {
   admin: [
-    { to: '/admin/inicio', label: 'Inicio', icon: 'chart' },
-    { to: '/admin/jugadores', label: 'Jugadores', icon: 'usuarios' },
-    { to: '/admin/inscripciones', label: 'Inscripciones', icon: 'dinero' },
-    { to: '/admin/pagos-qr', label: 'Pagos QR y soportes', icon: 'dinero' },
-    { to: '/admin/notificaciones', label: 'Notificaciones y bot', icon: 'clipboard' },
-    { to: '/admin/uniformes', label: 'Uniformes', icon: 'camiseta' },
-    { to: '/admin/torneos', label: 'Torneos y normativa', icon: 'trofeo' },
-    { to: '/admin/partidos', label: 'Partidos', icon: 'futbol' },
-    { to: '/admin/posiciones', label: 'Tabla de posiciones', icon: 'chart' },
-    { to: '/admin/transmisiones', label: 'Transmisiones', icon: 'video' },
-    { to: '/admin/sanciones', label: 'Sanciones', icon: 'tarjeta' },
-    { to: '/admin/estadisticas', label: 'Estadísticas', icon: 'clipboard' },
-    { to: '/admin/ia', label: 'Inteligencia artificial', icon: 'sparkles' },
-    { to: '/admin/configuracion', label: 'Configuración', icon: 'settings' },
+    { to: "/admin/inicio", label: "Inicio", icon: "chart" },
+    {
+      to: "/admin/plantilla",
+      label: "Plantilla y rendimiento",
+      icon: "usuarios",
+    },
+    { to: "/admin/jugadores", label: "Jugadores", icon: "usuarios" },
+    { to: "/admin/inscripciones", label: "Inscripciones", icon: "dinero" },
+    { to: "/admin/pagos-qr", label: "Pagos QR y soportes", icon: "dinero" },
+    {
+      to: "/admin/notificaciones",
+      label: "Notificaciones y bot",
+      icon: "clipboard",
+    },
+    { to: "/admin/uniformes", label: "Uniformes", icon: "camiseta" },
+    { to: "/admin/torneos", label: "Torneos y normativa", icon: "trofeo" },
+    { to: "/admin/partidos", label: "Partidos", icon: "futbol" },
+    { to: "/admin/posiciones", label: "Tabla de posiciones", icon: "chart" },
+    { to: "/admin/transmisiones", label: "Transmisiones", icon: "video" },
+    { to: "/admin/sanciones", label: "Sanciones", icon: "tarjeta" },
+    { to: "/admin/estadisticas", label: "Estadísticas", icon: "clipboard" },
+    { to: "/admin/ia", label: "Inteligencia artificial", icon: "sparkles" },
+    { to: "/admin/configuracion", label: "Configuración", icon: "settings" },
   ],
   player: [
-    { to: '/jugador/inicio', label: 'Inicio', icon: 'chart' },
-    { to: '/jugador/torneos', label: 'Torneos y normativa', icon: 'trofeo' },
-    { to: '/jugador/partidos', label: 'Partidos', icon: 'futbol' },
-    { to: '/jugador/posiciones', label: 'Tabla de posiciones', icon: 'chart' },
-    { to: '/jugador/pagos', label: 'Mis pagos y soportes', icon: 'dinero' },
-    { to: '/jugador/transmisiones', label: 'Transmisiones', icon: 'video' },
-    { to: '/jugador/estadisticas', label: 'Mis estadísticas', icon: 'clipboard' },
-    { to: '/jugador/ia', label: 'Rendimiento IA', icon: 'sparkles' },
-    { to: '/jugador/inscripcion', label: 'Mi inscripción', icon: 'dinero' },
-    { to: '/jugador/uniformes', label: 'Tienda y pedidos', icon: 'camiseta' },
-    { to: '/jugador/perfil', label: 'Mi perfil', icon: 'usuario' },
+    { to: "/jugador/inicio", label: "Inicio", icon: "chart" },
+    {
+      to: "/jugador/plantilla",
+      label: "Plantilla y rendimiento",
+      icon: "usuarios",
+    },
+    { to: "/jugador/torneos", label: "Torneos y normativa", icon: "trofeo" },
+    { to: "/jugador/partidos", label: "Partidos", icon: "futbol" },
+    { to: "/jugador/posiciones", label: "Tabla de posiciones", icon: "chart" },
+    { to: "/jugador/pagos", label: "Mis pagos y soportes", icon: "dinero" },
+    { to: "/jugador/transmisiones", label: "Transmisiones", icon: "video" },
+    {
+      to: "/jugador/estadisticas",
+      label: "Mis estadísticas",
+      icon: "clipboard",
+    },
+    { to: "/jugador/ia", label: "Rendimiento IA", icon: "sparkles" },
+    { to: "/jugador/inscripcion", label: "Mi inscripción", icon: "dinero" },
+    { to: "/jugador/uniformes", label: "Tienda y pedidos", icon: "camiseta" },
+    { to: "/jugador/perfil", label: "Mi perfil", icon: "usuario" },
   ],
 };
 
@@ -58,9 +76,11 @@ export function Sidebar({ role, onNavigate }: SidebarProps) {
       <div className="club-brand flex items-center gap-3 px-5 py-7">
         <ClubLogo className="w-14 h-14 shrink-0" />
         <div className="min-w-0">
-          <p className="font-bold leading-tight truncate text-white">{settings.teamName}</p>
+          <p className="font-bold leading-tight truncate text-white">
+            {settings.teamName}
+          </p>
           <p className="text-xs text-white/45 mt-1">
-            {role === 'admin' ? 'Administración' : 'Zona del jugador'}
+            {role === "admin" ? "Administración" : "Zona del jugador"}
           </p>
         </div>
       </div>
@@ -71,17 +91,29 @@ export function Sidebar({ role, onNavigate }: SidebarProps) {
             Tu centro de juego
           </li>
           {items.map((item) => (
-            <li key={item.to} className={['Configuración','Mi perfil','Notificaciones y bot','Sanciones'].includes(item.label) ? 'club-nav-secondary' : ''}>
+            <li
+              key={item.to}
+              className={
+                [
+                  "Configuración",
+                  "Mi perfil",
+                  "Notificaciones y bot",
+                  "Sanciones",
+                ].includes(item.label)
+                  ? "club-nav-secondary"
+                  : ""
+              }
+            >
               <NavLink
                 to={item.to}
                 onClick={onNavigate}
                 className={({ isActive }) =>
                   [
-                    'club-nav-link flex items-center gap-3',
-                    isActive ? 'club-nav-active font-semibold' : '',
+                    "club-nav-link flex items-center gap-3",
+                    isActive ? "club-nav-active font-semibold" : "",
                   ]
                     .filter(Boolean)
-                    .join(' ')
+                    .join(" ")
                 }
               >
                 <Icon name={item.icon} size={18} />
@@ -94,7 +126,14 @@ export function Sidebar({ role, onNavigate }: SidebarProps) {
 
       <div className="sidebar-season mx-4 mb-5 p-4">
         <Icon name="futbol" size={23} />
-        <div><p className="text-[10px] uppercase tracking-[.16em] text-white/45">Una misma camiseta</p><p className="text-xs text-white mt-1">Temporada {settings.season} · {settings.profile.name}</p></div>
+        <div>
+          <p className="text-[10px] uppercase tracking-[.16em] text-white/45">
+            Una misma camiseta
+          </p>
+          <p className="text-xs text-white mt-1">
+            Temporada {settings.season} · {settings.profile.name}
+          </p>
+        </div>
       </div>
     </aside>
   );

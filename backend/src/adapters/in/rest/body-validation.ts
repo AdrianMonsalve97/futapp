@@ -37,6 +37,7 @@ const profile: Shape = {
 };
 const credentials: Shape = { email: nonempty(254), password: nonempty(128), fullName: nonempty(120) };
 const match: Shape = {
+  venueMapsUrl:nullable(text(6000)),
   streamUrl:nullable(text(500)),
   tournamentId: nullable(integer(1)),
   opponent: nonempty(120), competition: nonempty(120), kickOff: dateTime, venue: nullable(text(200)),

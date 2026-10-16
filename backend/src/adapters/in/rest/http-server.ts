@@ -71,7 +71,7 @@ export function createHttpServer(deps: HttpServerDeps): express.Express {
   app.disable('x-powered-by');
   if (env.production) app.set('trust proxy', 1);
   // Authenticated images are fetched privately, then displayed through browser object URLs.
-  app.use(helmet({contentSecurityPolicy:{directives:{imgSrc:["'self'",'data:','blob:'],frameSrc:["'self'",'https://www.youtube-nocookie.com'],objectSrc:["'none'"],baseUri:["'self'"],formAction:["'self'"]}}}));
+  app.use(helmet({contentSecurityPolicy:{directives:{imgSrc:["'self'",'data:','blob:'],frameSrc:["'self'",'https://www.youtube-nocookie.com','https://www.google.com/maps','https://www.google.com/maps/'],objectSrc:["'none'"],baseUri:["'self'"],formAction:["'self'"]}}}));
   app.use(cors((req,callback)=>callback(null,{origin:typeof req.headers.origin==='string'&&allowedOrigin(req as express.Request,req.headers.origin),credentials:true})));
   app.use(express.json({ limit: '1mb' }));
   app.use('/api',browserSecurity);

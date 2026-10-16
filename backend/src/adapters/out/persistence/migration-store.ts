@@ -8,6 +8,7 @@ import { gzipSync, gunzipSync } from 'node:zlib';
 import type { MigrationPort, MigrationPreview, MigrationStatus } from '../../../application/ports/in/migration.port';
 import { ValidationError } from '../../../domain/errors';
 import { parseSettledShares } from '../../../domain/referee';
+import { venueMap } from '../../../domain/venue-map';
 
 type Cell = string | number | null;
 type Table = { columns: string[]; rows: Cell[][] };
@@ -87,6 +88,10 @@ export class FileMigrationStore implements MigrationPort {
     if (p?.format !== 'futapp-migration' || p.version !== 1 || typeof p.createdAt !== 'string' || !Number.isFinite(Date.parse(p.createdAt)) || !p.tables || Array.isArray(p.tables) || !Array.isArray(p.files) || p.files.length > 2000) throw new ValidationError('Formato de migración no compatible');
     const names = this.tables();
     // Session rows are transient and never restored; keep old snapshot columns compatible.
+    const matches = p.tables.matches;
+    if (matches && Array.isArray(matches.columns) && Array.isArray(matches.rows) && matches.rows.every(Array.isArray) && !matches.columns.includes('venue_maps_url')) {
+      matches.columns.push('venue_maps_url'); matches.rows = matches.rows.map(row => [...row, null]);
+    }
     const sessions=p.tables.auth_sessions;
     if(sessions&&Array.isArray(sessions.columns)&&Array.isArray(sessions.rows)&&sessions.rows.every(Array.isArray)&&!sessions.columns.includes('last_activity_at')) {
       sessions.columns.push('last_activity_at');sessions.rows=sessions.rows.map(row=>[...row,0]);
@@ -169,6 +174,12 @@ export class FileMigrationStore implements MigrationPort {
   /** Shared read-only validation for a PostgreSQL destination; executes only our trusted schema. */
   validateForImport(file: Buffer): MigrationPacket {
     const packet = this.validate(file);
+    const matches = packet.tables.matches, mapColumn = matches.columns.indexOf('venue_maps_url');
+    for (const row of matches.rows) {
+      const value = row[mapColumn];
+      if (value !== null && typeof value !== 'string') throw new ValidationError('El respaldo contiene una ubicación de cancha inválida');
+      venueMap(value);
+    }
     const trial = new Database(':memory:');
     try {
       const schema = this.db.prepare("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND type IN ('table','index') AND name NOT LIKE 'sqlite_%' ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END").all() as { sql: string }[];

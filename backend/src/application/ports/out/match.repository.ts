@@ -7,6 +7,7 @@ import type {
 } from '../../../domain/entities';
 
 export interface CreateMatchInput {
+  venueMapsUrl?: string | null;
   streamUrl?:string|null;
   tournamentId?: number | null;
   tournamentRules?: import('../../../domain/tournament').TournamentSnapshot | null;

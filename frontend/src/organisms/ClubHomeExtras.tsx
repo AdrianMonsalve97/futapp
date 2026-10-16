@@ -110,7 +110,7 @@ export function ClubHomeExtras() {
             <span>LOS QUE DEFIENDEN EL ESCUDO</span>
             <Link
               className="club-text-link"
-              to={`${base}/torneos/${tournament.id}`}
+              to={`${base}/plantilla?torneo=${tournament.id}`}
             >
               Ver plantel <Icon name="arrowRight" size={15} />
             </Link>
@@ -130,7 +130,7 @@ export function ClubHomeExtras() {
                 .map((row) => (
                   <Link
                     key={row.playerId}
-                    to={`${base}/torneos/${tournament.id}`}
+                    to={`${base}/plantilla?torneo=${tournament.id}`}
                     className="club-player-card"
                   >
                     <div className="club-player-portrait">

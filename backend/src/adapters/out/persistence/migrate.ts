@@ -44,6 +44,7 @@ function hasColumn(db: Database, table: string, column: string): boolean {
  */
 function ensureFormatSupport(db: Database): void {
   if (hasTable(db, 'matches')) {
+    if (!hasColumn(db, 'matches', 'venue_maps_url')) db.exec('ALTER TABLE matches ADD COLUMN venue_maps_url TEXT');
     let addedFormat = false;
     if (!hasColumn(db, 'matches', 'format')) {
       db.exec(`ALTER TABLE matches ADD COLUMN format INTEGER NOT NULL DEFAULT 8 CHECK (format IN (5,7,8,11))`);
