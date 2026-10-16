@@ -1,5 +1,5 @@
 import type { CoachingResearch, CoachingSource, TacticalStyle } from '../../domain/tactics';
-import { COACHING_SOURCES } from '../../domain/coaching';
+import { COACHING_SOURCES } from '../../domain/coaching-sources';
 const cache = new Map<TacticalStyle,{expires:number;data:CoachingResearch}>();
 const running = new Map<TacticalStyle,Promise<CoachingResearch>>();
 
@@ -9,7 +9,7 @@ export async function researchCoaching(style: TacticalStyle): Promise<CoachingRe
   if (previous && previous.expires>Date.now()) return previous.data;
   const pending = running.get(style); if (pending) return pending;
   const task = (async () => {
-    const selected = [COACHING_SOURCES.build,COACHING_SOURCES.switch,style==='ofensivo'?COACHING_SOURCES.press:COACHING_SOURCES.defend];
+    const selected = [COACHING_SOURCES.build,COACHING_SOURCES.thirdPlayer,COACHING_SOURCES.combination,COACHING_SOURCES.switch,style==='ofensivo'?COACHING_SOURCES.press:COACHING_SOURCES.defend];
     // Search the current official practice index by style, rather than presenting only fixed links.
     try {
       const index = await fetch('https://www.fifatrainingcentre.com/en/practice/talent_development.php',{signal:AbortSignal.timeout(7000),redirect:'error'});
@@ -36,7 +36,7 @@ export async function researchCoaching(style: TacticalStyle): Promise<CoachingRe
       } catch { return {...source,verified:false}; }
     }));
     const count = sources.filter(s=>s.verified).length;
-    const data:CoachingResearch = {checkedAt:new Date().toISOString(),style,query:`${style}: salida, amplitud y ${style==='ofensivo'?'presión alta':'organización defensiva'}`,
+    const data:CoachingResearch = {checkedAt:new Date().toISOString(),style,query:`${style}: salida, pase corto, tercer hombre, amplitud y ${style==='ofensivo'?'presión alta':'organización defensiva'}`,
       status:count===sources.length?'consultado':count?'parcial':'no_disponible',sources};
     cache.set(style,{expires:Date.now()+(count?600000:30000),data});
     return data;

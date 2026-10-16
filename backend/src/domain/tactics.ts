@@ -3,7 +3,9 @@ import type { TeamFormat } from './formats';
 import type { LeagueContext } from './tournament';
 export type TacticalStyle = 'equilibrado' | 'ofensivo' | 'defensivo';
 export interface CoachingSource { title: string; url: string; topic: string; }
+export type TacticalPlayCategory = 'salida' | 'asociacion' | 'finalizacion' | 'recuperacion';
 export interface TacticalPlay {
+  category: TacticalPlayCategory;
   id: string; title: string; objective: string; phase: string;
   route: number[]; steps: string[]; coaching: string; source: CoachingSource;
 }

@@ -484,6 +484,7 @@ test('tactical plans always contain the match-format initial and adapt plays wit
   for(const format of [5,7,8,11]){
     const match=(await fixtureMatch(format));
     const plan=(await request('POST','/ai/tactical-plan',{matchId:match.id,style:'ofensivo'})).data;
+    assert.equal(plan.plays.length,12);assert(plan.plays.some((play:any)=>play.id==='pared'&&play.category==='asociacion'));
     assert.equal(plan.match.id,match.id);assert.equal(plan.match.format,format);
     assert.equal(plan.recommendation.lineup.length,format);
     assert.equal(new Set(plan.recommendation.lineup.filter(s=>s.playerId!==null).map(s=>s.playerId)).size,plan.recommendation.lineup.filter(s=>s.playerId!==null).length);

@@ -153,3 +153,11 @@ escudo registrado, y animación CSS que respeta ambas preferencias de movimiento
   reales de entrenamiento, pases de vuelta, referencias ausentes, posición del
   balón al redimensionar, capas de apoyo y preparación del portero. Son diagramas
   de práctica, sin modificar convocatorias, elegibilidad, pagos ni formación oficial.
+
+
+La biblioteca de juego asociativo conserva los casos de uso existentes: resolución
+de puestos y recorridos puros en `coaching-context`/`combination-plays`, referencias
+en `coaching-sources` y composición en `coaching`. El selector agrupado
+`TacticalPlayPicker` se comparte entre administración y preparación individual; su
+contrato de jugada proviene del dominio, sin otra interfaz duplicada. Ver
+[Jugadas asociativas](JUGADAS-ASOCIATIVAS.md).

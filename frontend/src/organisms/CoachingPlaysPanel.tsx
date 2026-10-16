@@ -1,3 +1,4 @@
+import { TacticalPlayPicker } from "../molecules/TacticalPlayPicker";
 import { TacticalPlayDetails } from "../molecules/TacticalPlayDetails";
 import { Alert } from "../atoms/Alert";
 import { Button } from "../atoms/Button";
@@ -48,18 +49,11 @@ export function CoachingPlaysPanel({
             Consultar recursos en internet
           </Button>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {plan.plays.map((p) => (
-            <Button
-              key={p.id}
-              size="sm"
-              variant={activePlay?.id === p.id ? "primary" : "outline"}
-              onClick={() => onSelect(p.id)}
-            >
-              {p.title}
-            </Button>
-          ))}
-        </div>
+        <TacticalPlayPicker
+          plays={plan.plays}
+          selectedId={activePlay?.id}
+          onSelect={onSelect}
+        />
         {activePlay ? (
           <div className="space-y-5">
             <TacticalPlayboard

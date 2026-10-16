@@ -1,10 +1,10 @@
+import { TacticalPlayPicker } from "../molecules/TacticalPlayPicker";
 import { TacticalPlayDetails } from "../molecules/TacticalPlayDetails";
 import { pitchSlotsFrom } from "../utils/lineup-slots";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { AiPlayerInsight } from "../types/api";
 import { Card, CardBody, CardTitle } from "../atoms/Card";
-import { Button } from "../atoms/Button";
 import { TacticalBoard } from "./TacticalBoard";
 import { TacticalPlayboard } from "./TacticalPlayboard";
 import { useAuth } from "../context/AuthContext";
@@ -264,19 +264,11 @@ export function IndividualPreparation({
         </div>
         <div className="border-t border-base-200 pt-5 space-y-4">
           <h3 className="font-semibold">Ensaya la jugada con tus compañeros</h3>
-          <div className="flex flex-wrap gap-3">
-            {plan.plays.map((item) => (
-              <Button
-                key={item.id}
-                size="sm"
-                variant={item.id === play?.id ? "primary" : "outline"}
-                aria-pressed={item.id === play?.id}
-                onClick={() => setPlayId(item.id)}
-              >
-                {item.title}
-              </Button>
-            ))}
-          </div>
+          <TacticalPlayPicker
+            plays={plan.plays}
+            selectedId={play?.id}
+            onSelect={setPlayId}
+          />
           {play ? (
             <div className="space-y-5">
               <TacticalPlayboard

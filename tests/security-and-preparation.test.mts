@@ -101,7 +101,7 @@ test('goalkeeper preparation uses the selected published lineup, protects drafts
   assert.equal(live.preparation.matchId,game.id);assert.notEqual(live.preparation.matchId,stale.id);
   assert.equal(live.preparation.lineup.length,8);assert.equal(live.preparation.role,'POR');assert.equal(live.preparation.minutes,50);assert.equal(live.preparation.assignment,'titular');
   assert(live.preparation.individual.some((i:any)=>i.title==='Uno contra uno'));assert(live.preparation.team.some((s:string)=>s.includes('Cambios ilimitados')));
-  assert(live.preparation.plays.some((p:any)=>p.id==='portero'));assert(live.preparation.metricNote.includes('atajadas'));
+  assert.equal(live.preparation.plays.length,12);assert(live.preparation.plays.some((p:any)=>p.id==='portero'));assert(live.preparation.metricNote.includes('atajadas'));
   const keeperMetrics=buildStrengthsWeaknesses([0,0,0,0.9,0,0,1,0,0,0],[1,1,0.5,0.5,6,4,0.8,1,1,0],Array(10).fill(0.2),{goalkeeper:true,comparison:'promedio de porteros con historial'});
   assert(!JSON.stringify(keeperMetrics).match(/Falta de gol|Desperdicia tiros|Poco regate|Baja intervención defensiva/));
   assert(keeperMetrics.strengths.some(s=>s.label==='Buen pie'&&s.detail.includes('promedio de porteros')));

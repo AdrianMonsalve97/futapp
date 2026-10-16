@@ -1,23 +1,18 @@
+import type {
+  CoachingSource,
+  TacticalPlay,
+  TacticalStyle,
+} from "../../../backend/src/domain/tactics";
+export type {
+  CoachingSource,
+  TacticalPlay,
+  TacticalPlayCategory,
+  TacticalStyle,
+} from "../../../backend/src/domain/tactics";
 import type { LineupSlot, Position, TeamFormat } from "./api";
 import type { LeagueContext } from "./tournament";
 export type PitchPhase = "estructura" | "ataque" | "repliegue";
 
-export type TacticalStyle = "equilibrado" | "ofensivo" | "defensivo";
-export interface CoachingSource {
-  title: string;
-  url: string;
-  topic: string;
-}
-export interface TacticalPlay {
-  id: string;
-  title: string;
-  objective: string;
-  phase: string;
-  route: number[];
-  steps: string[];
-  coaching: string;
-  source: CoachingSource;
-}
 export interface TacticalPlan {
   match: { id: number; opponent: string; format: TeamFormat; minutes: number };
   style: TacticalStyle;
