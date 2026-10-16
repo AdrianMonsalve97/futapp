@@ -144,8 +144,11 @@ escudo registrado, y animación CSS que respeta ambas preferencias de movimiento
   jugador y la zona de su rol, incluido el portero, y conserva los apoyos.
   El campo completo cabe por defecto en el ancho disponible (hasta 860 px), sin
   ampliación ni desplazamiento horizontal. Las fichas muestran foto, posición y
-  dorsal; el rol completo queda en el detalle accesible al seleccionarlas. Las transiciones respetan movimiento
-  reducido y el control de animaciones de la aplicación.
+  dorsal. El retrato rectangular ocupa la carta completa, con degradado, posición y
+  dorsal superpuestos, siguiendo la presentación de Plantilla mediante el mismo
+  átomo `Avatar`; no se usa un recorte circular ni se amplía la geometría del campo.
+  El rol completo queda en el detalle accesible al seleccionar. Las transiciones
+  respetan movimiento reducido y el control de animaciones de la aplicación.
 - Las pruebas cubren todo el catálogo F5/F7/F8/F11, separación con fotos, recorridos
   reales de entrenamiento, pases de vuelta, referencias ausentes, posición del
   balón al redimensionar, capas de apoyo y preparación del portero. Son diagramas

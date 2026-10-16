@@ -37,7 +37,8 @@ export function TacticalPosition({
         <Avatar
           name={slot.playerName ?? slot.label}
           src={slot.playerId != null ? slot.avatarUrl : null}
-          size="xs"
+          size="lg"
+          className="fc-position-portrait"
         />
       </span>
       <strong>

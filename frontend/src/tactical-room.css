@@ -213,17 +213,16 @@
   z-index: 3;
 }
 .fc-position {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  display: block;
+  overflow: hidden;
   width: 100%;
   height: var(--tile-height);
   position: relative;
   border: 1px solid #9ab7c24d;
   border-top: 2px solid #a9d8bc;
   border-radius: 5px;
-  padding: 2px 3px;
-  background: linear-gradient(150deg, #243648f2, #101c2ae8);
+  padding: 0;
+  background: linear-gradient(150deg, #192c35, #0d161b 80%);
   box-shadow: 0 9px 12px #0005;
   text-align: center;
   color: #fff;
@@ -259,6 +258,7 @@
 }
 .fc-position-top {
   position: absolute;
+  z-index: 2;
   inset: 2px 3px auto;
   display: flex;
   justify-content: space-between;
@@ -268,18 +268,28 @@
   line-height: 1;
   color: #d0e2e7;
 }
+.fc-position-top > b,
+.fc-position-top > span {
+  padding: 1px 2px;
+  border-radius: 2px;
+  background: #071018ba;
+  text-shadow: 0 1px 3px #000;
+}
 .fc-position-top > span {
   color: #edcf84;
 }
 .fc-position > strong {
+  position: absolute;
+  inset: auto 3px 2px;
+  z-index: 2;
   display: block;
+  text-shadow: 0 1px 4px #000;
   font-size: 0.6rem;
   font-weight: 750;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.2;
-  margin: 1px 0 0;
 }
 .fc-board-caption {
   display: flex;
@@ -488,17 +498,11 @@
     margin: 0 0.4rem;
     font-size: 0.62rem;
   }
-  .fc-position {
-    padding: 4px;
-  }
   .fc-position-top {
     font-size: 0.52rem;
   }
   .fc-position > strong {
     font-size: 0.58rem;
-  }
-  .fc-position > small {
-    font-size: 0.47rem;
   }
   .fc-lineup-savebar > div {
     width: 100%;
@@ -534,18 +538,6 @@ html[data-motion="off"] .fc-position[aria-pressed="true"] {
 .fc-lineup-savebar .btn-outline:hover {
   background: #b1ced31a;
   color: #fff;
-}
-
-.fc-position[data-own="true"] {
-  border-color: #f0d48a;
-  box-shadow:
-    0 0 0 2px #e9c76e33,
-    0 10px 20px #0005;
-}
-.fc-position-top > b > small {
-  font-size: 0.45rem;
-  color: #f0d48a;
-  font-weight: 850;
 }
 
 .fc-squad-context {
@@ -590,17 +582,37 @@ html[data-motion="off"] .fc-position[aria-pressed="true"] {
 
 /* One field and one set of portrait cards across the tactical workspace. */
 .fc-position-photo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.fc-position-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    #0d161b38,
+    transparent 30%,
+    #0d161b40 55%,
+    #0d161bf2
+  );
+}
+.fc-position-portrait,
+.fc-position-portrait > div {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+.fc-position-portrait > div {
   display: flex;
+  align-items: center;
   justify-content: center;
-  margin-top: 6px;
+  background: #253e47;
 }
-.fc-position-photo .avatar > div {
-  border-radius: 50%;
-  width: 22px;
-  height: 22px;
-}
-.fc-position-photo img {
-  border-radius: 50%;
+.fc-position-portrait img {
+  border-radius: 0;
+  object-position: center 30%;
 }
 .fc-position[data-own="true"] {
   border-color: #edcf84;
