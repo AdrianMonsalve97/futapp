@@ -47,7 +47,7 @@ test("every tactical system keeps exactly its format, a goalkeeper and readable 
       for (const phase of ["estructura", "ataque", "repliegue"] as const) {
         const slots = pitchSlotsFrom(formation.key, [], format),
           original = structuredClone(slots),
-          layout = tacticalLayout(slots, format, phase);
+          layout = tacticalLayout(slots, phase);
         assert.equal(layout.slots.length, format, formation.key);
         assert.equal(
           layout.slots.filter((slot) => slot.role === "POR").length,
@@ -61,8 +61,8 @@ test("every tactical system keeps exactly its format, a goalkeeper and readable 
         for (const width of [320, 390, 768, 1200]) {
           const fieldWidth = Math.max(width, layout.minWidth),
             fieldHeight = Math.max(fieldWidth / 1.65, layout.minHeight),
-            tileWidth = Math.min(114, (fieldWidth * layout.tileWidth) / 100);
-          assert(tileWidth >= 47.99, "touch targets must remain at least 48px");
+            tileWidth = Math.min(128, (fieldWidth * layout.tileWidth) / 100);
+          assert(tileWidth >= 75.99, "portrait cards must remain at least 76px wide");
           for (const [index, slot] of layout.slots.entries()) {
             assert((slot.left * fieldWidth) / 100 - tileWidth / 2 >= 0);
             assert(
@@ -72,7 +72,7 @@ test("every tactical system keeps exactly its format, a goalkeeper and readable 
               const dx = (Math.abs(slot.left - other.left) * fieldWidth) / 100,
                 dy = (Math.abs(slot.top - other.top) * fieldHeight) / 100;
               assert(
-                dx >= tileWidth + 2 || dy >= 56,
+                dx >= tileWidth + 2 || dy >= 100,
                 `${format} ${formation.key} ${phase} ${width}: ${slot.label}/${other.label} collide (${dx.toFixed(1)},${dy.toFixed(1)})`,
               );
             }

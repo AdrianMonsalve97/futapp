@@ -1,3 +1,4 @@
+import { Avatar } from "../atoms/Avatar";
 import type { PitchSlot } from "../types/tactics";
 
 export const TACTICAL_ROLE_NAMES = {
@@ -33,6 +34,13 @@ export function TacticalPosition({
           {slot.highlighted && <small> TÚ</small>}
         </b>
         <span>{slot.shirtNumber ?? (slot.playerId ? "—" : "+")}</span>
+      </span>
+      <span className="fc-position-photo" aria-hidden="true">
+        <Avatar
+          name={slot.playerName ?? slot.label}
+          src={slot.playerId != null ? slot.avatarUrl : null}
+          size="sm"
+        />
       </span>
       <strong>
         {slot.playerName ?? (onSelect ? "Elegir jugador" : "Vacante")}

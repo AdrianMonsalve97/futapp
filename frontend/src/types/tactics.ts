@@ -1,5 +1,7 @@
 import type { LineupSlot, Position, TeamFormat } from "./api";
 import type { LeagueContext } from "./tournament";
+export type PitchPhase = "estructura" | "ataque" | "repliegue";
+
 export type TacticalStyle = "equilibrado" | "ofensivo" | "defensivo";
 export interface CoachingSource {
   title: string;

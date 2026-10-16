@@ -61,11 +61,12 @@ export function CoachingPlaysPanel({
           ))}
         </div>
         {activePlay ? (
-          <div className="grid gap-5 lg:grid-cols-2 items-start">
+          <div className="space-y-5">
             <TacticalPlayboard
               key={`${plan.match.id}:${plan.recommendation.formation}:${activePlay.id}`}
               play={activePlay}
               slots={plan.recommendation.lineup}
+              format={plan.match.format}
             />
             <div className="space-y-3">
               <TacticalPlayDetails play={activePlay} />

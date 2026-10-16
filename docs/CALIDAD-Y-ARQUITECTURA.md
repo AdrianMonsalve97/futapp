@@ -65,8 +65,9 @@ comparte la presentación de la alineación entre administrador, jugador y plant
 `useLineupEditor` conserva sus escrituras y reglas de elegibilidad. Los tipos de
 slots viven en `types/tactics.ts`, sin dependencias de moléculas hacia organismos.
 Las posiciones se proyectan con funciones puras y se comprueban sus distancias
-para todos los formatos. La cancha con anotaciones de IA mantiene su componente
-específico porque permite jugadas y enfoque individual que requieren esas capas.
+para todos los formatos. `TacticalField` comparte ahora el mismo plano en perspectiva
+con la preparación individual y las jugadas animadas; las anotaciones no necesitan
+otro renderizador de cancha.
 
 
 `SquadWorkspace` compone el vestuario, la sala táctica y la gestión del administrador
@@ -120,3 +121,29 @@ escudo registrado, y animación CSS que respeta ambas preferencias de movimiento
   timestamps SQL en UTC, rechaza fechas de aprobación ausentes y conserva saldos
   válidos para suplencia. Las aplicaciones de saldo usan las fechas originales.
   Se prueba el límite inclusivo, revisión tardía, IA y persistencia SQLite/PostgreSQL.
+
+
+## Cancha compartida y reproducción táctica
+
+- `TacticalBoard` compone la selección de fase y las herramientas; `TacticalPlayboard`
+  compone el ensayo por pasos. Ambos usan `TacticalField`, la molécula `TacticalPitch`
+  para las marcas y `TacticalPosition` para las fichas con fotos privadas. La sesión
+  sigue usando cookies HttpOnly y `Avatar` resuelve las imágenes autenticadas.
+- `tacticalLayout` concentra la proyección trapezoidal, las distancias de las fichas
+  y el tamaño mínimo. El formato se recibe del partido o de la preparación, sin
+  inferirlo del número de puestos ocupados. Se conservaron las coordenadas guardadas.
+  `FormationPitch`, `PitchPortrait` y la geometría plana anterior se retiraron junto
+  con sus estilos sin consumidores.
+- `useTacticalPlayback` controla reproducción voluntaria, pausa, navegación por pasos,
+  reinicio y cancelación de temporizadores; al ocultar la página se pausa. Flechas y
+  balón comparten los puntos proyectados y el ancho real observado por el hook
+  `useElementWidth`, para seguir las fichas al redimensionar la ventana.
+- El enfoque individual utiliza los mismos controles con/sin balón, resalta al
+  jugador y la zona de su rol, incluido el portero, y conserva apoyos y ampliación.
+  Las canchas disponen de todo el ancho; en móvil se desplazan cuando hace falta
+  espacio para conservar objetivos legibles. Las transiciones respetan movimiento
+  reducido y el control de animaciones de la aplicación.
+- Las pruebas cubren todo el catálogo F5/F7/F8/F11, separación con fotos, recorridos
+  reales de entrenamiento, pases de vuelta, referencias ausentes, posición del
+  balón al redimensionar, capas de apoyo y preparación del portero. Son diagramas
+  de práctica, sin modificar convocatorias, elegibilidad, pagos ni formación oficial.

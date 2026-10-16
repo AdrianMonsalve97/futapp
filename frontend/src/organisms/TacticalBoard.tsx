@@ -1,14 +1,10 @@
 import type { PitchSlot } from "../types/tactics";
-import { useId, useState, type CSSProperties } from "react";
 import type { TeamFormat } from "../types/api";
-
-import type { PitchPhase } from "../utils/pitch-layout";
-import { tacticalLayout } from "../utils/tactical-board";
-import {
-  TacticalPosition,
-  TACTICAL_ROLE_NAMES,
-} from "../molecules/TacticalPosition";
+import type { PitchPhase } from "../types/tactics";
+import { useTacticalBoard } from "../hooks/useTacticalBoard";
+import { TACTICAL_ROLE_NAMES } from "../molecules/TacticalPosition";
 import { SectionNavigation } from "../molecules/SectionNavigation";
+import { TacticalField } from "./TacticalField";
 
 export function TacticalBoard({
   slots,
@@ -16,19 +12,23 @@ export function TacticalBoard({
   selectedSlotIndex,
   onSlotSelect,
   onPlayerSelect,
+  phase: controlledPhase,
+  onPhaseChange,
+  focusRole,
 }: {
   slots: PitchSlot[];
   format: TeamFormat;
   selectedSlotIndex?: number | null;
   onSlotSelect?: (slot: PitchSlot) => void;
   onPlayerSelect?: (id: number) => void;
+  phase?: PitchPhase;
+  onPhaseChange?: (phase: PitchPhase) => void;
+  focusRole?: PitchSlot["role"];
 }) {
-  const gradientId = `tactical-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  const [phase, setPhase] = useState<PitchPhase>("estructura");
-  const [focused, setFocused] = useState<number | null>(null);
-  const layout = tacticalLayout(slots, format, phase);
+  const view = useTacticalBoard();
+  const phase = controlledPhase ?? view.phase;
   const selected = slots.find(
-    (slot) => slot.slotIndex === (selectedSlotIndex ?? focused),
+    (slot) => slot.slotIndex === (selectedSlotIndex ?? view.focused),
   );
   return (
     <section
@@ -54,88 +54,60 @@ export function TacticalBoard({
       <SectionNavigation
         label="Vista de la formación"
         value={phase}
-        onChange={setPhase}
+        onChange={onPhaseChange ?? view.setPhase}
         items={[
           { key: "estructura", label: "Estructura" },
           { key: "ataque", label: "Con balón" },
           { key: "repliegue", label: "Sin balón" },
         ]}
       />
-      <div
-        className="fc-board-scroll"
-        tabIndex={0}
-        role="region"
-        aria-label="Cancha; desliza horizontalmente si la formación necesita más espacio"
-      >
-        <div
-          className="fc-tactical-field"
-          style={
-            {
-              minWidth: layout.minWidth,
-              minHeight: layout.minHeight,
-              "--tile-width": `${layout.tileWidth}%`,
-            } as CSSProperties
-          }
+      <div className="fc-field-tools">
+        <button
+          type="button"
+          aria-pressed={view.connections}
+          onClick={() => view.setConnections(!view.connections)}
         >
-          <svg
-            className="fc-pitch-lines"
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <defs>
-              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="#142535" />
-                <stop offset="1" stopColor="#23414b" />
-              </linearGradient>
-            </defs>
-            <path d="M17 7H83L98 96H2Z" fill={`url(#${gradientId})`} />
-            <g
-              fill="none"
-              stroke="#c0e0e1"
-              strokeOpacity=".26"
-              strokeWidth=".32"
-            >
-              <path d="M17 7H83L98 96H2ZM9.5 51.5H90.5M38 7L36 19H64L62 7M33 96L35 80H65L67 96M43 7L42.5 12H57.5L57 7M40 96L40.8 89H59.2L60 96" />
-              <ellipse cx="50" cy="51.5" rx="10.5" ry="8.5" />
-              <path d="M46 7V4H54V7M43 96V99H57V96" />
-            </g>
-            <g stroke="#d0f4e9" strokeOpacity=".025" strokeWidth="6">
-              <path d="M16 18H84M14 31H86M11 44H89M9 57H91M6 70H94M4 83H96" />
-            </g>
-          </svg>
-          {layout.slots.map((slot) => (
-            <div
-              key={slot.slotIndex}
-              className="fc-position-anchor"
-              style={{ left: `${slot.left}%`, top: `${slot.top}%` }}
-            >
-              <TacticalPosition
-                slot={slot}
-                selected={selected?.slotIndex === slot.slotIndex}
-                onSelect={
-                  onSlotSelect || slot.playerId != null
-                    ? () => {
-                        setFocused(slot.slotIndex);
-                        if (onSlotSelect) onSlotSelect(slot);
-                        else if (slot.playerId != null)
-                          onPlayerSelect?.(slot.playerId);
-                      }
-                    : undefined
-                }
-              />
-            </div>
-          ))}
-        </div>
+          Líneas de apoyo
+        </button>
+        <button
+          type="button"
+          aria-pressed={view.enlarged}
+          onClick={() => view.setEnlarged(!view.enlarged)}
+        >
+          {view.enlarged ? "Reducir cancha" : "Ampliar cancha"}
+        </button>
       </div>
+      <TacticalField
+        editable={Boolean(onSlotSelect)}
+        slots={slots}
+        format={format}
+        phase={phase}
+        selectedSlotIndex={selected?.slotIndex}
+        focusRole={focusRole}
+        connections={view.connections}
+        enlarged={view.enlarged}
+        onSlotSelect={(slot) => {
+          if (!onSlotSelect && slot.playerId == null) return;
+          view.setFocused(slot.slotIndex);
+          if (onSlotSelect) onSlotSelect(slot);
+          else if (slot.playerId != null) onPlayerSelect?.(slot.playerId);
+        }}
+      />
       <div className="fc-board-caption" aria-live="polite">
         {selected ? (
           <>
-            <strong>{selected.playerName ?? "Posición vacante"}</strong>
+            <strong>
+              {selected.playerName ?? "Posición vacante"}
+              {selected.highlighted ? " · Tu posición" : ""}
+            </strong>
             <span>
               {selected.label} · {TACTICAL_ROLE_NAMES[selected.role]}
               {selected.shirtNumber != null
                 ? ` · #${selected.shirtNumber}`
+                : ""}
+              {selected.playerPosition &&
+              selected.playerPosition !== selected.role
+                ? ` · Adaptación desde ${TACTICAL_ROLE_NAMES[selected.playerPosition]}`
                 : ""}
             </span>
           </>

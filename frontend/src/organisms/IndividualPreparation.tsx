@@ -5,11 +5,11 @@ import { Link } from "react-router-dom";
 import type { AiPlayerInsight } from "../types/api";
 import { Card, CardBody, CardTitle } from "../atoms/Card";
 import { Button } from "../atoms/Button";
-import { FormationPitch } from "./FormationPitch";
+import { TacticalBoard } from "./TacticalBoard";
 import { TacticalPlayboard } from "./TacticalPlayboard";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "../atoms/Avatar";
-import type { PitchPhase } from "../utils/pitch-layout";
+import type { PitchPhase } from "../types/tactics";
 
 const roles = {
   POR: "portero",
@@ -17,20 +17,17 @@ const roles = {
   MED: "mediocampista",
   DEL: "delantero",
 };
-const phases: { id: PitchPhase; title: string; hint: string }[] = [
+const phases: { id: PitchPhase; hint: string }[] = [
   {
     id: "estructura",
-    title: "Posición base",
     hint: "Reconoce tu zona y los apoyos de tus compañeros.",
   },
   {
     id: "ataque",
-    title: "Con balón",
     hint: "El bloque avanza: ofrece una línea de pase y conserva cobertura.",
   },
   {
     id: "repliegue",
-    title: "Sin balón",
     hint: "El bloque retrocede: protege el centro y coordina las marcas.",
   },
 ];
@@ -112,37 +109,19 @@ export function IndividualPreparation({
               ? "Mapa de entrenamiento con jugadores habilitados para este partido. El entrenador todavía debe decidir y publicar el inicial."
               : "Mapa de entrenamiento del plantel disponible. Los puestos se cubren por posición; esta propuesta no es una convocatoria ni una inscripción a un torneo."}
         </div>
-        <div className="grid gap-6 lg:grid-cols-2 items-start">
+        <div className="space-y-6">
           <div className="space-y-4 min-w-0">
             <h3 className="font-semibold">
               {official ? "Alineación publicada" : "Mapa de entrenamiento"} ·{" "}
               {plan.formation}
             </h3>
-            <div
-              className="flex gap-2 flex-wrap"
-              aria-label="Escenarios de posición"
-            >
-              {phases.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="btn btn-sm min-h-11"
-                  aria-pressed={phase === item.id}
-                  onClick={() => setPhase(item.id)}
-                  data-active={phase === item.id}
-                >
-                  {item.title}
-                </button>
-              ))}
-            </div>
-            <div className="w-full max-w-[500px] mx-auto">
-              <FormationPitch
-                slots={slots}
-                format={plan.format}
-                phase={phase}
-                focusRole={plan.role}
-              />
-            </div>
+            <TacticalBoard
+              slots={slots}
+              format={plan.format}
+              phase={phase}
+              onPhaseChange={setPhase}
+              focusRole={plan.role}
+            />
             <p className="preparation-scenario" aria-live="polite">
               {plan.role === "POR"
                 ? goalkeeperHint
@@ -299,11 +278,12 @@ export function IndividualPreparation({
             ))}
           </div>
           {play ? (
-            <div className="grid gap-5 lg:grid-cols-2 items-start">
+            <div className="space-y-5">
               <TacticalPlayboard
                 key={`${plan.matchId}:${play.id}`}
                 play={play}
                 slots={slots}
+                format={plan.format}
               />
               <TacticalPlayDetails play={play} headingLevel={4} />
             </div>

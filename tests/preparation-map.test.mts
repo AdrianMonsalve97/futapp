@@ -6,7 +6,7 @@ import path from 'node:path';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {MemoryRouter} from 'react-router-dom';
-import {layoutPitch,PITCH_HEIGHT} from '../frontend/src/utils/pitch-layout';
+import {tacticalLayout} from '../frontend/src/utils/tactical-board';
 import {formationsFor} from '../frontend/src/data/formations';
 import type {AiPlayerInsight as FrontInsight,Position} from '../frontend/src/types/api';
 
@@ -53,15 +53,15 @@ test('individual coaching is available for every registered role before match hi
 
 test('compact-format maps separate portraits and captions, including historical stored geometry',()=>{
   for(const format of [5,7,8] as const)for(const formation of formationsFor(format)) {
-    const original=structuredClone(formation.slots),slots=layoutPitch(original,format);
+    const original=structuredClone(formation.slots),slots=tacticalLayout(original,'estructura').slots;
     assert.deepEqual(original,formation.slots);assert.equal(slots.length,format);
     for(let i=0;i<slots.length;i++)for(let j=i+1;j<slots.length;j++) {
-      const separation=Math.hypot(slots[i].x-slots[j].x,(slots[i].y-slots[j].y)*PITCH_HEIGHT[format]/100);
-      assert(separation>=22,`${format}/${formation.key}: cramped slots ${i}, ${j}`);
+      const separation=Math.hypot(slots[i].left-slots[j].left,slots[i].top-slots[j].top);
+      assert(separation>=20,`${format}/${formation.key}: cramped slots ${i}, ${j}`);
     }
-    const advanced=layoutPitch(original,format,'ataque'),defending=layoutPitch(original,format,'repliegue');
-    assert.equal(advanced.find(slot=>slot.role==='POR')?.y,slots.find(slot=>slot.role==='POR')?.y);
-    assert(advanced.filter(slot=>slot.role!=='POR').every((slot,i)=>slot.y<defending.filter(s=>s.role!=='POR')[i].y));
+    const advanced=tacticalLayout(original,'ataque').slots,defending=tacticalLayout(original,'repliegue').slots;
+    assert.equal(advanced.find(slot=>slot.role==='POR')?.top,slots.find(slot=>slot.role==='POR')?.top);
+    assert(advanced.filter(slot=>slot.role!=='POR').every((slot,i)=>slot.top<defending.filter(s=>s.role!=='POR')[i].top));
   }
 });
 
@@ -75,5 +75,8 @@ test('goalkeeper preparation renders prominently, with teammates, scenarios, pra
   assert(html.includes('Con balón'));assert(html.includes('Sin balón'));assert(html.includes('Mi rutina de preparación'));
   assert(html.includes('type="checkbox"'));assert(html.includes('Más compañeros para rotar'));assert(html.includes('Portero conectado con la defensa'));
   assert(html.includes('Falta la foto de este jugador'));assert(!html.includes('Estás en el inicial publicado'));
-  assert.equal((html.match(/class="pitch-player /g)??[]).length,8);
+  assert.equal((html.match(/class="fc-tactical-field"/g)??[]).length,2);
+  assert.equal((html.match(/class="fc-position"/g)??[]).length,16);
+  assert.equal((html.match(/data-own="true"/g)??[]).length,2);
+  assert(html.includes('fc-role-zone'));assert(!html.includes('formation-field'));
 });

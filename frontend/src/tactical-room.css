@@ -139,7 +139,7 @@
 .fc-board {
   min-width: 0;
   overflow: hidden;
-  background: radial-gradient(ellipse at 50% 65%, #688c9a18, transparent 70%);
+  background: radial-gradient(ellipse at 50% 65%, #688c9a18, transparent 70%), #101b29;
   color: #edf5f5;
   border-radius: 1rem;
 }
@@ -206,10 +206,10 @@
   position: absolute;
   transform: translate(-50%, -50%);
   width: var(--tile-width);
-  max-width: 114px;
+  max-width: 128px;
   transition:
-    left 0.4s ease,
-    top 0.4s ease;
+    left 0.65s ease,
+    top 0.65s ease;
   z-index: 1;
 }
 .fc-position-anchor:focus-within,
@@ -221,7 +221,7 @@
   flex-direction: column;
   justify-content: center;
   width: 100%;
-  height: 54px;
+  height: 88px;
   border: 1px solid #9ab7c24d;
   border-top: 2px solid #a9d8bc;
   border-radius: 5px;
@@ -253,7 +253,10 @@
     0 10px 22px #0006;
 }
 .fc-position:disabled {
-  opacity: 0.6;
+  cursor: default;
+}
+.fc-position[data-empty="true"] {
+  opacity: 0.65;
 }
 .fc-position[data-empty="true"] {
   border-style: dashed;
@@ -594,4 +597,163 @@ html[data-motion="off"] .fc-position[aria-pressed="true"] {
   .fc-squad-context {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* One field and one set of portrait cards across the tactical workspace. */
+.fc-position-photo {
+  display: flex;
+  justify-content: center;
+  margin-top: 3px;
+}
+.fc-position-photo .avatar > div {
+  border-radius: 50%;
+}
+.fc-position-photo img {
+  border-radius: 50%;
+}
+.fc-position[data-own="true"] {
+  border-color: #edcf84;
+  box-shadow:
+    0 0 0 2px #edcf8438,
+    0 9px 12px #0005;
+}
+.fc-position:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+.fc-field-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0 0.75rem 0.5rem;
+}
+.fc-field-tools button {
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #b1ced340;
+  border-radius: 0.6rem;
+  color: #d3e3e8;
+  font-size: 0.75rem;
+}
+.fc-field-tools button[aria-pressed="true"] {
+  background: #edcf8420;
+  border-color: #edcf84;
+}
+.fc-field-tools button:focus-visible {
+  outline: 2px solid #edcf84;
+  outline-offset: 2px;
+}
+.fc-role-zone {
+  fill: #edcf84;
+  opacity: 0.1;
+}
+.fc-support-line {
+  fill: none;
+  stroke: #b0dfc1;
+  stroke-width: 0.3;
+  stroke-dasharray: 1 1;
+  opacity: 0.45;
+}
+.fc-play-ball {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 30%,
+    #fff 15%,
+    #d5dfdd 38%,
+    #334750 42%,
+    #fff 65%
+  );
+  box-shadow:
+    0 0 0 5px #edcf842b,
+    0 0 20px #edcf8480;
+  transform: translate(-50%, -50%);
+  transition:
+    left 0.65s ease,
+    top 0.65s ease;
+  z-index: 2;
+  pointer-events: none;
+}
+.fc-play-controls {
+  padding: 1rem;
+  border-top: 1px solid #b1ced329;
+}
+.fc-play-transport {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+.fc-play-transport > span {
+  font-size: 0.8rem;
+  min-width: 5rem;
+  text-align: center;
+}
+.fc-play-transport .btn {
+  min-height: 44px;
+}
+.fc-play-transport .btn-outline {
+  color: #e5eee9;
+  border-color: #b1ced360;
+}
+.fc-play-timeline {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+.fc-play-timeline button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #b1ced329;
+  border-radius: 0.6rem;
+  background: #101c2a;
+}
+.fc-play-timeline button > span {
+  font-size: 0.65rem;
+  color: #adc4ce;
+}
+.fc-play-timeline button > strong {
+  font-size: 0.75rem;
+}
+.fc-play-timeline button[data-complete="true"] {
+  border-color: #edcf8470;
+}
+.fc-play-timeline button[aria-current="step"] {
+  background: #edcf8420;
+  border-color: #edcf84;
+}
+.fc-play-timeline button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+.fc-play-receiver {
+  text-align: center;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  margin-top: 1rem;
+  overflow-wrap: anywhere;
+}
+.fc-play-note {
+  color: #a8bdc9;
+  font-size: 0.7rem;
+  text-align: center;
+  line-height: 1.6;
+  margin-top: 0.5rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-play-ball {
+    transition: none;
+  }
+}
+html[data-motion="off"] .fc-play-ball {
+  transition: none;
 }

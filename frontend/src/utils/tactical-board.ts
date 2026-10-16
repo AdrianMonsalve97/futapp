@@ -1,19 +1,17 @@
-import { layoutPitch, type PitchPhase } from "./pitch-layout";
-import type { TeamFormat } from "../types/api";
+import type { PitchPhase } from "../types/tactics";
 
 /** Project existing positions onto a trapezoidal pitch, keeping touch targets apart. */
 export function tacticalLayout<
   T extends { x: number; y: number; role: string },
->(slots: T[], format: TeamFormat, phase: PitchPhase) {
-  const structured = layoutPitch(slots, format, "estructura");
+>(slots: T[], phase: PitchPhase) {
   const rows: number[][] = [];
-  for (const y of [...new Set(structured.map((slot) => slot.y))].sort(
+  for (const y of [...new Set(slots.map((slot) => slot.y))].sort(
     (a, b) => a - b,
   )) {
     if (rows.length && y - rows.at(-1)![0] <= 7) rows.at(-1)!.push(y);
     else rows.push([y]);
   }
-  const projected = structured.map((slot) => {
+  const projected = slots.map((slot) => {
     const row = rows.findIndex((values) => values.includes(slot.y));
     const position = rows.length < 2 ? 50 : 14 + (row * 76) / (rows.length - 1);
     const shift =
@@ -41,7 +39,13 @@ export function tacticalLayout<
   return {
     slots: projected,
     tileWidth: width,
-    minWidth: Math.max(320, Math.ceil((48 * 100) / width)),
-    minHeight: Math.max(420, Math.ceil(((rows.length - 1) * 68) / 0.6384)),
+    minWidth: Math.max(320, Math.ceil((76 * 100) / width)),
+    // The goalkeeper stays anchored while the nearest line moves by two points.
+    minHeight: Math.max(
+      460,
+      rows.length < 2
+        ? 0
+        : Math.ceil(104 / ((76 / (rows.length - 1) - 2) * 0.0084)),
+    ),
   };
 }
