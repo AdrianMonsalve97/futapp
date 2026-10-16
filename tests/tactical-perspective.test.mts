@@ -33,26 +33,23 @@ test("actual coaching routes follow the shared perspective in every system, step
       for (const style of ["equilibrado", "ofensivo", "defensivo"] as const)
         for (const play of buildPlays(slots, style)) {
           for (let step = 0; step < play.route.length; step++) {
-            const layout = tacticalLayout(
-              slots,
-              tacticalPlayPhase(play.phase, step),
-            );
-            const route = tacticalRoute(play.route, layout.slots);
-            assert.deepEqual(
-              route.map((slot) => slot.slotIndex),
-              play.route,
-            );
-            for (const width of [320, 390, 768, 1200, 2000]) {
-              const fieldWidth = Math.max(width, layout.minWidth);
+            for (const fieldWidth of [224, 256, 320, 390, 768, 860]) {
+              const layout = tacticalLayout(
+                slots,
+                tacticalPlayPhase(play.phase, step),
+                fieldWidth,
+              );
+              const route = tacticalRoute(play.route, layout.slots);
+              assert.deepEqual(
+                route.map((slot) => slot.slotIndex),
+                play.route,
+              );
               const point = tacticalBallPoint(
                 route[step],
                 layout.tileWidth,
                 fieldWidth,
               );
-              const cardWidth = Math.min(
-                128,
-                (layout.tileWidth * fieldWidth) / 100,
-              );
+              const cardWidth = layout.tileWidth;
               assert.equal(point.top, route[step].top);
               assert(
                 Math.abs(
@@ -60,10 +57,11 @@ test("actual coaching routes follow the shared perspective in every system, step
                     cardWidth / 2 -
                     12,
                 ) < 0.001,
-                "ball stays 12px beside its receiver, including capped cards on large screens",
+                "ball stays 12px beside its receiver, while fitting the whole pitch",
               );
               assert(
-                point.left < 98 && point.left > 0,
+                (point.left * fieldWidth) / 100 <= fieldWidth - 6 &&
+                  point.left > 0,
                 "ball remains inside the field",
               );
             }
@@ -133,7 +131,7 @@ test("role focus, support lines and replay arrows retain the same projected coor
   const layout = tacticalLayout(slots, "repliegue");
   const route = [0, 1, 0];
   const points = tacticalRoute(route, layout.slots).map((slot) =>
-    tacticalBallPoint(slot, layout.tileWidth, layout.minWidth),
+    tacticalBallPoint(slot, layout.tileWidth, 320),
   );
   const html = render(
     React.createElement(TacticalField, {

@@ -5,7 +5,10 @@ import {
   kickoffTime,
   matchClock,
 } from "../frontend/src/utils/match-clock";
-import { tacticalLayout } from "../frontend/src/utils/tactical-board";
+import {
+  tacticalLayout,
+  TACTICAL_TILE_HEIGHT,
+} from "../frontend/src/utils/tactical-board";
 import { formationsFor } from "../frontend/src/data/formations";
 import {
   assignLineupSlot,
@@ -41,38 +44,50 @@ test("countdown interprets Colombian fixtures consistently and reaches zero with
   assert.equal(matchClock("2026-10-18T18:00", kickoff - 1)!.seconds, 1);
 });
 
-test("every tactical system keeps exactly its format, a goalkeeper and readable touch targets in all phases", () => {
+test("the complete compact field fits mobile and desktop without clipping or overlapping touch targets", () => {
   for (const format of [5, 7, 8, 11] as const)
     for (const formation of formationsFor(format))
       for (const phase of ["estructura", "ataque", "repliegue"] as const) {
         const slots = pitchSlotsFrom(formation.key, [], format),
-          original = structuredClone(slots),
-          layout = tacticalLayout(slots, phase);
-        assert.equal(layout.slots.length, format, formation.key);
-        assert.equal(
-          layout.slots.filter((slot) => slot.role === "POR").length,
-          1,
-        );
-        assert.deepEqual(
-          slots,
-          original,
-          "display projections must not change saved positions",
-        );
-        for (const width of [320, 390, 768, 1200]) {
-          const fieldWidth = Math.max(width, layout.minWidth),
-            fieldHeight = Math.max(fieldWidth / 1.65, layout.minHeight),
-            tileWidth = Math.min(128, (fieldWidth * layout.tileWidth) / 100);
-          assert(tileWidth >= 75.99, "portrait cards must remain at least 76px wide");
+          original = structuredClone(slots);
+        for (const width of [224, 256, 320, 390, 768, 860]) {
+          const layout = tacticalLayout(slots, phase, width);
+          assert.equal(layout.slots.length, format);
+          assert.equal(
+            layout.slots.filter((slot) => slot.role === "POR").length,
+            1,
+          );
+          assert.deepEqual(
+            slots,
+            original,
+            "display must not change saved positions",
+          );
+          assert(
+            layout.height >= 260 && layout.height <= 410,
+            "whole pitch uses a bounded height even for F11",
+          );
+          assert(
+            layout.tileWidth >= 44 && layout.tileWidth <= 92,
+            "touch targets stay usable without large cards",
+          );
           for (const [index, slot] of layout.slots.entries()) {
-            assert((slot.left * fieldWidth) / 100 - tileWidth / 2 >= 0);
+            const x = (slot.left * width) / 100,
+              y = (slot.top * layout.height) / 100;
             assert(
-              (slot.left * fieldWidth) / 100 + tileWidth / 2 <= fieldWidth,
+              x - layout.tileWidth / 2 >= 0 &&
+                x + layout.tileWidth / 2 <= width,
+              "no horizontal crop or scroll",
+            );
+            assert(
+              y - TACTICAL_TILE_HEIGHT / 2 >= 0 &&
+                y + TACTICAL_TILE_HEIGHT / 2 <= layout.height,
+              "all rows remain visible",
             );
             for (const other of layout.slots.slice(index + 1)) {
-              const dx = (Math.abs(slot.left - other.left) * fieldWidth) / 100,
-                dy = (Math.abs(slot.top - other.top) * fieldHeight) / 100;
+              const dx = (Math.abs(slot.left - other.left) * width) / 100;
+              const dy = (Math.abs(slot.top - other.top) * layout.height) / 100;
               assert(
-                dx >= tileWidth + 2 || dy >= 100,
+                dx >= layout.tileWidth + 3.99 || dy >= TACTICAL_TILE_HEIGHT + 8,
                 `${format} ${formation.key} ${phase} ${width}: ${slot.label}/${other.label} collide (${dx.toFixed(1)},${dy.toFixed(1)})`,
               );
             }

@@ -23,29 +23,26 @@ export function TacticalPosition({
       data-role={slot.role}
       data-empty={slot.playerId == null}
       data-own={slot.highlighted === true}
+      title={`${slot.playerName ?? "Vacante"} · ${slot.label} · ${TACTICAL_ROLE_NAMES[slot.role]}`}
       aria-pressed={selected}
       onClick={onSelect}
       disabled={!onSelect}
       aria-label={`${slot.label}: ${slot.playerName ?? "Vacante"}${slot.shirtNumber != null ? `, dorsal ${slot.shirtNumber}` : ""}. ${TACTICAL_ROLE_NAMES[slot.role]}${slot.highlighted ? " · Tu posición" : ""}`}
     >
       <span className="fc-position-top">
-        <b>
-          {slot.label}
-          {slot.highlighted && <small> TÚ</small>}
-        </b>
+        <b>{slot.label}</b>
         <span>{slot.shirtNumber ?? (slot.playerId ? "—" : "+")}</span>
       </span>
       <span className="fc-position-photo" aria-hidden="true">
         <Avatar
           name={slot.playerName ?? slot.label}
           src={slot.playerId != null ? slot.avatarUrl : null}
-          size="sm"
+          size="xs"
         />
       </span>
       <strong>
         {slot.playerName ?? (onSelect ? "Elegir jugador" : "Vacante")}
       </strong>
-      <small>{TACTICAL_ROLE_NAMES[slot.role]}</small>
     </button>
   );
 }

@@ -1,6 +1,5 @@
-import type { PitchSlot } from "../types/tactics";
+import type { PitchSlot, PitchPhase } from "../types/tactics";
 import type { TeamFormat } from "../types/api";
-import type { PitchPhase } from "../types/tactics";
 import { useTacticalBoard } from "../hooks/useTacticalBoard";
 import { TACTICAL_ROLE_NAMES } from "../molecules/TacticalPosition";
 import { SectionNavigation } from "../molecules/SectionNavigation";
@@ -51,30 +50,24 @@ export function TacticalBoard({
           <small>/{format}</small>
         </span>
       </div>
-      <SectionNavigation
-        label="Vista de la formación"
-        value={phase}
-        onChange={onPhaseChange ?? view.setPhase}
-        items={[
-          { key: "estructura", label: "Estructura" },
-          { key: "ataque", label: "Con balón" },
-          { key: "repliegue", label: "Sin balón" },
-        ]}
-      />
-      <div className="fc-field-tools">
+      <div className="fc-board-toolbar">
+        <SectionNavigation
+          label="Vista de la formación"
+          value={phase}
+          onChange={onPhaseChange ?? view.setPhase}
+          items={[
+            { key: "estructura", label: "Estructura" },
+            { key: "ataque", label: "Con balón" },
+            { key: "repliegue", label: "Sin balón" },
+          ]}
+        />
         <button
           type="button"
+          className="fc-support-toggle"
           aria-pressed={view.connections}
           onClick={() => view.setConnections(!view.connections)}
         >
           Líneas de apoyo
-        </button>
-        <button
-          type="button"
-          aria-pressed={view.enlarged}
-          onClick={() => view.setEnlarged(!view.enlarged)}
-        >
-          {view.enlarged ? "Reducir cancha" : "Ampliar cancha"}
         </button>
       </div>
       <TacticalField
@@ -85,7 +78,6 @@ export function TacticalBoard({
         selectedSlotIndex={selected?.slotIndex}
         focusRole={focusRole}
         connections={view.connections}
-        enlarged={view.enlarged}
         onSlotSelect={(slot) => {
           if (!onSlotSelect && slot.playerId == null) return;
           view.setFocused(slot.slotIndex);

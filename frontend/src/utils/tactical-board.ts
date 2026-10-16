@@ -1,9 +1,11 @@
 import type { PitchPhase } from "../types/tactics";
 
-/** Project existing positions onto a trapezoidal pitch, keeping touch targets apart. */
+export const TACTICAL_TILE_HEIGHT = 48;
+
+/** Fit the whole pitch in its container without changing the stored formation. */
 export function tacticalLayout<
   T extends { x: number; y: number; role: string },
->(slots: T[], phase: PitchPhase) {
+>(slots: T[], phase: PitchPhase, fieldWidth = 320) {
   const rows: number[][] = [];
   for (const y of [...new Set(slots.map((slot) => slot.y))].sort(
     (a, b) => a - b,
@@ -29,23 +31,47 @@ export function tacticalLayout<
       top: 7 + depth * 84,
     };
   });
-  let width = 17;
-  for (const [index, slot] of projected.entries())
-    for (const other of projected.slice(index + 1)) {
-      if (Math.abs(slot.top - other.top) < 1)
-        width = Math.min(width, Math.abs(slot.left - other.left) - 2);
+  const tileWidth = Math.min(92, Math.max(44, fieldWidth * 0.14));
+  const gap = ((tileWidth + 4) * 100) / fieldWidth;
+  const edge = ((tileWidth / 2 + 18) * 100) / fieldWidth;
+  // Spread crowded lines only as needed. Keep their centre and left/right order.
+  for (const row of rows) {
+    const line = projected
+      .filter((slot) => row.includes(slot.y))
+      .sort((a, b) => a.left - b.left);
+    if (!line.length) continue;
+    const centre =
+      line.reduce((total, slot) => total + slot.left, 0) / line.length;
+    for (let index = 1; index < line.length; index++)
+      line[index].left = Math.max(line[index].left, line[index - 1].left + gap);
+    if (line.length > 1 && line.at(-1)!.left - line[0].left > 100 - 2 * edge) {
+      line.forEach((slot, index) => {
+        slot.left = edge + (index * (100 - 2 * edge)) / (line.length - 1);
+      });
+      continue;
     }
-  width = Math.max(9, width);
+    const shift = Math.max(
+      edge - line[0].left,
+      Math.min(
+        100 - edge - line.at(-1)!.left,
+        centre -
+          line.reduce((total, slot) => total + slot.left, 0) / line.length,
+      ),
+    );
+    for (const slot of line) slot.left += shift;
+  }
   return {
     slots: projected,
-    tileWidth: width,
-    minWidth: Math.max(320, Math.ceil((76 * 100) / width)),
-    // The goalkeeper stays anchored while the nearest line moves by two points.
-    minHeight: Math.max(
-      460,
+    tileWidth,
+    // Includes a gap between targets and leaves the goalkeeper anchored.
+    height: Math.max(
+      260,
       rows.length < 2
         ? 0
-        : Math.ceil(104 / ((76 / (rows.length - 1) - 2) * 0.0084)),
+        : Math.ceil(
+            (TACTICAL_TILE_HEIGHT + 10) /
+              ((76 / (rows.length - 1) - 2) * 0.0084),
+          ),
     ),
   };
 }

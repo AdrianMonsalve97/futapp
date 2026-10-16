@@ -5,7 +5,6 @@ export function useTacticalBoard() {
   const [phase, setPhase] = useState<PitchPhase>("estructura");
   const [focused, setFocused] = useState<number | null>(null);
   const [connections, setConnections] = useState(false);
-  const [enlarged, setEnlarged] = useState(false);
   return {
     phase,
     setPhase,
@@ -13,7 +12,5 @@ export function useTacticalBoard() {
     setFocused,
     connections,
     setConnections,
-    enlarged,
-    setEnlarged,
   };
 }

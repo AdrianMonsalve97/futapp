@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import type { TeamFormat } from "../types/api";
 import type { PitchSlot, PitchPhase } from "../types/tactics";
 import { useElementWidth } from "../hooks/useElementWidth";
-import { tacticalLayout } from "../utils/tactical-board";
+import { tacticalLayout, TACTICAL_TILE_HEIGHT } from "../utils/tactical-board";
 import { tacticalBallPoint, tacticalRoute } from "../utils/tactical-play";
 import { TacticalPosition } from "../molecules/TacticalPosition";
 import { TacticalPitch } from "../molecules/TacticalPitch";
@@ -17,7 +17,6 @@ export function TacticalField({
   editable = false,
   focusRole,
   connections = false,
-  enlarged = false,
   playback,
 }: {
   slots: PitchSlot[];
@@ -28,24 +27,18 @@ export function TacticalField({
   onSlotSelect?: (slot: PitchSlot) => void;
   focusRole?: PitchSlot["role"];
   connections?: boolean;
-  enlarged?: boolean;
   playback?: { route: number[]; step: number };
 }) {
-  const layout = tacticalLayout(slots, phase);
-  const field = useElementWidth(Boolean(playback));
+  const field = useElementWidth();
+  const layout = tacticalLayout(slots, phase, field.width ?? 320);
   const route = tacticalRoute(playback?.route ?? [], layout.slots);
   const points = route.map((slot) =>
-    tacticalBallPoint(slot, layout.tileWidth, field.width ?? layout.minWidth),
+    tacticalBallPoint(slot, layout.tileWidth, field.width ?? 320),
   );
   const receiver = route[playback?.step ?? 0];
   const ball = points[playback?.step ?? 0];
   return (
-    <div
-      className="fc-board-scroll"
-      tabIndex={0}
-      role="region"
-      aria-label="Cancha; desliza horizontalmente si la formación necesita más espacio"
-    >
+    <div className="fc-field-viewport">
       <div
         ref={field.ref}
         className="fc-tactical-field"
@@ -53,9 +46,9 @@ export function TacticalField({
         data-phase={phase}
         style={
           {
-            minWidth: Math.max(layout.minWidth, enlarged ? 850 : 0),
-            minHeight: layout.minHeight,
-            "--tile-width": `${layout.tileWidth}%`,
+            height: layout.height,
+            "--tile-width": `${layout.tileWidth}px`,
+            "--tile-height": `${TACTICAL_TILE_HEIGHT}px`,
           } as CSSProperties
         }
       >

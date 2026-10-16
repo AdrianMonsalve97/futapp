@@ -130,7 +130,9 @@ escudo registrado, y animación CSS que respeta ambas preferencias de movimiento
   para las marcas y `TacticalPosition` para las fichas con fotos privadas. La sesión
   sigue usando cookies HttpOnly y `Avatar` resuelve las imágenes autenticadas.
 - `tacticalLayout` concentra la proyección trapezoidal, las distancias de las fichas
-  y el tamaño mínimo. El formato se recibe del partido o de la preparación, sin
+  y la altura acotada (260–407 px). El ancho real del contenedor determina fichas
+  compactas de al menos 44×48 px y separa las líneas concurridas sin recortar la cancha.
+  El formato se recibe del partido o de la preparación, sin
   inferirlo del número de puestos ocupados. Se conservaron las coordenadas guardadas.
   `FormationPitch`, `PitchPortrait` y la geometría plana anterior se retiraron junto
   con sus estilos sin consumidores.
@@ -139,9 +141,10 @@ escudo registrado, y animación CSS que respeta ambas preferencias de movimiento
   balón comparten los puntos proyectados y el ancho real observado por el hook
   `useElementWidth`, para seguir las fichas al redimensionar la ventana.
 - El enfoque individual utiliza los mismos controles con/sin balón, resalta al
-  jugador y la zona de su rol, incluido el portero, y conserva apoyos y ampliación.
-  Las canchas disponen de todo el ancho; en móvil se desplazan cuando hace falta
-  espacio para conservar objetivos legibles. Las transiciones respetan movimiento
+  jugador y la zona de su rol, incluido el portero, y conserva los apoyos.
+  El campo completo cabe por defecto en el ancho disponible (hasta 860 px), sin
+  ampliación ni desplazamiento horizontal. Las fichas muestran foto, posición y
+  dorsal; el rol completo queda en el detalle accesible al seleccionarlas. Las transiciones respetan movimiento
   reducido y el control de animaciones de la aplicación.
 - Las pruebas cubren todo el catálogo F5/F7/F8/F11, separación con fotos, recorridos
   reales de entrenamiento, pases de vuelta, referencias ausentes, posición del

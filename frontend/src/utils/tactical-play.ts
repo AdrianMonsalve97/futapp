@@ -28,9 +28,12 @@ export function tacticalBallPoint(
   tileWidth: number,
   fieldWidth: number,
 ) {
-  const cardWidth = Math.min(tileWidth, (128 * 100) / fieldWidth);
+  const cardWidth = (tileWidth * 100) / fieldWidth;
   return {
-    left: Math.min(98, slot.left + cardWidth / 2 + 1200 / fieldWidth),
+    left: Math.min(
+      100 - 600 / fieldWidth,
+      slot.left + cardWidth / 2 + 1200 / fieldWidth,
+    ),
     top: slot.top,
   };
 }
