@@ -3,6 +3,8 @@ import { Avatar } from '../atoms/Avatar';
 import { Badge } from '../atoms/Badge';
 import { Icon } from '../atoms/Icon';
 import { useAppearance } from '../context/AppearanceContext';
+import { Link, useLocation } from 'react-router-dom';
+import { useSettings } from '../context/SettingsContext';
 
 export interface TopbarProps {
   /** Abre el drawer en móvil. */
@@ -13,6 +15,11 @@ export interface TopbarProps {
 export function Topbar({ onMenuClick }: TopbarProps) {
   const { user, logout } = useAuth();
   const { night, motion, toggleNight, toggleMotion } = useAppearance();
+  const { settings } = useSettings();
+  const location = useLocation();
+  const base = user?.role === 'admin' ? '/admin' : '/jugador';
+  const section = location.pathname.split('/')[2] ?? 'inicio';
+  const labels: Record<string, string> = { inicio: 'Dentro del club', partidos: 'Día de partido', uniformes: 'Tienda oficial', pagos: 'Mis pagos', 'pagos-qr': 'Tesorería', posiciones: 'La liga', torneos: 'Competición', perfil: 'Mi vestuario', ia: 'Laboratorio táctico', jugadores: 'Plantilla', configuracion: 'Control del club', inscripcion: 'Mi inscripción' };
 
   return (
     <header className="club-topbar sticky top-0 z-30 bg-base-100/90 backdrop-blur-xl border-b border-base-200">
@@ -26,9 +33,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           >
             <Icon name="menu" size={20} />
           </button>
-          <span className="hidden xl:inline font-semibold text-base-content/70">
-            <span className="text-xs uppercase tracking-[.18em]">FutApp <span className="text-primary">/</span> Centro de juego</span>
-          </span>
+          <Link className="club-topbar-context" to={`${base}/inicio`}><small>{settings.teamName}</small><span>{labels[section] ?? section.replace(/-/g, ' ')}</span></Link>
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">

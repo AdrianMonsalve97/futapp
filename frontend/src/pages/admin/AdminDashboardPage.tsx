@@ -12,6 +12,7 @@ import { Spinner } from '../../atoms/Spinner';
 import { StatCardsRow } from '../../organisms/StatCardsRow';
 import { PaymentModal } from '../../organisms/PaymentModal';
 import { MatchDayHero } from '../../organisms/MatchDayHero';
+import { ClubActionGrid, ClubHomeExtras, ClubMatchStrip } from '../../organisms/ClubHomePanels';
 import { ClubPulse } from '../../organisms/ClubPulse';
 import { Money } from '../../molecules/Money';
 import { RatingBadge } from '../../molecules/RatingBadge';
@@ -90,6 +91,8 @@ export function AdminDashboardPage() {
       ) : null}
 
       <MatchDayHero match={nextMatch} />
+      <ClubMatchStrip match={nextMatch} />
+      <ClubActionGrid />
 
       <StatCardsRow
         columns={5}
@@ -286,6 +289,7 @@ export function AdminDashboardPage() {
           reload();
         }}
       />
+      <ClubHomeExtras />
     </>
   );
 }

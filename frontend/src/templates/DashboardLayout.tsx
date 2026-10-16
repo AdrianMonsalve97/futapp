@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
+import { Icon, type IconName } from '../atoms/Icon';
 import { Sidebar } from '../organisms/Sidebar';
 import { Topbar } from '../organisms/Topbar';
 import { useAuth } from '../context/AuthContext';
@@ -16,9 +17,28 @@ export function DashboardLayout() {
   const { settings } = useSettings();
   const role = user?.role ?? 'player';
   const location = useLocation();
+  const main = useRef<HTMLElement>(null);
+  const previousPath = useRef(location.pathname);
+  useEffect(() => {
+    if (previousPath.current !== location.pathname) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      main.current?.focus({ preventScroll: true });
+      setOpen(false);
+      previousPath.current = location.pathname;
+    }
+  }, [location.pathname]);
+  const base = role === 'admin' ? '/admin' : '/jugador';
+  const shortcuts: { path: string; title: string; icon: IconName }[] = [
+    { path: 'inicio', title: 'Club', icon: 'shield' },
+    { path: 'partidos', title: 'Partidos', icon: 'futbol' },
+    { path: role === 'admin' ? 'pagos-qr' : 'pagos', title: 'Pagos', icon: 'dinero' },
+    { path: 'uniformes', title: 'Tienda', icon: 'camiseta' },
+    { path: 'posiciones', title: 'Tabla', icon: 'trofeo' },
+  ];
 
   return (
     <div className="drawer lg:drawer-open min-h-full">
+      <a href="#club-content" className="club-skip-link">Saltar al contenido</a>
       <input
         type="checkbox"
         className="drawer-toggle"
@@ -29,12 +49,15 @@ export function DashboardLayout() {
 
       <div className="drawer-content dashboard-surface flex flex-col min-h-full min-w-0">
         <Topbar onMenuClick={() => setOpen(true)} />
-        <main className="flex-1 w-full min-w-0 max-w-[1500px] mx-auto px-4 sm:px-7 py-6">
+        <main id="club-content" ref={main} tabIndex={-1} className="club-content flex-1 w-full min-w-0 max-w-[1500px] mx-auto px-4 sm:px-7 py-6">
           <div key={location.pathname} className="page-enter"><Outlet /></div>
         </main>
         <footer className="px-6 py-4 text-center text-xs text-base-content/40">
           {settings.teamName} · Temporada {settings.season} · Hecho para vivir el fútbol
         </footer>
+        <nav className="club-mobile-dock" aria-label="Accesos principales">
+          {shortcuts.map(item => <NavLink key={item.path} to={`${base}/${item.path}`} className={({ isActive }) => isActive ? 'dock-active' : ''}><Icon name={item.icon} size={20} /><span>{item.title}</span></NavLink>)}
+        </nav>
       </div>
 
       <div className="drawer-side z-40">

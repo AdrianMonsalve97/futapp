@@ -15,6 +15,7 @@ import {PASSWORD_HINT,PASSWORD_MIN_LENGTH,passwordError} from '../../utils/passw
 export function RegisterPage() {
   const { register } = useAuth();
   const [submitted, setSubmitted] = useState(false);
+  const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     fullName: '',
     email: '',
@@ -45,6 +46,7 @@ export function RegisterPage() {
       setError(invalidPassword);
       return;
     }
+    if (step === 1) { setError(null); setStep(2); return; }
     setBusy(true);
     setError(null);
     try {
@@ -76,8 +78,10 @@ export function RegisterPage() {
           Completa tus datos con la invitación del administrador para solicitar tu ingreso. El administrador debe aprobarlo.
         </p>
 
+        <div className="club-registration-steps" aria-label="Progreso de tu registro"><span aria-current={step === 1 ? 'step' : undefined}><b>1</b>Tu cuenta</span><span aria-current={step === 2 ? 'step' : undefined}><b>2</b>Tu juego</span><span><b>3</b>Aval del club</span></div>
         <form className="auth-fields" onSubmit={(event) => void submit(event)}>
           {error ? <Alert tone="error">{error}</Alert> : null}
+          {step === 1 ? <>
           <FormField label="Código de invitación" required hint="Pide al administrador el enlace o código del equipo."><Input required autoComplete="off" value={form.invitationCode} onChange={e=>set('invitationCode',e.target.value)} /></FormField>
 
           <FormField label="Nombre completo" required>
@@ -86,6 +90,7 @@ export function RegisterPage() {
               onChange={(event) => set('fullName', event.target.value)}
               placeholder="Lucas Martínez"
               autoFocus
+              required
             />
           </FormField>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -96,6 +101,7 @@ export function RegisterPage() {
                 onChange={(event) => set('email', event.target.value)}
                 placeholder="jugador@club.com"
                 autoComplete="username"
+                required
               />
             </FormField>
             <FormField label="Teléfono">
@@ -114,6 +120,10 @@ export function RegisterPage() {
                 autoComplete="new-password"
               />
             </FormField>
+          </div>
+          </> : <>
+            <div className="club-registration-review"><strong>{form.fullName}</strong><p>{form.email}</p><p>Tu cuenta se activará cuando el administrador apruebe tu ingreso. Después podrás consultar tu torneo y completar tus pagos.</p></div>
+            <div className="grid gap-5 sm:grid-cols-2">
             <FormField label="Posición">
               <Select
                 value={form.position}
@@ -136,10 +146,8 @@ export function RegisterPage() {
               />
             </FormField>
           </div>
-
-          <Button type="submit" className="w-full" loading={busy}>
-            Enviar solicitud
-          </Button>
+          </>}
+          <div className="club-registration-buttons">{step === 2 && <Button variant="outline" disabled={busy} onClick={() => { setStep(1); setError(null); }}>Atrás</Button>}<Button type="submit" loading={busy}>{step === 1 ? 'Continuar con mi perfil' : 'Enviar solicitud al club'}</Button></div>
         </form>
 
         <p className="text-center text-sm mt-4">

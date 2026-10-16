@@ -14,7 +14,7 @@ export class SqliteTournamentRepository implements TournamentRepository {
   async roster(id: number): Promise<TournamentPlayer[]> {
     const rows = (await this.db.prepare(`SELECT p.id AS playerId, u.full_name AS playerName,
       p.shirt_number AS shirtNumber, p.position, p.secondary_position AS secondaryPosition,
-      u.active, tp.registered_at AS registeredAt FROM tournament_players tp
+      u.active, u.avatar_url AS avatarUrl, tp.registered_at AS registeredAt FROM tournament_players tp
       JOIN players p ON p.id=tp.player_id JOIN users u ON u.id=p.user_id
       WHERE tp.tournament_id=? ORDER BY u.full_name COLLATE NOCASE, p.id`).all(id)) as Array<Omit<TournamentPlayer, 'active'> & { active: number }>;
     return rows.map(row => ({ ...row, active: Boolean(row.active) }));

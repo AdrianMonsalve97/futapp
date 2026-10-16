@@ -62,7 +62,8 @@ test('only administrators enroll players, with separate rosters per tournament a
   (await c.tournamentService.addPlayers(b.id, [id]));
   assert.equal((await request('GET', `/tournaments/${a.id}/players`, undefined, player)).data.myPlayerId, id);
   const keys = Object.keys(enrolled.data.players[0]).sort();
-  assert.deepEqual(keys, ['active','playerId','playerName','position','registeredAt','secondaryPosition','shirtNumber'].sort());
+  assert.deepEqual(keys, ['active','avatarUrl','playerId','playerName','position','registeredAt','secondaryPosition','shirtNumber'].sort());
+  assert.equal(enrolled.data.players[0].avatarUrl, null);
   assert(!JSON.stringify(enrolled.data.players).includes('Información privada'));
   assert.equal((await request('DELETE', `/tournaments/${a.id}/players/${id}`)).status, 200);
   assert.equal((await c.tournamentService.roster(b.id, true, 0)).players.length, 1);

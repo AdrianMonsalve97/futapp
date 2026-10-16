@@ -42,7 +42,7 @@ const match: Shape = {
   opponent: nonempty(120), competition: nonempty(120), kickOff: dateTime, venue: nullable(text(200)),
   isHome: boolean, formation: nonempty(40), format: oneOf(5, 7, 8, 11), minutes: integer(1, 400),
   status: oneOf('programado', 'jugado', 'cancelado', 'pospuesto'),
-  goalsFor: nullable(integer(0, 100)), goalsAgainst: nullable(integer(0, 100)), notes: nullable(text(5000)),
+  goalsFor: nullable(integer(0, 99)), goalsAgainst: nullable(integer(0, 99)), notes: nullable(text(5000)),
 };
 const inscription: Shape = { playerId: integer(1), season: nonempty(40), concept: nonempty(200), amount: money, dueDate: nullable(date), notes: nullable(text(5000)) };
 const uniform: Shape = { name: nonempty(120), kind: oneOf('completo', 'camiseta', 'pantalon', 'medias', 'buzo', 'entrenamiento', 'guantes'), variant: oneOf('titular', 'alterna', 'entrenamiento'), price: money, stock: integer(), minStock: integer(), active: boolean };
@@ -60,6 +60,15 @@ const stats: Shape = {
 /** Runtime validation before a body reaches a use case. Unknown fields are rejected. */
 export function validateBody(path: string, method: string, body: unknown): void {
   const create = method === 'POST';
+  if (/^\/tournaments\/\d+\/standings$/.test(path)) return check(body, {
+    version: integer(0), teams: value => Array.isArray(value) && value.length <= 100 && value.every(nonempty(100)),
+    rules: value => { check(value, { win: integer(0,20), draw: integer(0,20), loss: integer(0,20), tiebreak: oneOf('difference','goals') }, ['win','draw','loss','tiebreak']); return true; },
+    matchRounds: value => !!value && typeof value === 'object' && !Array.isArray(value) && Object.entries(value).every(([id, round]) => /^[1-9]\d*$/.test(id) && integer(1,1000)(round)),
+    results: value => Array.isArray(value) && value.length <= 2000 && value.every(row => {
+      const shape = { id: nonempty(80), matchday: integer(1,1000), home: nonempty(100), away: nonempty(100), homeGoals: nullable(integer(0,99)), awayGoals: nullable(integer(0,99)), status: oneOf('programado','jugado','pospuesto','cancelado') };
+      check(row, shape, Object.keys(shape)); return true;
+    }),
+  }, ['version','teams','rules','matchRounds','results']);
   if (/^\/tournaments\/\d+\/players$/.test(path)) return check(body, { playerIds: v =>
     Array.isArray(v) && v.length > 0 && v.length <= 100 && v.every(integer(1)) && new Set(v).size === v.length }, ['playerIds']);
   if (path === '/notifications/settings') {

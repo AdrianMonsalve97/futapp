@@ -241,7 +241,7 @@ export function MatchBuilderPage() {
           goalsAgainst: form.goalsAgainst === '' ? null : Number(form.goalsAgainst),
         },
       });
-      setNotice('Datos del partido guardados.');
+      setNotice(form.status === 'jugado' && form.goalsFor !== '' && form.goalsAgainst !== '' && match.tournamentId ? 'Resultado guardado. La tabla de posiciones del torneo ya está actualizada.' : 'Datos del partido guardados.');
       detail.reload();
     } catch (err) {
       setActionError(errorMessage(err));
@@ -311,6 +311,7 @@ export function MatchBuilderPage() {
               <Icon name="arrowLeft" size={14} />
               Volver
             </Link>
+            {match?.tournamentId ? <Link className="btn btn-outline btn-sm" to={`/admin/posiciones?torneo=${match.tournamentId}`}><Icon name="trofeo" size={14} />Ver clasificación</Link> : null}
           </>
         }
       />

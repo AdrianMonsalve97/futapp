@@ -12,7 +12,7 @@ const ForgotPasswordPage=lazy(()=>import('./pages/auth/PasswordRecoveryPage').th
 const ResetPasswordPage=lazy(()=>import('./pages/auth/PasswordRecoveryPage').then(module=>({default:module.ResetPasswordPage})));
 import { NotFoundPage } from './pages/NotFoundPage';
 
-import { PlayerDashboardPage } from './pages/player/PlayerDashboardPage';
+const PlayerDashboardPage = lazy(() => import('./pages/player/PlayerDashboardPage').then(module => ({ default: module.PlayerDashboardPage })));
 import { MyInscriptionPage } from './pages/player/MyInscriptionPage';
 const MyUniformsPage = lazy(() => import('./pages/player/MyUniformsPage').then(module=>({default:module.MyUniformsPage})));
 import { MatchesPage as PlayerMatchesPage } from './pages/player/MatchesPage';
@@ -21,7 +21,9 @@ import { MyProfilePage } from './pages/player/MyProfilePage';
 import { MyStatsPage } from './pages/player/MyStatsPage';
 import { MyAiPage } from './pages/player/MyAiPage';
 
-import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
+const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage').then(module => ({ default: module.AdminDashboardPage })));
+const StandingsPage = lazy(() => import('./pages/StandingsPage').then(module => ({ default: module.StandingsPage })));
+const PaymentsPage = lazy(() => import('./pages/player/PaymentsPage').then(module => ({ default: module.PaymentsPage })));
 import { PlayersPage } from './pages/admin/PlayersPage';
 import { PlayerDetailPage } from './pages/admin/PlayerDetailPage';
 import { InscriptionsPage } from './pages/admin/InscriptionsPage';
@@ -67,7 +69,9 @@ export function AppRouter() {
       <Route element={<DashboardLayout />}>
         <Route path="/jugador/torneos" element={playerRoute(tournamentPage())} />
         <Route path="/jugador/torneos/:id" element={playerRoute(tournamentPage())} />
-        <Route path="/jugador/inicio" element={playerRoute(<PlayerDashboardPage />)} />
+        <Route path="/jugador/inicio" element={playerRoute(<Suspense fallback={<p className="py-10 text-center">Entrando al club…</p>}><PlayerDashboardPage /></Suspense>)} />
+        <Route path="/jugador/posiciones" element={playerRoute(<Suspense fallback={<p className="py-10 text-center">Cargando la liga…</p>}><StandingsPage /></Suspense>)} />
+        <Route path="/jugador/pagos" element={playerRoute(<Suspense fallback={<p className="py-10 text-center">Cargando tus pagos…</p>}><PaymentsPage /></Suspense>)} />
         <Route path="/jugador/inscripcion" element={playerRoute(<MyInscriptionPage />)} />
         <Route path="/jugador/uniformes" element={playerRoute(<Suspense fallback={<p className="py-10 text-center">Cargando tienda…</p>}><MyUniformsPage /></Suspense>)} />
         <Route path="/jugador/partidos" element={playerRoute(<PlayerMatchesPage />)} />
@@ -80,7 +84,8 @@ export function AppRouter() {
         {/* Admin */}
         <Route path="/admin/torneos" element={adminRoute(tournamentPage())} />
         <Route path="/admin/torneos/:id" element={adminRoute(tournamentPage())} />
-        <Route path="/admin/inicio" element={adminRoute(<AdminDashboardPage />)} />
+        <Route path="/admin/inicio" element={adminRoute(<Suspense fallback={<p className="py-10 text-center">Entrando al club…</p>}><AdminDashboardPage /></Suspense>)} />
+        <Route path="/admin/posiciones" element={adminRoute(<Suspense fallback={<p className="py-10 text-center">Cargando la liga…</p>}><StandingsPage /></Suspense>)} />
         <Route path="/admin/jugadores" element={adminRoute(<PlayersPage />)} />
         <Route path="/admin/jugadores/:id" element={adminRoute(<PlayerDetailPage />)} />
         <Route path="/admin/inscripciones" element={adminRoute(<InscriptionsPage />)} />

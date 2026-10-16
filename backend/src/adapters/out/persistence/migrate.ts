@@ -166,6 +166,11 @@ export function migrate(db: Database = getDb()): void {
   if (legacyLineups) db.exec('ALTER TABLE matches ADD COLUMN lineup_published_at TEXT');
   if (!hasColumn(db, 'matches', 'published_formation')) db.exec('ALTER TABLE matches ADD COLUMN published_formation TEXT');
   ensureQrPayments(db);
+  db.exec(`CREATE TABLE IF NOT EXISTS tournament_leagues (
+    tournament_id INTEGER PRIMARY KEY REFERENCES tournaments(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL DEFAULT 1,
+    data TEXT NOT NULL
+  )`);
   if (!hasColumn(db, 'tournaments', 'image_asset_id')) db.exec('ALTER TABLE tournaments ADD COLUMN image_asset_id TEXT REFERENCES media_assets(id)');
   db.exec(`CREATE TABLE IF NOT EXISTS published_lineups (
     match_id INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,

@@ -111,6 +111,7 @@ export function TournamentsPage() {
       {detail.error ? <Alert tone="error">{detail.error}</Alert> : null}
       {row ? <div className="space-y-4">
         <section className="tournament-banner"><ClubLogo className="w-24 h-24 shrink-0" /><div><p className="hero-kicker">{row.leagueName} · {row.season}</p><h2 className="text-2xl sm:text-3xl font-black mt-2">{row.name}</h2><p className="mt-3 text-sm text-white/60">Fútbol {row.rules.format} · {row.rules.periods} tiempos de {row.rules.minutesPerPeriod} min · {row.rules.periods * row.rules.minutesPerPeriod} min de juego</p></div><Badge tone={row.status === 'publicado' ? 'success' : 'neutral'}>{row.status}</Badge></section>
+        <div className="club-tournament-actions"><Link className="btn btn-primary" to={`/${admin ? 'admin' : 'jugador'}/posiciones?torneo=${row.id}`}>Tabla de posiciones y resultados →</Link><Link className="btn btn-outline" to={`/${admin ? 'admin' : 'jugador'}/partidos`}>Calendario del equipo →</Link></div>
         <TournamentRoster key={row.id} tournament={row} admin={admin} />
         <TournamentPhoto tournament={row} admin={admin} onSaved={() => { detail.reload(); list.reload(); }} />
         <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-4 items-start">

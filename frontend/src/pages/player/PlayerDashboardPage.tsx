@@ -1,4 +1,5 @@
 import { MatchDayHero } from '../../organisms/MatchDayHero';
+import { ClubActionGrid, ClubHomeExtras, ClubMatchStrip } from '../../organisms/ClubHomePanels';
 import { AttendancePanel } from '../../organisms/AttendancePanel';
 import { Link } from 'react-router-dom';
 import { useFetch } from '../../hooks/useFetch';
@@ -89,6 +90,8 @@ export function PlayerDashboardPage() {
       />
 
       <MatchDayHero match={upcomingMatch} />
+      <ClubMatchStrip match={upcomingMatch} />
+      <ClubActionGrid />
       {upcomingMatch && <AttendancePanel matchId={upcomingMatch.id} tournamentId={upcomingMatch.tournamentId} onChanged={reload} />}
 
       <StatCardsRow
@@ -206,11 +209,11 @@ export function PlayerDashboardPage() {
                 </Link>
               </div>
             </Alert>
-          ) : (
+          ) : inscription ? (
             <Alert tone="success" title="Inscripción al día">
               Tu inscripción está saldada. ¡Gracias!
             </Alert>
-          )}
+          ) : <Alert tone="info" title="Prepara tu inscripción">El administrador debe generar tu inscripción de la temporada. Consulta tus torneos para verificar tu convocatoria.</Alert>}
 
           <Card>
             <CardBody className="gap-2">
@@ -229,6 +232,7 @@ export function PlayerDashboardPage() {
           </Card>
         </div>
       </div>
+      <ClubHomeExtras />
     </>
   );
 }

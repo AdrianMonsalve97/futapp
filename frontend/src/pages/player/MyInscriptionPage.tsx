@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { useFetch } from '../../hooks/useFetch';
 import { PageHeader } from '../../templates/PageHeader';
 import { Alert } from '../../atoms/Alert';
@@ -72,6 +73,7 @@ export function MyInscriptionPage() {
   return (
     <>
       <PageHeader title="Mi inscripción" subtitle="Estado de tu cuota anual y movimientos" />
+      <p className="club-payment-note mb-5">Tu temporada, paso a paso. Consulta la convocatoria en Torneos, revisa tu inscripción y envía el soporte de tu aporte. <Link className="link font-semibold" to="/jugador/pagos">Ir a todos mis pagos →</Link></p>
 
       {!inscription ? (
         <EmptyState

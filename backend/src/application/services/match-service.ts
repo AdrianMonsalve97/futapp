@@ -509,11 +509,11 @@ export class MatchService implements MatchPort {
     if (input.kickOff !== undefined && !KICKOFF_RE.test(input.kickOff.trim())) {
       throw new ValidationError('La fecha y hora del partido debe tener formato YYYY-MM-DDTHH:mm');
     }
-    if (input.goalsFor !== undefined && input.goalsFor !== null && input.goalsFor < 0) {
-      throw new ValidationError('Los goles a favor no pueden ser negativos');
+    if (input.goalsFor !== undefined && input.goalsFor !== null && (!Number.isInteger(input.goalsFor) || input.goalsFor < 0 || input.goalsFor > 99)) {
+      throw new ValidationError('Los goles a favor deben ser enteros entre 0 y 99');
     }
-    if (input.goalsAgainst !== undefined && input.goalsAgainst !== null && input.goalsAgainst < 0) {
-      throw new ValidationError('Los goles en contra no pueden ser negativos');
+    if (input.goalsAgainst !== undefined && input.goalsAgainst !== null && (!Number.isInteger(input.goalsAgainst) || input.goalsAgainst < 0 || input.goalsAgainst > 99)) {
+      throw new ValidationError('Los goles en contra deben ser enteros entre 0 y 99');
     }
   }
 

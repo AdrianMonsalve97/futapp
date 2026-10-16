@@ -2,6 +2,7 @@ import type { TeamFormat } from './formats';
 import type { Position } from './entities';
 
 export interface TournamentPlayer {
+  avatarUrl?: string | null;
   playerId: number; playerName: string; shirtNumber: number | null;
   position: Position; secondaryPosition: Position | null; active: boolean; registeredAt: string;
 }

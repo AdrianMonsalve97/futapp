@@ -5,6 +5,8 @@ import { getAuth, requireAuth, requireRole } from '../middleware/auth';
 import { jsonBody, paramId } from '../route-helpers';
 export function tournamentRoutes(tournaments: TournamentPort): Router {
   const router = Router();
+  router.get('/tournaments/:id/standings', requireAuth, async (req, res) => res.json(await tournaments.standings(paramId(req), getAuth(req).role === 'admin')));
+  router.put('/tournaments/:id/standings', requireAuth, requireRole('admin'), async (req, res) => res.json(await tournaments.saveStandings(paramId(req), jsonBody(req))));
   router.get('/tournaments', requireAuth, async (req, res) => res.json((await tournaments.list(getAuth(req).role === 'admin'))));
   router.get('/tournaments/:id', requireAuth, async (req, res) => res.json((await tournaments.get(paramId(req), getAuth(req).role === 'admin'))));
   router.get('/tournaments/:id/players', requireAuth, async (req, res) => res.json((await tournaments.roster(paramId(req), getAuth(req).role === 'admin', getAuth(req).userId))));

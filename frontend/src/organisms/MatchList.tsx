@@ -4,6 +4,7 @@ import { Badge } from '../atoms/Badge';
 import { Button } from '../atoms/Button';
 import { EmptyState } from '../atoms/EmptyState';
 import { Icon } from '../atoms/Icon';
+import { ClubLogo } from '../atoms/ClubLogo';
 import { Spinner } from '../atoms/Spinner';
 import { StatusBadge } from '../molecules/StatusBadge';
 import { ConfirmAction } from '../molecules/ConfirmAction';
@@ -69,17 +70,18 @@ export function MatchList({
         const profile = getFormat(match.format ?? settings.profile.format);
         const minutes = match.minutes ?? profile.matchMinutes;
         const body = (
-          <div className="card bg-base-100 border border-base-200 shadow-sm hover:shadow-md transition-shadow">
+          <div className="club-fixture-card card bg-base-100 border border-base-200 shadow-sm hover:shadow-md transition-shadow">
             <div className="card-body p-4 gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4 min-w-0">
-                <div className="w-16 shrink-0 text-center rounded-xl bg-primary/10 text-primary py-2">
+                <div className="club-fixture-date w-16 shrink-0 text-center rounded-xl bg-primary/10 text-primary py-2">
                   <p className="text-lg font-bold leading-none">{formatWeekdayShort(match.kickOff).split(',')[1]?.trim() ?? '—'}</p>
                   <p className="text-[11px] uppercase">{formatWeekdayShort(match.kickOff).split(',')[0]}</p>
                 </div>
                 <div className="min-w-0">
+                  <span className="club-fixture-tag">{match.isHome ? 'EN CASA' : 'DE VISITANTE'} · {settings.teamName}</span>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold truncate">
-                      {match.isHome ? 'vs.' : 'vs.'} {match.opponent}
+                    <p className="font-semibold break-words">
+                      vs. {match.opponent}
                     </p>
                     <StatusBadge status={match.status} />
                     {mode === 'player' && inXl ? <Badge tone="success" size="xs">En el {profile.playersOnPitch} inicial</Badge> : null}
@@ -108,6 +110,7 @@ export function MatchList({
               </div>
 
               <div className="flex max-w-full flex-wrap items-center gap-3 sm:justify-end">
+                {mode === 'player' && <ClubLogo className="club-fixture-crest w-11 h-11" />}
                 {played && match.goalsFor !== null && match.goalsAgainst !== null ? (
                   <div className="rounded-lg bg-base-200 px-3 py-1.5 text-center">
                     <p className="text-xl font-bold tabular-nums leading-none">

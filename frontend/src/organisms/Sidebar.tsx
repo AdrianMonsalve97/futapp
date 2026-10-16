@@ -20,6 +20,7 @@ export const MENU_BY_ROLE: Record<Role, MenuItem[]> = {
     { to: '/admin/uniformes', label: 'Uniformes', icon: 'camiseta' },
     { to: '/admin/torneos', label: 'Torneos y normativa', icon: 'trofeo' },
     { to: '/admin/partidos', label: 'Partidos', icon: 'futbol' },
+    { to: '/admin/posiciones', label: 'Tabla de posiciones', icon: 'chart' },
     { to: '/admin/transmisiones', label: 'Transmisiones', icon: 'video' },
     { to: '/admin/sanciones', label: 'Sanciones', icon: 'tarjeta' },
     { to: '/admin/estadisticas', label: 'Estadísticas', icon: 'clipboard' },
@@ -30,11 +31,13 @@ export const MENU_BY_ROLE: Record<Role, MenuItem[]> = {
     { to: '/jugador/inicio', label: 'Inicio', icon: 'chart' },
     { to: '/jugador/torneos', label: 'Torneos y normativa', icon: 'trofeo' },
     { to: '/jugador/partidos', label: 'Partidos', icon: 'futbol' },
+    { to: '/jugador/posiciones', label: 'Tabla de posiciones', icon: 'chart' },
+    { to: '/jugador/pagos', label: 'Mis pagos y soportes', icon: 'dinero' },
     { to: '/jugador/transmisiones', label: 'Transmisiones', icon: 'video' },
     { to: '/jugador/estadisticas', label: 'Mis estadísticas', icon: 'clipboard' },
     { to: '/jugador/ia', label: 'Rendimiento IA', icon: 'sparkles' },
     { to: '/jugador/inscripcion', label: 'Mi inscripción', icon: 'dinero' },
-    { to: '/jugador/uniformes', label: 'Mis uniformes', icon: 'camiseta' },
+    { to: '/jugador/uniformes', label: 'Tienda y pedidos', icon: 'camiseta' },
     { to: '/jugador/perfil', label: 'Mi perfil', icon: 'usuario' },
   ],
 };
@@ -68,7 +71,7 @@ export function Sidebar({ role, onNavigate }: SidebarProps) {
             Tu centro de juego
           </li>
           {items.map((item) => (
-            <li key={item.to}>
+            <li key={item.to} className={['Configuración','Mi perfil','Notificaciones y bot','Sanciones'].includes(item.label) ? 'club-nav-secondary' : ''}>
               <NavLink
                 to={item.to}
                 onClick={onNavigate}
