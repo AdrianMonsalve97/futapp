@@ -18,7 +18,7 @@ export function MatchCountdown({ match }: { match: Match }) {
               : null;
   return (
     <div className="match-countdown">
-      {clock && (
+      {clock && match.status !== "pospuesto" && (
         <time dateTime={new Date(clock.kickoff).toISOString()}>
           {formatKickoffDate(match.kickOff)} <small>· Hora Colombia</small>
         </time>

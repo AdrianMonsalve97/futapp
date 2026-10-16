@@ -6,6 +6,7 @@ import { Alert } from "../../atoms/Alert";
 import { Spinner } from "../../atoms/Spinner";
 import { Card, CardBody, CardTitle } from "../../atoms/Card";
 import { MatchList } from "../../organisms/MatchList";
+import { UpcomingMatches } from "../../organisms/UpcomingMatches";
 import type { MeMatchesResponse } from "../../types/api";
 
 /** Mis partidos (SPEC §10.4): próximos con formación/XI y jugados con resultado. */
@@ -53,18 +54,13 @@ export function MatchesPage() {
             ]}
           />
           {view === "upcoming" && (
-            <Card>
-              <CardBody className="gap-3">
-                <CardTitle className="text-base">Próximos partidos</CardTitle>
-                <MatchList
-                  matches={data?.upcoming ?? []}
-                  mode="player"
-                  detailHref={(match) => `/jugador/partidos/${match.id}`}
-                  emptyTitle="Sin próximos partidos"
-                  emptyMessage="Cuando se programe un encuentro vas a verlo acá con tu formación."
-                />
-              </CardBody>
-            </Card>
+            <UpcomingMatches
+              matches={data?.upcoming ?? []}
+              mode="player"
+              detailHref={(match) => `/jugador/partidos/${match.id}`}
+              emptyTitle="Sin próximos partidos"
+              emptyMessage="Cuando se programe un encuentro vas a verlo aquí."
+            />
           )}
 
           {view === "played" && (

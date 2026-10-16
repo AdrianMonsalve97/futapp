@@ -16,7 +16,7 @@ La gestión se carga bajo demanda y sus consultas viven en `useSquadManagement`;
 
 - Partido del administrador: partido, asistencia/arbitraje, alineación/plan, rendimiento y edición.
 - Partido del jugador: voy al partido, alineación/plan y mi actuación.
-- Calendario: próximas fechas, resultados y cancelados en administración.
+- Calendario: próximas fechas, resultados y cancelados en administración. **La próxima batalla** destaca un solo encuentro con duelo local/visitante, escudo real del club, contador en hora Colombia, acceso al partido y enlace a Maps cuando existe. Las demás fechas quedan debajo sin duplicar el destacado. Un aplazado no tiene contador ni muestra su antigua hora como nueva fecha confirmada.
 - Torneo: normativa/documentos, jugadores inscritos y afiche.
 - Liga: clasificación, jornadas/resultados y configuración para administradores. Seleccionar un equipo abre racha, goles y encuentros reales; no simula cambios de posición.
 

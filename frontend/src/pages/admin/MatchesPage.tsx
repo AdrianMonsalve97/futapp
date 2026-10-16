@@ -1,58 +1,41 @@
-import { useState } from "react";
-import { useFetch } from "../../hooks/useFetch";
+import { useMatchCalendar } from "../../hooks/useMatchCalendar";
 import { useSettings } from "../../context/SettingsContext";
-import { api, errorMessage } from "../../services/api";
 import { PageHeader } from "../../templates/PageHeader";
 import { Alert } from "../../atoms/Alert";
 import { Button } from "../../atoms/Button";
 import { Card, CardBody, CardTitle } from "../../atoms/Card";
 import { MatchList } from "../../organisms/MatchList";
+import { UpcomingMatches } from "../../organisms/UpcomingMatches";
 import { MatchFormModal } from "../../organisms/MatchFormModal";
 import { SectionNavigation } from "../../molecules/SectionNavigation";
-import type { Match } from "../../types/api";
 
 export function MatchesPage() {
-  const { data, loading, error, reload } = useFetch<Match[]>("/api/matches");
   const { settings } = useSettings();
-  const [view, setView] = useState<"upcoming" | "played" | "archive">(
-    "upcoming",
-  );
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Match | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const remove = async (match: Match) => {
-    setActionError(null);
-    try {
-      await api(`/api/matches/${match.id}`, { method: "DELETE" });
-      reload();
-    } catch (err) {
-      setActionError(errorMessage(err));
-    }
-  };
-
-  const matches = data ?? [];
-  const upcoming = matches.filter(
-    (item) => item.status === "programado" || item.status === "pospuesto",
-  );
-  const played = matches.filter((item) => item.status === "jugado");
-  const archive = matches.filter((item) => item.status === "cancelado");
+  const {
+    loading,
+    error,
+    reload,
+    view,
+    setView,
+    modalOpen,
+    editing,
+    actionError,
+    upcoming,
+    played,
+    archive,
+    remove,
+    clearError,
+    create,
+    edit,
+    close,
+  } = useMatchCalendar();
 
   return (
     <>
       <PageHeader
         title="Partidos"
         subtitle={`Fixture, resultados y preparación táctica · Formato global: ${settings.profile.name} (${settings.profile.matchMinutes}')`}
-        actions={
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setModalOpen(true);
-            }}
-          >
-            Nuevo partido
-          </Button>
-        }
+        actions={<Button onClick={create}>Nuevo partido</Button>}
       />
 
       {error && (
@@ -61,11 +44,7 @@ export function MatchesPage() {
         </Alert>
       )}
       {actionError ? (
-        <Alert
-          tone="error"
-          className="mb-4"
-          onClose={() => setActionError(null)}
-        >
+        <Alert tone="error" className="mb-4" onClose={clearError}>
           {actionError}
         </Alert>
       ) : null}
@@ -81,26 +60,17 @@ export function MatchesPage() {
         ]}
       />
       <div className="space-y-5">
-        {view === "upcoming" && (
-          <Card>
-            <CardBody className="gap-3">
-              <CardTitle className="text-base">La próxima batalla</CardTitle>
-              <MatchList
-                matches={upcoming}
-                mode="admin"
-                isLoading={loading}
-                error={error}
-                detailHref={(match) => `/admin/partidos/${match.id}`}
-                onEdit={(match) => {
-                  setEditing(match);
-                  setModalOpen(true);
-                }}
-                onDelete={(match) => void remove(match)}
-                emptyTitle="Sin partidos programados"
-                emptyMessage="Creá el primer partido con el botón “Nuevo partido”."
-              />
-            </CardBody>
-          </Card>
+        {view === "upcoming" && !error && (
+          <UpcomingMatches
+            matches={upcoming}
+            mode="admin"
+            isLoading={loading}
+            detailHref={(match) => `/admin/partidos/${match.id}`}
+            onEdit={edit}
+            onDelete={remove}
+            emptyTitle="Sin partidos programados"
+            emptyMessage="Crea el primer partido con el botón “Nuevo partido”."
+          />
         )}
 
         {view === "played" && (
@@ -111,11 +81,8 @@ export function MatchesPage() {
                 matches={played}
                 mode="admin"
                 detailHref={(match) => `/admin/partidos/${match.id}`}
-                onEdit={(match) => {
-                  setEditing(match);
-                  setModalOpen(true);
-                }}
-                onDelete={(match) => void remove(match)}
+                onEdit={edit}
+                onDelete={remove}
                 emptyTitle="Sin partidos jugados"
                 emptyMessage="Todavía no se registraron resultados."
               />
@@ -130,11 +97,8 @@ export function MatchesPage() {
                 matches={archive}
                 mode="admin"
                 detailHref={(match) => `/admin/partidos/${match.id}`}
-                onEdit={(match) => {
-                  setEditing(match);
-                  setModalOpen(true);
-                }}
-                onDelete={(match) => void remove(match)}
+                onEdit={edit}
+                onDelete={remove}
                 emptyTitle="Sin partidos cancelados"
               />
             </CardBody>
@@ -144,7 +108,7 @@ export function MatchesPage() {
 
       <MatchFormModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={close}
         match={editing}
         teamFormat={settings.profile.format}
         onSaved={reload}

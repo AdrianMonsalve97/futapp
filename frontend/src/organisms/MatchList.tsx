@@ -11,22 +11,16 @@ import { ConfirmAction } from "../molecules/ConfirmAction";
 import { useSettings } from "../context/SettingsContext";
 import { getFormat } from "../data/formations";
 import { formatKickoffDate } from "../utils/match-clock";
-import type { LineupSlot, Match } from "../types/api";
-
-export type MatchListMatch = Match & {
-  mySlot?: LineupSlot | null;
-  strategiesCount?: number;
-  lineupFilled?: number;
-};
+import type { CalendarMatch, Match } from "../types/api";
 
 export interface MatchListProps {
-  matches: MatchListMatch[];
+  matches: CalendarMatch[];
   /** `player` agrega "Estás en el XI" y link de detalle; `admin` agrega acciones. */
   mode?: "player" | "admin";
   /** Ruta de detalle para el modo jugador. */
   detailHref?: (match: Match) => string;
   onEdit?: (match: Match) => void;
-  onDelete?: (match: Match) => void;
+  onDelete?: (match: Match) => void | Promise<void>;
   isLoading?: boolean;
   error?: string | null;
   emptyTitle?: string;

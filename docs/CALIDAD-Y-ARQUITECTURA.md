@@ -76,3 +76,15 @@ acciones en `useSquadManagement`. La gestión privada se monta solo para el rol
 administrador y se carga bajo demanda. La selección de sección y torneo conserva
 el historial y los filtros; los enlaces de fichas ya publicados se redirigen a la
 ruta canónica sin duplicar pantallas. Las reglas, API y datos persistidos no cambian.
+
+
+La próxima fecha del calendario se compone con `UpcomingMatches`,
+`NextMatchSpotlight` y la molécula `MatchFaceoff`. Reutiliza el contador, el escudo
+y las confirmaciones existentes. La selección cronológica es pura y no muta el
+calendario: prioriza una fecha futura programada sobre aplazados, y conserva las
+fechas vencidas o sin hora para poder administrarlas. El partido destacado se
+excluye de la lista restante. `useMatchCalendar` concentra consultas y acciones;
+las páginas conservan solo la composición. El jugador ve el sistema publicado y
+los administradores acceden al borrador; ningún atributo deportivo se inventa.
+La presentación usa el estadio del club, un monograma neutral para el rival sin
+escudo registrado, y animación CSS que respeta ambas preferencias de movimiento.

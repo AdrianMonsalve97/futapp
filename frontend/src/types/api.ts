@@ -486,6 +486,8 @@ export type MatchView = Match & {
   strategiesCount: number;
   lineupFilled: number;
 };
+export type CalendarMatch = Match &
+  Partial<Pick<MatchView, "mySlot" | "strategiesCount" | "lineupFilled">>;
 /** §7.1 — `GET /api/auth/me`. */
 export interface AuthMeResponse {
   user: User;
