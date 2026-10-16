@@ -9,23 +9,14 @@ import { Alert } from "../atoms/Alert";
 import { EmptyState } from "../atoms/EmptyState";
 import { Spinner } from "../atoms/Spinner";
 
-export function SquadCollection() {
+export function SquadCollection({ view }: { view: "gallery" | "system" }) {
   const state = useSquad();
   const { user } = useAuth();
   const base = user?.role === "admin" ? "/admin" : "/jugador";
   return (
     <>
-      <SectionNavigation
-        label="Explorar el equipo"
-        value={state.view}
-        onChange={state.setView}
-        items={[
-          { key: "gallery", label: "El vestuario · Jugadores" },
-          { key: "system", label: "Sala táctica · Formación" },
-        ]}
-      />
       <div
-        className={`sport-filter-bar ${state.view === "system" ? "sport-filter-tournament" : ""}`}
+        className={`sport-filter-bar ${view === "system" ? "sport-filter-tournament" : ""}`}
       >
         <label>
           Torneo
@@ -42,7 +33,7 @@ export function SquadCollection() {
             ))}
           </select>
         </label>
-        {state.view === "gallery" && (
+        {view === "gallery" && (
           <>
             {" "}
             <label>
@@ -70,7 +61,7 @@ export function SquadCollection() {
           </>
         )}
       </div>
-      {state.view === "gallery" &&
+      {view === "gallery" &&
       !state.squad.loading &&
       state.squad.data?.length &&
       state.squad.data.every((member) => !member.stats.appearances) ? (
@@ -87,7 +78,7 @@ export function SquadCollection() {
           )}
         </div>
       ) : null}
-      {state.view === "gallery" && (
+      {view === "gallery" && (
         <>
           {" "}
           <SectionNavigation
@@ -112,7 +103,7 @@ export function SquadCollection() {
           {state.squad.error}
         </Alert>
       )}
-      {state.view === "system" ? (
+      {view === "system" ? (
         <SquadTacticalOverview
           key={state.tournament}
           tournamentId={state.tournament}

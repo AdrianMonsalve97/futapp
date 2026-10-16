@@ -12,10 +12,9 @@ export const MENU_BY_ROLE: Record<Role, MenuItem[]> = {
     { to: "/admin/inicio", label: "Inicio", icon: "chart" },
     {
       to: "/admin/plantilla",
-      label: "Plantilla y rendimiento",
+      label: "Plantilla",
       icon: "usuarios",
     },
-    { to: "/admin/jugadores", label: "Jugadores", icon: "usuarios" },
     { to: "/admin/inscripciones", label: "Inscripciones", icon: "dinero" },
     { to: "/admin/pagos-qr", label: "Pagos QR y soportes", icon: "dinero" },
     {
@@ -37,7 +36,7 @@ export const MENU_BY_ROLE: Record<Role, MenuItem[]> = {
     { to: "/jugador/inicio", label: "Inicio", icon: "chart" },
     {
       to: "/jugador/plantilla",
-      label: "Plantilla y rendimiento",
+      label: "Plantilla",
       icon: "usuarios",
     },
     { to: "/jugador/torneos", label: "Torneos y normativa", icon: "trofeo" },

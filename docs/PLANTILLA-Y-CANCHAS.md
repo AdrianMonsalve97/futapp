@@ -2,13 +2,15 @@
 
 ## Experiencia deportiva
 
-La sección **Plantilla y rendimiento** (`/admin/plantilla` y `/jugador/plantilla`) muestra integrantes activos y aprobados. Permite elegir torneo, posición principal o secundaria, buscar por nombre/dorsal y ordenar por dorsal, media o goles.
+La sección **Plantilla** (`/admin/plantilla` y `/jugador/plantilla`) muestra integrantes activos y aprobados. Permite elegir torneo, posición principal o secundaria, buscar por nombre/dorsal y ordenar por dorsal, media o goles.
 
 Las cartas usan las fotos reales del club. Su media es sobre **10**, derivada de estadísticas registradas en partidos **jugados**. No se inventan valores de velocidad, físico, atajadas ni atributos de videojuegos. Una ficha sin actuaciones muestra una raya y cero registros. Al seleccionar una carta se abren minutos, goles, asistencias, recuperaciones, entradas, intercepciones, precisión de pase/tiro y las últimas cinco actuaciones. El gráfico conserva su escala sobre 10 y enlaza al partido. Tocar una foto de la alineación del jugador abre el mismo detalle.
 
 Referencia visual: composición de cartas y sala de plantilla de [EA SPORTS FC 27](https://www.ea.com/games/ea-sports-fc/fc-27/news/pitch-notes-fc27-launch-update). La implementación, el escudo, las fotos y los estilos pertenecen a FutApp; no utiliza recursos gráficos de EA.
 
-La administración de cuentas y datos privados sigue en **Jugadores**. `/api/squad` tiene un contrato deportivo explícito: no devuelve correo, teléfono, identidad, salud, contacto de emergencia ni credenciales. Las vistas de jugador excluyen estadísticas de torneos en borrador, incluso al consultar todo el club. El administrador puede consultar esos datos deportivos. Dos lecturas agrupadas evitan consultas por cada jugador.
+La navegación tiene una sola entrada **Plantilla**, con **El vestuario**, **Sala táctica** y, únicamente para administradores, **Gestionar integrantes**. Esta última reúne altas, edición, avales de ingreso, reactivación y baja definitiva; conserva las confirmaciones y los permisos existentes. Gestiona las cuentas de todo el club; el filtro de torneo se conserva al volver a las vistas deportivas. Las fichas privadas están en `/admin/plantilla/:id` y vuelven a la gestión. Los enlaces publicados anteriormente bajo `/admin/jugadores` redirigen a la ruta unificada, sin mantener otra página de jugadores.
+
+La gestión se carga bajo demanda y sus consultas viven en `useSquadManagement`; no se monta para jugadores ni al abrir las vistas deportivas. La sección seleccionada queda en `vista` para permitir enlaces directos y volver con el historial del navegador. `/api/squad` tiene un contrato deportivo explícito: no devuelve correo, teléfono, identidad, salud, contacto de emergencia ni credenciales. Las vistas de jugador excluyen estadísticas de torneos en borrador, incluso al consultar todo el club. El administrador puede consultar esos datos deportivos. Dos lecturas agrupadas evitan consultas por cada jugador.
 
 ## Menos tareas por pantalla
 

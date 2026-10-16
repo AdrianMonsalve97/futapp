@@ -67,3 +67,12 @@ slots viven en `types/tactics.ts`, sin dependencias de moléculas hacia organism
 Las posiciones se proyectan con funciones puras y se comprueban sus distancias
 para todos los formatos. La cancha con anotaciones de IA mantiene su componente
 específico porque permite jugadas y enfoque individual que requieren esas capas.
+
+
+`SquadWorkspace` compone el vestuario, la sala táctica y la gestión del administrador
+bajo una sola entrada Plantilla. Sustituye la página duplicada `PlayersPage`;
+`SquadManagement` reutiliza la tabla y el formulario existentes, con consultas y
+acciones en `useSquadManagement`. La gestión privada se monta solo para el rol
+administrador y se carga bajo demanda. La selección de sección y torneo conserva
+el historial y los filtros; los enlaces de fichas ya publicados se redirigen a la
+ruta canónica sin duplicar pantallas. Las reglas, API y datos persistidos no cambian.

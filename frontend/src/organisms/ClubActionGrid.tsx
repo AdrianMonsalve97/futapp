@@ -38,7 +38,7 @@ export function ClubActionGrid() {
           description: "Revisa los soportes y consulta todos los movimientos.",
         },
         {
-          to: "/admin/jugadores",
+          to: "/admin/plantilla?vista=management",
           icon: "usuarios",
           kicker: "EL PLANTEL",
           title: "Un equipo conectado",

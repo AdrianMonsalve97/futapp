@@ -1,25 +1,25 @@
-import { Link } from 'react-router-dom';
-import { Alert } from '../atoms/Alert';
-import { Avatar } from '../atoms/Avatar';
-import { Badge } from '../atoms/Badge';
-import { Button } from '../atoms/Button';
-import { EmptyState } from '../atoms/EmptyState';
-import { Icon } from '../atoms/Icon';
-import { Spinner } from '../atoms/Spinner';
-import { PositionBadge } from '../molecules/PositionBadge';
-import { RatingBadge } from '../molecules/RatingBadge';
-import { StatusBadge } from '../molecules/StatusBadge';
-import { ConfirmAction } from '../molecules/ConfirmAction';
-import { ProgressBar } from '../atoms/ProgressBar';
-import { ageFrom, formatMoney } from '../utils/format';
-import type { PlayerListItem } from '../types/api';
+import { Link } from "react-router-dom";
+import { Alert } from "../atoms/Alert";
+import { Avatar } from "../atoms/Avatar";
+import { Badge } from "../atoms/Badge";
+import { Button } from "../atoms/Button";
+import { EmptyState } from "../atoms/EmptyState";
+import { Icon } from "../atoms/Icon";
+import { Spinner } from "../atoms/Spinner";
+import { PositionBadge } from "../molecules/PositionBadge";
+import { RatingBadge } from "../molecules/RatingBadge";
+import { StatusBadge } from "../molecules/StatusBadge";
+import { ConfirmAction } from "../molecules/ConfirmAction";
+import { ProgressBar } from "../atoms/ProgressBar";
+import { ageFrom, formatMoney } from "../utils/format";
+import type { PlayerListItem } from "../types/api";
 
 export interface PlayersTableProps {
   players: PlayerListItem[];
-  /** Base de rutas para el detalle (por defecto `/admin/jugadores`). */
+  /** Base de rutas para el detalle (por defecto `/admin/plantilla`). */
   detailBase?: string;
   onEdit?: (item: PlayerListItem) => void;
-  onToggleActive?: (item: PlayerListItem) => void;
+  onDelete?: (item: PlayerListItem) => void;
   onReactivate?: (item: PlayerListItem) => void;
   reactivatingId?: number | null;
   isLoading?: boolean;
@@ -31,15 +31,15 @@ export interface PlayersTableProps {
 /** Tabla del plantel: dorsal, posición, edad, inscripción, calificación y sanciones. */
 export function PlayersTable({
   players,
-  detailBase = '/admin/jugadores',
+  detailBase = "/admin/plantilla",
   onEdit,
-  onToggleActive,
+  onDelete,
   onReactivate,
   reactivatingId = null,
   isLoading = false,
   error = null,
-  emptyTitle = 'Sin jugadores',
-  emptyMessage = 'Todavía no hay integrantes en el plantel.',
+  emptyTitle = "Sin jugadores",
+  emptyMessage = "Todavía no hay integrantes en el plantel.",
 }: PlayersTableProps) {
   if (isLoading) {
     return (
@@ -48,9 +48,12 @@ export function PlayersTable({
       </div>
     );
   }
-  if (error) return <Alert tone="error">No se pudo cargar el plantel: {error}</Alert>;
+  if (error)
+    return <Alert tone="error">No se pudo cargar el plantel: {error}</Alert>;
   if (players.length === 0) {
-    return <EmptyState title={emptyTitle} message={emptyMessage} icon="usuarios" />;
+    return (
+      <EmptyState title={emptyTitle} message={emptyMessage} icon="usuarios" />
+    );
   }
 
   return (
@@ -72,44 +75,70 @@ export function PlayersTable({
           {players.map((item) => {
             const age = ageFrom(item.player.birthDate);
             const inscription = item.inscription;
-            const pending = inscription ? Math.max(0, inscription.amount - inscription.paid) : 0;
+            const pending = inscription
+              ? Math.max(0, inscription.amount - inscription.paid)
+              : 0;
             return (
               <tr key={item.player.id} className="hover">
                 <td className="text-center">
                   <span className="inline-block min-w-7 font-bold tabular-nums bg-base-200 rounded-btn px-1.5 py-0.5 text-sm">
-                    {item.player.shirtNumber ?? '—'}
+                    {item.player.shirtNumber ?? "—"}
                   </span>
                 </td>
                 <td>
-                  <Link to={`${detailBase}/${item.player.id}`} className="flex items-center gap-2.5 min-w-0">
-                    <Avatar name={item.user.fullName} src={item.user.avatarUrl} size="sm" />
+                  <Link
+                    to={`${detailBase}/${item.player.id}`}
+                    className="flex items-center gap-2.5 min-w-0"
+                  >
+                    <Avatar
+                      name={item.user.fullName}
+                      src={item.user.avatarUrl}
+                      size="sm"
+                    />
                     <span className="min-w-0">
-                      <span className="block font-medium leading-tight truncate">{item.user.fullName}</span>
-                      <span className="block text-xs text-base-content/50 truncate">{item.user.email}</span>
+                      <span className="block font-medium leading-tight truncate">
+                        {item.user.fullName}
+                      </span>
+                      <span className="block text-xs text-base-content/50 truncate">
+                        {item.user.email}
+                      </span>
                     </span>
-                    {item.user.active ? null : <Badge tone="neutral" size="xs">Inactivo</Badge>}
+                    {item.user.active ? null : (
+                      <Badge tone="neutral" size="xs">
+                        Inactivo
+                      </Badge>
+                    )}
                   </Link>
                 </td>
                 <td>
                   <div className="flex items-center gap-1">
                     <PositionBadge position={item.player.position} size="xs" />
                     {item.player.secondaryPosition ? (
-                      <PositionBadge position={item.player.secondaryPosition} size="xs" />
+                      <PositionBadge
+                        position={item.player.secondaryPosition}
+                        size="xs"
+                      />
                     ) : null}
                   </div>
                 </td>
-                <td className="text-center tabular-nums">{age ?? '—'}</td>
+                <td className="text-center tabular-nums">{age ?? "—"}</td>
                 <td>
                   {inscription ? (
                     <div className="min-w-36">
                       <div className="flex items-center gap-2 mb-1">
                         <StatusBadge status={inscription.status} size="xs" />
-                        <span className="text-xs text-base-content/50">{inscription.season}</span>
+                        <span className="text-xs text-base-content/50">
+                          {inscription.season}
+                        </span>
                       </div>
                       <ProgressBar
                         value={inscription.paid}
                         max={inscription.amount}
-                        tone={inscription.status === 'pagada' ? 'success' : 'primary'}
+                        tone={
+                          inscription.status === "pagada"
+                            ? "success"
+                            : "primary"
+                        }
                       />
                       {pending > 0 ? (
                         <span className="text-[11px] text-base-content/50">
@@ -118,7 +147,9 @@ export function PlayersTable({
                       ) : null}
                     </div>
                   ) : (
-                    <span className="text-xs text-base-content/40">Sin inscripción</span>
+                    <span className="text-xs text-base-content/40">
+                      Sin inscripción
+                    </span>
                   )}
                 </td>
                 <td className="text-center">
@@ -126,7 +157,9 @@ export function PlayersTable({
                 </td>
                 <td className="text-center">
                   {item.activeSanctions > 0 ? (
-                    <Badge tone="error" size="sm">{item.activeSanctions}</Badge>
+                    <Badge tone="error" size="sm">
+                      {item.activeSanctions}
+                    </Badge>
                   ) : (
                     <span className="text-xs text-base-content/40">0</span>
                   )}
@@ -141,23 +174,37 @@ export function PlayersTable({
                       <Icon name="eye" size={15} />
                     </Link>
                     {onEdit ? (
-                      <Button size="xs" variant="ghost" title="Editar" onClick={() => onEdit(item)}>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        title="Editar"
+                        onClick={() => onEdit(item)}
+                      >
                         <Icon name="edit" size={15} />
                       </Button>
                     ) : null}
-                    {onReactivate && !item.user.active && !item.pendingApproval ? (
-                      <Button size="sm" variant="outline" title="Reactivar esta cuenta conservando sus datos" loading={reactivatingId===item.player.id} disabled={reactivatingId!==null} onClick={()=>onReactivate(item)}>Reactivar</Button>
+                    {onReactivate &&
+                    !item.user.active &&
+                    !item.pendingApproval ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        title="Reactivar esta cuenta conservando sus datos"
+                        loading={reactivatingId === item.player.id}
+                        disabled={reactivatingId !== null}
+                        onClick={() => onReactivate(item)}
+                      >
+                        Reactivar
+                      </Button>
                     ) : null}
-                    {onToggleActive ? (
+                    {onDelete ? (
                       <ConfirmAction
                         title="Dar de baja definitivamente"
-                        message={
-                          `${item.user.fullName}: se eliminarán su cuenta, inscripciones, pagos, saldo de arbitraje, fotos y demás datos vinculados. Esta acción no se puede deshacer. Si se registra de nuevo, necesitará tu aval.`
-                        }
+                        message={`${item.user.fullName}: se eliminarán su cuenta, inscripciones, pagos, saldo de arbitraje, fotos y demás datos vinculados. Esta acción no se puede deshacer. Si se registra de nuevo, necesitará tu aval.`}
                         confirmLabel="Eliminar jugador"
                         variant="danger"
                         size="xs"
-                        onConfirm={() => onToggleActive(item)}
+                        onConfirm={() => onDelete(item)}
                       />
                     ) : null}
                   </div>

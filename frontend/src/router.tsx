@@ -1,7 +1,7 @@
 // Router de la aplicación: rutas y guards exactos de docs/SPEC.md §10.3.
 
 import { lazy, Suspense, type ReactNode } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { AuthLayout } from "./templates/AuthLayout";
 import { DashboardLayout } from "./templates/DashboardLayout";
 import { HomeRedirect, ProtectedRoute } from "./templates/ProtectedRoute";
@@ -63,8 +63,11 @@ const PaymentsPage = lazy(() =>
     default: module.PaymentsPage,
   })),
 );
-import { PlayersPage } from "./pages/admin/PlayersPage";
-import { PlayerDetailPage } from "./pages/admin/PlayerDetailPage";
+const PlayerDetailPage = lazy(() =>
+  import("./pages/admin/PlayerDetailPage").then((module) => ({
+    default: module.PlayerDetailPage,
+  })),
+);
 import { InscriptionsPage } from "./pages/admin/InscriptionsPage";
 const UniformsPage = lazy(() =>
   import("./pages/admin/UniformsPage").then((module) => ({
@@ -127,6 +130,21 @@ function playerRoute(element: ReactNode) {
 
 function adminRoute(element: ReactNode) {
   return <ProtectedRoute role="admin">{element}</ProtectedRoute>;
+}
+
+/** Conserva los enlaces a fichas publicados antes de unificar la plantilla. */
+function PlayersRedirect() {
+  const { id } = useParams();
+  return (
+    <Navigate
+      replace
+      to={
+        id
+          ? `/admin/plantilla/${encodeURIComponent(id)}`
+          : "/admin/plantilla?vista=management"
+      }
+    />
+  );
 }
 
 /** Árbol de rutas (SPEC §10.3). `/` redirige por rol; `*` → 404. */
@@ -286,10 +304,21 @@ export function AppRouter() {
             </Suspense>,
           )}
         />
-        <Route path="/admin/jugadores" element={adminRoute(<PlayersPage />)} />
+        <Route
+          path="/admin/plantilla/:id"
+          element={adminRoute(
+            <Suspense fallback={<p>Cargando ficha…</p>}>
+              <PlayerDetailPage />
+            </Suspense>,
+          )}
+        />
+        <Route
+          path="/admin/jugadores"
+          element={adminRoute(<PlayersRedirect />)}
+        />
         <Route
           path="/admin/jugadores/:id"
-          element={adminRoute(<PlayerDetailPage />)}
+          element={adminRoute(<PlayersRedirect />)}
         />
         <Route
           path="/admin/inscripciones"

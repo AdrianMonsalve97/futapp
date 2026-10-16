@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import { ClubLogo } from "../atoms/ClubLogo";
-import { SquadCollection } from "../organisms/SquadCollection";
+import { SquadWorkspace } from "../organisms/SquadWorkspace";
 
 export function SquadPage() {
   const { user } = useAuth();
@@ -11,7 +11,7 @@ export function SquadPage() {
     <div className="squad-experience">
       <header className="sport-stage">
         <div>
-          <p className="sport-eyebrow">{settings.teamName} · Sala de equipo</p>
+          <p className="sport-eyebrow">{settings.teamName} · Plantilla</p>
           <h1>
             NOMBRES QUE
             <br />
@@ -25,16 +25,11 @@ export function SquadPage() {
             >
               Ir al partido →
             </Link>
-            {user?.role === "admin" && (
-              <Link className="btn btn-outline btn-sm" to="/admin/jugadores">
-                Gestionar integrantes
-              </Link>
-            )}
           </div>
         </div>
         <ClubLogo className="sport-stage-crest" />
       </header>
-      <SquadCollection />
+      <SquadWorkspace />
     </div>
   );
 }

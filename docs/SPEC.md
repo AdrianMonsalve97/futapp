@@ -840,8 +840,9 @@ export async function api<T>(path: string, options?: RequestInit & { json?: unkn
 | `/jugador/estadisticas` | `pages/player/MyStatsPage` | player |
 | `/jugador/ia` | `pages/player/MyAiPage` | player |
 | `/admin/inicio` | `pages/admin/AdminDashboardPage` | admin |
-| `/admin/jugadores` | `pages/admin/PlayersPage` | admin |
-| `/admin/jugadores/:id` | `pages/admin/PlayerDetailPage` | admin |
+| `/admin/plantilla` | `pages/SquadPage` (vestuario, táctica y gestión) | admin |
+| `/jugador/plantilla` | `pages/SquadPage` (vestuario y táctica) | player |
+| `/admin/plantilla/:id` | `pages/admin/PlayerDetailPage` | admin |
 | `/admin/inscripciones` | `pages/admin/InscriptionsPage` | admin |
 | `/admin/uniformes` | `pages/admin/UniformsPage` | admin |
 | `/admin/partidos` | `pages/admin/MatchesPage` | admin |
@@ -907,7 +908,7 @@ con nombre/rol y botón cerrar sesión + contenido con `PageHeader`), `PageHeade
 * **AdminDashboardPage**: `GET /api/dashboard/admin` → 4-6 `StatTile` (jugadores activos, cobrado,
   por cobrar, solicitudes pendientes), próximo partido, tabla "Inscripciones pendientes" con botón
   de cobro, sanciones recientes, stock bajo, `teamStats.topRated`.
-* **PlayersPage**: buscador + tabla (`dorsal`, nombre, posición, edad, inscripción, calificación,
+* **SquadPage → Gestionar integrantes** (admin): buscador + tabla (`dorsal`, nombre, posición, edad, inscripción, calificación,
   sanciones) + botón "Nuevo jugador" (`PlayerFormModal`) + acciones editar/bajar.
 * **PlayerDetailPage**: ficha + pestañas (Inscripciones, Uniformes, Sanciones, Estadísticas con
   charts + IA con `AiPlayerCard`).

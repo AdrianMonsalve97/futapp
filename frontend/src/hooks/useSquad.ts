@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import type { SquadMember } from "../../../backend/src/domain/squad";
 import type { Tournament } from "../types/tournament";
 import { useFetch } from "./useFetch";
+import { squadParams } from "../utils/squad-navigation";
 
 const searchKey = (value: string) =>
   value.normalize("NFKD").replace(/\p{M}/gu, "").toLocaleLowerCase("es").trim();
@@ -14,7 +15,6 @@ export function useSquad() {
   const squad = useFetch<SquadMember[]>(
     `/api/squad${tournament ? `?tournamentId=${encodeURIComponent(tournament)}` : ""}`,
   );
-  const [view, setView] = useState<"gallery" | "system">("gallery");
   const [role, setRole] = useState("TODOS");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("number");
@@ -43,13 +43,11 @@ export function useSquad() {
     [squad.data, role, search, sort],
   );
   return {
-    view,
-    setView,
     squad,
     tournaments,
     tournament,
     setTournament: (id: string) => {
-      setParams(id ? { torneo: id } : {});
+      setParams((current) => squadParams(current, "torneo", id));
       select(null);
     },
     role,

@@ -12,6 +12,7 @@ import {
   pitchSlotsFrom,
 } from "../frontend/src/utils/lineup-slots";
 import { MENU_BY_ROLE } from "../frontend/src/data/navigation";
+import { squadParams, squadView } from "../frontend/src/utils/squad-navigation";
 
 test("countdown interprets Colombian fixtures consistently and reaches zero without claiming a live match", () => {
   const kickoff = kickoffTime("2026-10-18T18:00");
@@ -120,5 +121,29 @@ test("a single navigation inventory preserves all role destinations and primary 
     ])
       assert(items.some((item) => item.to === `${base}/${route}`));
     assert(items.every((item) => item.to.startsWith(base + "/")));
+    assert(!items.some((item) => item.to === `${base}/jugadores`));
   }
+});
+
+test("squad navigation restricts private management and preserves the tournament across section changes", () => {
+  assert.equal(squadView("management", "admin"), "management");
+  for (const role of ["player", undefined] as const) {
+    assert.equal(squadView("management", role), "gallery");
+    assert.equal(squadView("system", role), "system");
+  }
+  assert.equal(squadView("unknown", "admin"), "gallery");
+  const original = new URLSearchParams("torneo=7&vista=system");
+  const management = squadParams(original, "vista", "management");
+  assert.equal(management.get("torneo"), "7");
+  assert.equal(
+    original.get("vista"),
+    "system",
+    "navigation must not mutate the previous entry",
+  );
+  const allClub = squadParams(management, "torneo", "");
+  assert.equal(allClub.get("vista"), "management");
+  assert.equal(allClub.has("torneo"), false);
+  const gallery = squadParams(management, "vista", "");
+  assert.equal(gallery.get("torneo"), "7");
+  assert.equal(gallery.has("vista"), false);
 });
