@@ -26,7 +26,7 @@ export class SqliteUniformRequestRepository implements UniformRequestRepository 
   }
 
   async list(status?: UniformRequestStatus, playerId?: number): Promise<UniformRequest[]> {
-    const conditions: string[] = [];
+    const conditions: string[] = ['NOT EXISTS(SELECT 1 FROM uniform_request_deletions x WHERE x.request_id=r.id)'];
     const params: unknown[] = [];
     if (status) {
       conditions.push('r.status = ?');
@@ -44,7 +44,7 @@ export class SqliteUniformRequestRepository implements UniformRequestRepository 
   }
 
   async findById(id: number): Promise<UniformRequest | null> {
-    const row = (await this.db.prepare(`${SELECT_REQUEST} WHERE r.id = ?`).get(id)) as
+    const row = (await this.db.prepare(`${SELECT_REQUEST} WHERE r.id = ? AND NOT EXISTS(SELECT 1 FROM uniform_request_deletions x WHERE x.request_id=r.id)`).get(id)) as
       | UniformRequestRow
       | undefined;
     return row ? mapUniformRequest(row) : null;
@@ -86,5 +86,12 @@ export class SqliteUniformRequestRepository implements UniformRequestRepository 
     return (await this.findById(id)) as UniformRequest;
   }
 
+  async remove(id:number,adminId:number){
+    await this.db.prepare('INSERT INTO uniform_request_deletions(request_id,deleted_by) VALUES(?,?)').run(id,adminId);
+    // Preserve approved money and original files. Only undelivered orders stop accepting payments.
+    await this.db.prepare(`UPDATE payment_receipts SET status='rechazado',review_notes='Solicitud eliminada por el administrador; este soporte no fue abonado.',reviewed_by=?,reviewed_at=datetime('now')
+      WHERE kind='uniform_request' AND target_id=? AND status='pendiente'
+      AND NOT EXISTS(SELECT 1 FROM uniform_requests WHERE id=? AND issue_id IS NOT NULL)`).run(adminId,id,id);
+  }
     private readonly db: ApplicationDatabase;
 }

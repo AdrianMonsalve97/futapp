@@ -239,6 +239,11 @@ function ensureQrPayments(db: Database): void {
   }
   if (!hasColumn(db, 'uniform_requests', 'issue_id')) db.exec('ALTER TABLE uniform_requests ADD COLUMN issue_id INTEGER REFERENCES uniform_issues(id)');
   if (!hasColumn(db, 'uniform_requests', 'quoted_price')) db.exec('ALTER TABLE uniform_requests ADD COLUMN quoted_price REAL');
+  db.exec(`CREATE TABLE IF NOT EXISTS uniform_request_deletions (
+    request_id INTEGER PRIMARY KEY REFERENCES uniform_requests(id) ON DELETE CASCADE,
+    deleted_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );`);
   db.exec(`CREATE TABLE IF NOT EXISTS qr_payment_settings (
     id INTEGER PRIMARY KEY CHECK(id=1), asset_id TEXT REFERENCES media_assets(id), recipient TEXT NOT NULL DEFAULT '', payment_key TEXT NOT NULL DEFAULT ''
   ); INSERT OR IGNORE INTO qr_payment_settings(id) VALUES(1);

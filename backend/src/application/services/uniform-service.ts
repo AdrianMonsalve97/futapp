@@ -130,6 +130,14 @@ export class UniformService implements UniformPort {
     return (await this.requests.list(status));
   }
 
+  async removeRequest(id:number,adminId:number):Promise<{ok:true}>{
+    return this.uow.run(async()=>{
+      if(!await this.requests.findById(id))throw new NotFoundError('Solicitud no encontrada');
+      await this.requests.remove(id,adminId);
+      return {ok:true};
+    });
+  }
+
   async updateRequest(id: number, input: UpdateRequestInput): Promise<UniformRequest> {
     return (await this.uow.run(async () => {
           const current = (await this.requests.findById(id));

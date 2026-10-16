@@ -8,7 +8,7 @@ import type {
   UpdateUniformInput,
 } from '../../../../application/ports/in/uniform.port';
 import { ValidationError } from '../../../../domain/errors';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { requireAuth, requireRole,getAuth } from '../middleware/auth';
 import { jsonBody, paramId, queryStr } from '../route-helpers';
 import {filterUniformRequests,type UniformRequestFilters} from '../../../../domain/uniform-request-filter';
 import {requestLimit} from '../middleware/login-limit';
@@ -92,6 +92,7 @@ export function uniformRoutes(uniforms: UniformPort): Router {
     res.send(file);
   });
 
+  router.delete('/uniform-requests/:id',...admin,async(req,res)=>res.json(await uniforms.removeRequest(paramId(req),getAuth(req).userId)));
   router.put('/uniform-requests/:id', ...admin, async (req, res) => {
     const body = jsonBody<Partial<UpdateRequestInput>>(req);
     if (!body.status) throw new ValidationError('Debes indicar el nuevo estado de la solicitud');

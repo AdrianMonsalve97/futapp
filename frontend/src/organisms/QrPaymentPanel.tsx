@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState,lazy,Suspense, type FormEvent } from 'react';
 import { useFetch } from '../hooks/useFetch';
 import { api, apiBlob, errorMessage } from '../services/api';
 import { Alert } from '../atoms/Alert';
@@ -9,8 +9,10 @@ import { Select } from '../atoms/Select';
 import { FormField } from '../molecules/FormField';
 import { MediaImage } from '../atoms/MediaImage';
 import { Modal } from '../atoms/Modal';
-import { formatMoney, formatDate,formatColombiaDateTime } from '../utils/format';
-import type { PaymentReceipt, QrPaymentView } from '../types/payments';
+const PaymentHistoryPanel=lazy(()=>import('./PaymentHistoryPanel').then(module=>({default:module.PaymentHistoryPanel})));
+const PaymentDetailDialog=lazy(()=>import('./PaymentDetailDialog').then(module=>({default:module.PaymentDetailDialog})));
+import { formatMoney } from '../utils/format';
+import type { PaymentReceipt, QrPaymentView,PaymentHistoryEntry } from '../types/payments';
 
 export async function downloadReceipt(row: PaymentReceipt) {
   const blob = await apiBlob('/api/media/'+row.assetId);
@@ -26,6 +28,7 @@ export function QrPaymentPanel({ kind, onSaved, refreshKey,matchId }: {kind:'ins
   const [error,setError]=useState<string|null>(null),[notice,setNotice]=useState<string|null>(null);
   const [key,setKey]=useState(()=>crypto.randomUUID()),[inputKey,setInputKey]=useState(0);
   const [qrOpen,setQrOpen]=useState(false);
+  const [historyEntry,setHistoryEntry]=useState<PaymentHistoryEntry|null>(null);
   const downloadQr=async()=>{
     if(!view.data?.qr.assetId)return;
     try{const blob=await apiBlob('/api/media/'+view.data.qr.assetId);const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='qr-equipo.png';link.click();window.setTimeout(()=>URL.revokeObjectURL(url),1000);}
@@ -33,9 +36,9 @@ export function QrPaymentPanel({ kind, onSaved, refreshKey,matchId }: {kind:'ins
   };
   const matchesKind=(row:{kind:string;targetId:number})=>kind==='uniform'?['uniform_request','uniform_issue'].includes(row.kind):row.kind===kind&&(kind!=='referee'||matchId===undefined||row.targetId===matchId);
   const debts=(view.data?.debts??[]).filter(matchesKind);
-  const options=debts.filter(d=>d.outstanding-d.pending>0.001);
+  const options=debts.filter(d=>!d.cancelled&&d.outstanding-d.pending>0.001);
   const selected=options.find(d=>`${d.kind}:${d.targetId}`===target)??options[0];
-  const receipts=(view.data?.receipts??[]).filter(matchesKind);
+  const history=(view.data?.history??[]).filter(matchesKind);
   const submit=async(event:FormEvent)=>{
     event.preventDefault();setError(null);setNotice(null);
     if (!selected || !file) {setError('Selecciona el concepto y adjunta el soporte.');return;}
@@ -72,13 +75,11 @@ export function QrPaymentPanel({ kind, onSaved, refreshKey,matchId }: {kind:'ins
           <FormField label="Soporte de pago" required hint="PDF, JPG, PNG o WEBP · hasta 8 MB · PDF hasta 10 páginas."><input key={inputKey} type="file" required disabled={busy} accept="application/pdf,image/jpeg,image/png,image/webp" className="file-input file-input-bordered w-full" onChange={e=>{setFile(e.target.files?.[0]??null);setKey(crypto.randomUUID());}} /></FormField>
           <Button type="submit" loading={busy} disabled={!view.data?.qr.assetId}>Enviar soporte a revisión</Button>
         </form>:<p className="text-sm text-base-content/60">{view.loading?'Cargando pagos…':kind==='uniform'&&!debts.length?'Solicita un uniforme en el catálogo para ver el concepto de pago.':'Sin saldo disponible para enviar otro soporte. Si hay uno pendiente, espera su revisión.'}</p>}
-        {debts.length?<div className="space-y-2">{debts.map(d=><div key={`${d.kind}:${d.targetId}`} className="rounded-lg bg-base-200 p-3 text-sm"><p className="font-semibold">{d.concept}</p><p>Confirmado: {formatMoney(d.paid)} · saldo: {formatMoney(d.outstanding)}{d.pending>0?` · en revisión: ${formatMoney(d.pending)}`:''}{d.credit?` · saldo a favor: ${formatMoney(d.credit)}`:''}</p>{d.kind==='referee'?<p>Acumulado aplicado: {formatMoney(d.creditApplied)} · disponible para próximas fechas: {formatMoney(d.walletCredit)}</p>:null}</div>)}</div>:null}
+        {debts.length?<details><summary className="text-sm font-semibold cursor-pointer">Ver saldos y abonos por concepto</summary><div className="space-y-2 mt-3">{debts.map(d=><div key={`${d.kind}:${d.targetId}`} className="rounded-lg bg-base-200 p-3 text-sm"><p className="font-semibold">{d.concept}{d.cancelled?' · Solicitud eliminada':''}</p><p>Confirmado: {formatMoney(d.paid)} · saldo: {formatMoney(d.outstanding)}{d.pending>0?` · en revisión: ${formatMoney(d.pending)}`:''}{d.credit?` · saldo a favor: ${formatMoney(d.credit)}`:''}</p>{d.kind==='referee'?<p>Acumulado aplicado: {formatMoney(d.creditApplied)} · disponible para próximas fechas: {formatMoney(d.walletCredit)}</p>:null}</div>)}</div></details>:null}
       </div>
     </div>
-    {receipts.length?<div className="space-y-2"><h3 className="font-semibold">Mis soportes</h3>{receipts.map(row=><div key={row.id} className="rounded-xl border border-base-200 p-3 flex flex-wrap items-center justify-between gap-3">
-      <div className="min-w-0"><p className="font-semibold">{formatMoney(row.amount)} · {row.status}</p><p className="text-sm break-all">{row.reference} · {row.kind==='referee'?formatColombiaDateTime(row.paidAt)+' (Colombia)':formatDate(row.paidAt)}</p>{row.reviewNotes?<p className="text-sm">{row.reviewNotes}</p>:null}</div>
-      <Button size="sm" variant="outline" onClick={()=>void downloadReceipt(row).catch(err=>setError(errorMessage(err)))}>Descargar soporte</Button>
-    </div>)}</div>:null}
+    <Suspense fallback={<p className="text-sm">Cargando historial…</p>}><PaymentHistoryPanel entries={history} onSelect={setHistoryEntry} showPlayer={false} loading={view.loading}/></Suspense>
+    {historyEntry?<Suspense fallback={<p className="text-sm">Cargando comprobante…</p>}><PaymentDetailDialog entry={historyEntry} onClose={()=>setHistoryEntry(null)}/></Suspense>:null}
     <Modal title="QR de pago del equipo" open={qrOpen} onClose={()=>setQrOpen(false)} size="lg">
       <MediaImage src={view.data?.qr.assetId?'/api/media/'+view.data.qr.assetId:null} alt="QR de pago ampliado" className="w-full max-w-[600px] mx-auto bg-white rounded-lg" />
     </Modal>

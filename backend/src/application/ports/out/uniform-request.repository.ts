@@ -20,4 +20,5 @@ export interface UniformRequestRepository {
   findById(id: number): Promise<UniformRequest | null>;
   create(input: CreateUniformRequestInput): Promise<UniformRequest>;
   update(id: number, input: UpdateUniformRequestInput): Promise<UniformRequest>;
+  remove(id:number,adminId:number):Promise<void>;
 }

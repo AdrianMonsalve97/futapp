@@ -1,0 +1,18 @@
+import {useEffect,useState,type ReactNode} from 'react';
+import {Modal} from '../atoms/Modal';
+import {Alert} from '../atoms/Alert';
+import {Button} from '../atoms/Button';
+import {Spinner} from '../atoms/Spinner';
+import {apiBlob,errorMessage} from '../services/api';
+import {formatMoney,formatDate,formatColombiaDateTime} from '../utils/format';
+import {paymentCategory,paymentMethod,paymentStatus} from '../utils/payment-history';
+import type {PaymentHistoryEntry} from '../types/payments';
+
+export function PaymentDetailDialog({entry,onClose,children,footer,busy=false}:{entry:PaymentHistoryEntry|null;onClose:()=>void;children?:ReactNode;footer?:ReactNode;busy?:boolean}){
+  const [preview,setPreview]=useState<{url:string;pdf:boolean}|null>(null),[error,setError]=useState('');
+  useEffect(()=>{let cancelled=false,url='';setPreview(null);setError('');if(entry?.assetId)void apiBlob('/api/media/'+entry.assetId).then(blob=>{url=URL.createObjectURL(blob);if(cancelled)URL.revokeObjectURL(url);else setPreview({url,pdf:blob.type==='application/pdf'});}).catch(err=>{if(!cancelled)setError(errorMessage(err));});return()=>{cancelled=true;if(url)URL.revokeObjectURL(url);};},[entry?.assetId]);
+  return <Modal open={!!entry} onClose={()=>{if(!busy)onClose();}} closeOnOutside={!busy} title="Detalle del pago" size="lg" footer={footer??<Button variant="outline" onClick={onClose}>Cerrar detalle</Button>}>
+    {entry?<><div className="payment-detail-hero"><span>{paymentCategory(entry.kind)}</span><strong>{formatMoney(entry.amount)}</strong><span className={`commerce-status is-${entry.status}`}>{paymentStatus(entry.status)}</span></div><h4 className="text-lg font-bold mt-5">{entry.concept}</h4><dl className="commerce-detail-grid"><div><dt>Jugador</dt><dd>{entry.playerName}</dd></div><div><dt>Fecha de pago</dt><dd>{entry.paidAt?(entry.kind==='referee'?formatColombiaDateTime(entry.paidAt):formatDate(entry.paidAt)):'Sin fecha detallada'}</dd></div><div><dt>Medio</dt><dd>{paymentMethod(entry.method)}</dd></div><div><dt>Referencia</dt><dd>{entry.reference||'Sin referencia'}</dd></div>{entry.reviewedAt?<div><dt>Revisado</dt><dd>{formatColombiaDateTime(entry.reviewedAt.includes('T')?entry.reviewedAt:entry.reviewedAt.replace(' ','T')+'Z')}</dd></div>:null}</dl>{entry.requestDeleted?<Alert tone="info">La solicitud se eliminó. Este pago y su comprobante se mantienen en el historial; esto no registra una devolución.</Alert>:null}{entry.notes?<div className="commerce-detail-note"><strong>Observaciones</strong><p>{entry.notes}</p></div>:null}
+      {entry.assetId?<div className="receipt-preview">{error?<Alert tone="error">{error}</Alert>:!preview?<div className="flex justify-center p-8"><Spinner/></div>:<>{preview.pdf?<div className="receipt-pdf"><span>PDF</span><strong>Comprobante original</strong><p>Ábrelo en otra pestaña para consultar todas sus páginas.</p><a href={preview.url} target="_blank" rel="noopener noreferrer" className="btn btn-outline">Abrir PDF ↗</a></div>:<img src={preview.url} alt={`Comprobante ${entry.reference||entry.id}`} className="receipt-preview-image"/>}<a href={preview.url} download={`comprobante-${entry.receiptId??entry.id}.${preview.pdf?'pdf':'webp'}`} className="btn btn-outline w-full mt-3">Descargar comprobante <span aria-hidden="true">↓</span></a></>}</div>:<div className="commerce-detail-note"><strong>{entry.openingBalance?'Saldo anterior':'Registro manual'}</strong><p>{entry.openingBalance?'Se conserva el saldo registrado, pero no existe un movimiento detallado ni un archivo de comprobante.':'Este abono fue registrado sin un archivo de comprobante adjunto.'}</p></div>}{children}</>:null}
+  </Modal>;
+}

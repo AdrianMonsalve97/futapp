@@ -15,9 +15,9 @@ export class QrPaymentService {
     private readonly notifications?: NotificationEvents, private readonly referee?:RefereeService) {}
   async view(userId: number, admin: boolean) {
     const playerId = admin ? undefined : (await this.playerId(userId));
-    return { qr: (await this.repository.qr()), debts: [...await this.repository.debts(playerId),...(await this.referee?.debts(playerId)??[])], receipts: (await this.repository.receipts(playerId)).map(this.publicReceipt) };
+    return { qr: (await this.repository.qr()), debts: [...await this.repository.debts(playerId),...(await this.referee?.debts(playerId)??[])], receipts: (await this.repository.receipts(playerId)).map(this.publicReceipt),history:await this.repository.history(playerId) };
   }
-  private publicReceipt(row: PaymentReceipt) { const { fileHash: _hash, idempotencyKey: _key, ...data } = row; return data; }
+  private publicReceipt(row: PaymentReceipt) { const { fileHash: _hash, idempotencyKey: _key, ...data } = row; return {...data,requestDeleted:!!row.requestDeleted}; }
   private async playerId(userId: number): Promise<number> {
     const player = (await this.players.findByUserId(userId));
     if (!player) throw new NotFoundError('Ficha de jugador no encontrada');
@@ -26,7 +26,7 @@ export class QrPaymentService {
   private async debt(playerId: number, kind: PaymentTargetKind, targetId: number) {
     const debts=kind==='referee'?await this.referee?.debts(playerId)??[]:await this.repository.debts(playerId);
     const debt = debts.find(d => d.kind === kind && d.targetId === targetId);
-    if (!debt) throw new NotFoundError('Concepto de pago no encontrado');
+    if (!debt||debt.cancelled) throw new NotFoundError('Concepto de pago no encontrado o solicitud eliminada');
     return debt;
   }
   async submit(userId: number, input: { kind: PaymentTargetKind; targetId: number; amount: number; reference: string; paidAt: string; idempotencyKey: string }, name: string, bytes: Uint8Array) {

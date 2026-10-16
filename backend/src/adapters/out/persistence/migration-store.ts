@@ -91,7 +91,7 @@ export class FileMigrationStore implements MigrationPort {
     if(sessions&&Array.isArray(sessions.columns)&&Array.isArray(sessions.rows)&&sessions.rows.every(Array.isArray)&&!sessions.columns.includes('last_activity_at')) {
       sessions.columns.push('last_activity_at');sessions.rows=sessions.rows.map(row=>[...row,0]);
     }
-    for (const name of ['registration_requests','media_deletion_jobs','uniform_recipients','password_reset_tokens','password_reset_requests']) {
+    for (const name of ['registration_requests','media_deletion_jobs','uniform_recipients','password_reset_tokens','password_reset_requests','uniform_request_deletions']) {
       if (!Object.hasOwn(p.tables,name) && names.includes(name)) p.tables[name]={columns:(this.db.pragma(`table_info(${name})`) as {name:string}[]).map(column=>column.name),rows:[]};
     }
     if(!Object.hasOwn(p.tables,'match_referee_transfers')&&names.includes('match_referee_transfers'))p.tables.match_referee_transfers={columns:['receipt_id','match_id','amount'],rows:[]};

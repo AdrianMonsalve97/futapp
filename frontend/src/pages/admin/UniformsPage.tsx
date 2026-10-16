@@ -407,14 +407,14 @@ export function UniformsPage() {
       uniforms.reload();
     }, 'Devolución registrada. El stock volvió a sumarse.');
 
-  const reviewRequest = (request: UniformRequest, status: UniformRequestStatus) => {
-    return run(async () => {
-      await api(`/api/uniform-requests/${request.id}`, { method: 'PUT', json: { status } });
+  const reviewRequest = async(request: UniformRequest, status: UniformRequestStatus,reviewNotes?:string) => {
+      await api(`/api/uniform-requests/${request.id}`, { method: 'PUT', json: { status,reviewNotes } });
       requests.reload();
       issues.reload();
       uniforms.reload();
-    }, `Solicitud ${status === 'aprobada' ? 'aprobada' : status === 'rechazada' ? 'rechazada' : 'entregada'}.`);
+      setNotice(`Solicitud ${status === 'aprobada' ? 'aprobada' : status === 'rechazada' ? 'rechazada' : 'entregada'}.`);
   };
+  const deleteRequest=async(request:UniformRequest)=>{await api(`/api/uniform-requests/${request.id}`,{method:'DELETE'});requests.reload();setNotice('Solicitud eliminada. Los pagos y comprobantes siguen disponibles en el historial.');};
 
   const pendingRequests = (requests.data ?? []).filter((item) => item.status === 'pendiente').length;
   const lowStock = (uniforms.data ?? []).filter((item) => item.stock <= item.minStock);
@@ -448,11 +448,11 @@ export function UniformsPage() {
         }
       />
 
-      <div role="tablist" className="tabs tabs-boxed w-fit mb-4 bg-base-200 p-1 flex-wrap">
+      <div role="tablist" aria-label="Gestión de uniformes" className="commerce-page-tabs">
         <button
           type="button"
           role="tab"
-          className={`tab ${tab === 'catalogo' ? 'tab-active' : ''}`}
+          className={tab === 'catalogo' ? 'is-active' : ''} aria-selected={tab==='catalogo'}
           onClick={() => setTab('catalogo')}
         >
           Catálogo ({uniforms.data?.length ?? 0})
@@ -460,7 +460,7 @@ export function UniformsPage() {
         <button
           type="button"
           role="tab"
-          className={`tab ${tab === 'entregas' ? 'tab-active' : ''}`}
+          className={tab === 'entregas' ? 'is-active' : ''} aria-selected={tab==='entregas'}
           onClick={() => setTab('entregas')}
         >
           Entregas ({issues.data?.length ?? 0})
@@ -468,7 +468,7 @@ export function UniformsPage() {
         <button
           type="button"
           role="tab"
-          className={`tab ${tab === 'solicitudes' ? 'tab-active' : ''}`}
+          className={tab === 'solicitudes' ? 'is-active' : ''} aria-selected={tab==='solicitudes'}
           onClick={() => setTab('solicitudes')}
         >
           Solicitudes{pendingRequests > 0 ? ` (${pendingRequests})` : ''}
@@ -518,6 +518,7 @@ export function UniformsPage() {
         <UniformRequestsPanel
           requests={requests.data ?? []}
           onReview={reviewRequest}
+          onDelete={deleteRequest}
           isLoading={requests.loading}
           error={requests.error}
         />

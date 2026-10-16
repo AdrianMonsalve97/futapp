@@ -58,4 +58,5 @@ export interface UniformPort {
   updateIssue(id: number, input: UpdateIssueInput): Promise<UniformIssue>;
   listRequests(status?: UniformRequestStatus): Promise<UniformRequest[]>;
   updateRequest(id: number, input: UpdateRequestInput): Promise<UniformRequest>;
+  removeRequest(id:number,adminId:number):Promise<{ok:true}>;
 }
