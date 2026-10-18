@@ -1,3 +1,4 @@
+import { refereePaymentCovered } from '../../domain/referee';
 import { resolvePhaseFormations } from '../../domain/tactical-phases';
 import type { AiPort, XiSuggestion } from '../ports/in/ai.port';
 import type { TacticalPlan, TacticalStyle } from '../../domain/tactics';
@@ -222,6 +223,7 @@ export class AiService implements AiPort {
     const tournamentId = matchId ? (await this.matches.findById(matchId))?.tournamentId : null;
     const enrolled = tournamentId ? new Set((await this.tournaments.playerIds(tournamentId))) : null;
     const paymentRows=matchId?(await this.refereePayments.status(matchId)).rows:null;
+    const payments = new Map(paymentRows?.map(row => [row.playerId, row]) ?? []);
     const paid=paymentRows?new Set(paymentRows.filter(row=>forBench?row.benchEligible:row.starterEligible).map(row=>row.playerId)):null;
     for (const { user, player } of (await this.players.list())) {
       if (!user.active) continue;
@@ -231,6 +233,7 @@ export class AiService implements AiPort {
       if (paid&&!paid.has(player.id)) continue;
       const rating = ratings.get(player.id);
       candidates.push({
+        selectionPriority: refereePaymentCovered(payments.get(player.id)) ? 1 : 0,
         playerId: player.id,
         playerName: user.fullName,
         avatarUrl: user.avatarUrl,
@@ -269,7 +272,7 @@ export class AiService implements AiPort {
     const assigned = new Set(xi.lineup.map(row => row.playerId).filter(id => id !== null));
     const benchCandidates=(await this.xiCandidates(matchId,true)).candidates;
     const capacity = Math.max(0, (match.tournamentRules ? match.tournamentRules.maxSquad ?? benchCandidates.length : match.format + 7) - assigned.size);
-    const bench = benchCandidates.filter(row => !assigned.has(row.playerId)).sort((a,b) => b.predictedRating - a.predictedRating).slice(0, capacity);
+    const bench = benchCandidates.filter(row => !assigned.has(row.playerId)).sort((a,b) => (b.selectionPriority ?? 0) - (a.selectionPriority ?? 0) || b.predictedRating - a.predictedRating).slice(0, capacity).map(({selectionPriority: _priority, ...candidate}) => candidate);
     const leagueContext = (await this.leagueContext(match, xi.lineup));
     if (match.tournamentId) xi.explanation += ` Plantilla del torneo: ${(await this.tournaments.playerIds(match.tournamentId)).length} inscritos; ${candidates.length} disponibles.${candidates.length ? '' : ' Agrega jugadores activos al torneo y revisa su disponibilidad antes de preparar la alineación.'}`;
     return { ...xi, formation: key, bench, leagueContext, explanation: xi.explanation + (leagueContext ? ` Normativa: ${leagueContext.periods} tiempos de ${leagueContext.minutesPerPeriod} min (${match.minutes} min de juego). Convocatoria: ${leagueContext.maxSquad === null ? 'límite por confirmar' : 'hasta ' + leagueContext.maxSquad}. Cambios: ${leagueContext.maxSubstitutions ?? 'sin límite numérico'}; ${leagueContext.rollingSubstitutions === null ? 'reingreso por confirmar' : leagueContext.rollingSubstitutions ? 'reingreso permitido' : 'sin reingreso'}.` : '') };
@@ -350,7 +353,8 @@ export class AiService implements AiPort {
     const avgPredicted = round2(
       mean(assignedIds.map((id) => (byId.get(id) ? (byId.get(id) as XiCandidate).predictedRating : 0))),
     );
-    const explanation = (await this.buildExplanation(formation, slots, candidates, suspended, avgPredicted));
+    const explanation = (await this.buildExplanation(formation, slots, candidates, suspended, avgPredicted)) +
+      (candidates.some(row => row.selectionPriority === 1) && candidates.some(row => row.selectionPriority === 0) ? " Prioridad del inicial: cuota completa de arbitraje cubierta con pagos o saldos aprobados; los pendientes completan las posiciones disponibles por la excepción de hoy." : "");
     return { lineup: slots, explanation };
   }
 

@@ -533,6 +533,82 @@ for (const dialect of ["sqlite", "postgres"] as const)
       await assert.rejects(
         c.matchService.allowConfirmedToday(game.id, "2026-10-18"),
       );
+      // Another same-day fixture proves a paid reserve wins the initial place,
+      // even when the unpaid natural striker was listed first.
+      now = Date.parse("2026-10-18T15:00:00Z");
+      const preferredGame = await c.matchService.create({
+        opponent: "Prioridad de pago",
+        kickOff: "2026-10-18T16:00",
+        format: 8,
+      });
+      for (const player of players)
+        await c.matchService.setAttendance(
+          preferredGame.id,
+          player.user.id,
+          "confirmado",
+        );
+      await c.matchService.allowConfirmedToday(preferredGame.id, "2026-10-18");
+      const share = (await c.matchService.referee(preferredGame.id)).rows.find(
+        (row) => row.playerId === players[8].player.id,
+      )!.amount;
+      const paidReserve = await c.qrPaymentService.submit(
+        players[8].user.id,
+        {
+          kind: "referee",
+          targetId: preferredGame.id,
+          amount: share,
+          reference: "PRIORITY-" + randomUUID(),
+          paidAt: "2026-10-18T14:00:00Z",
+          idempotencyKey: randomUUID(),
+        },
+        "reserva.png",
+        image,
+      );
+      await c.qrPaymentService.review(
+        paidReserve.id,
+        adminUser.user.id,
+        "aprobado",
+        "Prueba aislada de prioridad",
+      );
+      const prioritized = await c.aiService.recommendXi(
+        preferredGame.id,
+        "1-3-3-1",
+      );
+      assert.equal(
+        prioritized.lineup.filter((row) => row.playerId !== null).length,
+        8,
+      );
+      assert(
+        prioritized.lineup.some((row) => row.playerId === players[8].player.id),
+      );
+      assert(
+        !prioritized.bench?.some(
+          (row) => row.playerId === players[8].player.id,
+        ),
+      );
+      assert(
+        prioritized.bench?.some((row) => row.playerId === players[7].player.id),
+      );
+      assert(
+        prioritized.lineup.every((row) => row.role === row.playerPosition),
+      );
+      assert(prioritized.explanation.includes("Prioridad del inicial"));
+      assert(
+        prioritized.bench?.every(
+          (row) => !Object.hasOwn(row, "selectionPriority"),
+        ),
+      );
+      const prioritizedPlan = await c.aiService.tacticalPlan(
+        preferredGame.id,
+        undefined,
+        "1-3-3-1",
+      );
+      assert.equal(
+        prioritizedPlan.recommendation.lineup.find(
+          (row) => row.playerId === players[8].player.id,
+        )?.refereePaymentPending,
+        false,
+      );
       const accounts = await db
           .prepare("SELECT id,email FROM users ORDER BY id")
           .all(),

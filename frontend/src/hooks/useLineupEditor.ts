@@ -1,3 +1,4 @@
+import { refereePaymentCovered } from "../../../backend/src/domain/referee";
 import type { MatchRefereeView } from "../types/referee";
 import { resolvePhaseFormations } from "../../../backend/src/domain/tactical-phases";
 import type { PhaseFormations } from "../types/tactics";
@@ -131,6 +132,20 @@ export function useLineupEditor({
         ),
     )
     .sort((a, b) => {
+      const priority =
+        Number(
+          refereePaymentCovered(
+            attendance.data?.find((row) => row.playerId === b.player.id)
+              ?.referee,
+          ),
+        ) -
+        Number(
+          refereePaymentCovered(
+            attendance.data?.find((row) => row.playerId === a.player.id)
+              ?.referee,
+          ),
+        );
+      if (priority !== 0) return priority;
       const byPos =
         (POSITION_ORDER[a.player.position] ?? 9) -
         (POSITION_ORDER[b.player.position] ?? 9);
@@ -291,7 +306,14 @@ export function useLineupEditor({
         ) === true,
     })),
     matchdayRoster: referee.data?.isMatchDay
-      ? (attendance.data?.filter((row) => row.status === "confirmado") ?? [])
+      ? (attendance.data
+          ?.filter((row) => row.status === "confirmado")
+          .sort(
+            (a, b) =>
+              Number(refereePaymentCovered(b.referee)) -
+                Number(refereePaymentCovered(a.referee)) ||
+              a.playerName.localeCompare(b.playerName, "es"),
+          ) ?? [])
       : null,
     attendanceOnlyUntil: referee.data?.attendanceOnlyUntil,
     refereeError: referee.error,

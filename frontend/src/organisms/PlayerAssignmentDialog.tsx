@@ -1,3 +1,5 @@
+import { refereePaymentCovered } from "../../../backend/src/domain/referee";
+import type { MatchAttendance } from "../types/api";
 import type { PitchSlot } from "../types/tactics";
 import { useState } from "react";
 import { Avatar } from "../atoms/Avatar";
@@ -16,6 +18,7 @@ export function PlayerAssignmentDialog({
   onClose,
   onAssign,
   loading,
+  attendance = [],
 }: {
   slot: PitchSlot;
   players: PlayerListItem[];
@@ -25,6 +28,7 @@ export function PlayerAssignmentDialog({
   onClose: () => void;
   onAssign: () => void;
   loading: boolean;
+  attendance?: MatchAttendance[];
 }) {
   const [search, setSearch] = useState("");
   const key = (value: string) =>
@@ -86,6 +90,9 @@ export function PlayerAssignmentDialog({
           <Spinner />
         ) : (
           filtered.map(({ player, user }) => {
+            const payment = attendance.find(
+              (row) => row.playerId === player.id,
+            )?.referee;
             const current = slots.find((row) => row.playerId === player.id);
             return (
               <button
@@ -104,6 +111,21 @@ export function PlayerAssignmentDialog({
                       ? ` · Actualmente en ${current.label}`
                       : " · Disponible para el inicial"}
                   </small>
+                  {payment && (
+                    <small
+                      className={
+                        refereePaymentCovered(payment)
+                          ? "text-success"
+                          : "text-warning"
+                      }
+                    >
+                      {refereePaymentCovered(payment)
+                        ? "Arbitraje aprobado · prioridad"
+                        : payment.amount > 0
+                          ? "Arbitraje pendiente"
+                          : "Sin cobro"}
+                    </small>
+                  )}
                 </span>
                 <b className="fc-assignment-number">
                   {player.shirtNumber ?? "—"}

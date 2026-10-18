@@ -1,6 +1,6 @@
 /**
  * Modelo de desempeño (§8 del SPEC): regresión lineal entrenada con gradiente
- * descenso por lotes, XI recomendado (greedy + mejora local), probabilidad de
+ * descenso por lotes, XI recomendado (asignación exacta por prioridades), probabilidad de
  * resultado, forecast individual y fortalezas/debilidades.
  *
  * Todo aquí es puro (sin Express, sin SQLite): lo orquesta `AiService`.
@@ -176,10 +176,12 @@ export function trainModel(X: number[][], y: number[], context: TrainContext = {
 }
 
 /* ------------------------------------------------------------------ */
-/* 8.4 · XI recomendado (greedy + mejora local)                       */
+/* 8.4 · XI recomendado (asignación exacta por prioridades)                       */
 /* ------------------------------------------------------------------ */
 
 export interface XiCandidate {
+  /** Selection preference, independent of the performance forecast and its score. */
+  selectionPriority?: number;
   avatarUrl?: string | null;
   secondaryPosition?: Position | null;
   playerId: number;
@@ -195,7 +197,6 @@ export interface XiSelection {
   totalScore: number;
 }
 
-const ROLE_RANK: Record<FormationRole, number> = { POR: 0, DEF: 1, MED: 2, DEL: 3 };
 const LINE_INDEX: Record<Position, number> = { POR: 0, DEF: 1, MED: 2, DEL: 3 };
 
 /** §8.4: encaje entre el rol del slot y la posición del jugador. */
@@ -215,68 +216,44 @@ export function slotScore(slot: FormationSlot, candidate: XiCandidate): number {
   return fit * candidate.predictedRating + 0.15 * ratingTerm;
 }
 
-/** Selección greedy por restricción de slot + mejora local de 100 iteraciones. */
+/** Exact assignment: fill the team, then honor selection priority, then sporting fit.
+ * The bitmask contains at most eleven positions. Each candidate is used once.
+ * Preference never changes ratings or the reported performance score.
+ */
 export function selectXi(formation: FormationDef, candidates: XiCandidate[]): XiSelection {
-  const ordered = [...formation.slots].sort(
-    (a, b) => ROLE_RANK[a.role] - ROLE_RANK[b.role] || a.slotIndex - b.slotIndex,
-  );
-  const available = [...candidates];
-  const assigned: { slot: FormationSlot; playerId: number | null }[] = [];
-
-  // 1) greedy: para cada slot, el score más alto entre los jugadores disponibles
-  for (const slot of ordered) {
-    let best: XiCandidate | null = null;
-    let bestScore = -Infinity;
-    for (const candidate of available) {
-      const score = slotScore(slot, candidate);
-      if (score > bestScore) {
-        bestScore = score;
-        best = candidate;
-      }
-    }
-    if (best) {
-      available.splice(available.indexOf(best), 1);
-      assigned.push({ slot, playerId: best.playerId });
-    } else {
-      assigned.push({ slot, playerId: null });
+  interface State { playerIds: (number | null)[]; filled: number; priority: number; score: number }
+  const better = (next: State, previous?: State): boolean => !previous ||
+    next.filled > previous.filled ||
+    (next.filled === previous.filled && (next.priority > previous.priority ||
+      (next.priority === previous.priority && next.score > previous.score + 1e-9)));
+  const empty: State = { playerIds: formation.slots.map(() => null), filled: 0, priority: 0, score: 0 };
+  const states = new Map<number, State>([[0, empty]]);
+  for (const candidate of candidates) {
+    // Snapshot prevents a candidate from occupying two positions in this pass.
+    for (const [mask, state] of [...states]) {
+      formation.slots.forEach((slot, index) => {
+        const bit = 1 << index;
+        if (mask & bit) return;
+        const score = slotScore(slot, candidate);
+        if (!Number.isFinite(score)) return;
+        const next = {
+          playerIds: [...state.playerIds], filled: state.filled + 1,
+          priority: state.priority + (candidate.selectionPriority ?? 0), score: state.score + score,
+        };
+        next.playerIds[index] = candidate.playerId;
+        if (better(next, states.get(mask | bit))) states.set(mask | bit, next);
+      });
     }
   }
-
-  const byId = new Map(candidates.map((c) => [c.playerId, c]));
-  const scoreOf = (slot: FormationSlot, playerId: number | null): number => {
-    if (playerId === null) return -Infinity;
-    const candidate = byId.get(playerId);
-    return candidate ? slotScore(slot, candidate) : -Infinity;
-  };
-
-  // 2) mejora local: 100 iteraciones de intercambios por pares
-  for (let iteration = 0; iteration < 100; iteration++) {
-    let improved = false;
-    for (let i = 0; i < assigned.length; i++) {
-      for (let j = i + 1; j < assigned.length; j++) {
-        const a = assigned[i];
-        const b = assigned[j];
-        if (a.playerId === null || b.playerId === null) continue;
-        const before = scoreOf(a.slot, a.playerId) + scoreOf(b.slot, b.playerId);
-        const after = scoreOf(a.slot, b.playerId) + scoreOf(b.slot, a.playerId);
-        if (after - before > 0.01) {
-          const tmp = a.playerId;
-          a.playerId = b.playerId;
-          b.playerId = tmp;
-          improved = true;
-        }
-      }
-    }
-    if (!improved) break;
-  }
-
-  const totalScore = assigned.reduce(
-    (sum, entry) => sum + (entry.playerId === null ? 0 : scoreOf(entry.slot, entry.playerId)),
-    0,
-  );
+  let selected = empty;
+  for (const state of states.values()) if (better(state, selected)) selected = state;
+  const byId = new Map(candidates.map(candidate => [candidate.playerId, candidate]));
   return {
-    assignments: assigned.map((entry) => ({ slotIndex: entry.slot.slotIndex, playerId: entry.playerId })),
-    totalScore,
+    assignments: formation.slots.map((slot, index) => ({ slotIndex: slot.slotIndex, playerId: selected.playerIds[index] })),
+    totalScore: formation.slots.reduce((total, slot, index) => {
+      const id = selected.playerIds[index];
+      return total + (id === null ? 0 : slotScore(slot, byId.get(id)!));
+    }, 0),
   };
 }
 

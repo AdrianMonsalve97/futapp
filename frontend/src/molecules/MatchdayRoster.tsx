@@ -1,3 +1,4 @@
+import { refereePaymentCovered } from "../../../backend/src/domain/referee";
 import { Avatar } from "../atoms/Avatar";
 import { RefereePendingDot } from "../atoms/RefereePendingDot";
 import type { MatchAttendance } from "../types/api";
@@ -26,8 +27,9 @@ export function MatchdayRoster({
         <strong>{confirmed.length} confirmados</strong>
       </div>
       <p className="text-xs text-base-content/65">
-        El punto rojo indica arbitraje sin cubrir con pago aprobado. Los
-        confirmados que no estén en cancha quedan en el banco de esta plantilla.
+        Primero aparecen quienes tienen la cuota de arbitraje aprobada. El punto
+        rojo señala los pagos pendientes. Los confirmados que no estén en cancha
+        quedan en el banco de esta plantilla.
       </p>
       {confirmed.length === 0 ? (
         <p className="text-sm">Todavía no hay asistencia confirmada.</p>
@@ -38,6 +40,11 @@ export function MatchdayRoster({
               <Avatar name={row.playerName} src={row.avatarUrl} size="sm" />
               <div className="min-w-0 flex-1">
                 <strong>{row.playerName}</strong>
+                {refereePaymentCovered(row.referee) && (
+                  <small className="text-success">
+                    Arbitraje aprobado · prioridad
+                  </small>
+                )}
                 <small>
                   #{row.shirtNumber ?? "—"} · {row.position} ·{" "}
                   {initial.has(row.playerId)

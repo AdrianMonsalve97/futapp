@@ -701,7 +701,7 @@ f10 tendencia               = rating_este_partido - rating_promedio_anterior (0 
 Se agrega por jugador: promedio simple de sus features por partido (o directamente la última
 temporada). `predictedRating` se limita al rango `[1, 10]` y se redondea a 2 decimales.
 
-### 8.4 Formación XI recomendada (greedy + mejora local)
+### 8.4 Formación XI recomendada (asignación exacta con prioridades)
 
 Para cada `slot` del catálogo de la formación pedida y cada jugador disponible (activo y sin
 sanción de suspensión activa):
@@ -714,11 +714,14 @@ fit(slotRole, playerPos) = 1.0  si coinciden exactamente
 score = fit * predictedRating + 0.15 * (fit === 1 ? avgRating : avgRating - 1)
 ```
 
-1. Ordenar slots de mayor a menor restricción (POR primero, luego DEF, MED, DEL).
-2. Asignación greedy sin repetir jugador (elige el `score` más alto disponible; si un jugador ya
-   está asignado a otro slot, se omite).
-3. **Mejora local**: 100 iteraciones; probar todos los pares de slots con jugadores distintos y
-   swap si `Σscore` mejora en `> 0.01`.
+1. Considerar únicamente jugadores habilitados por asistencia, inscripción, cuenta y sanciones.
+   El slot POR requiere posición primaria o secundaria de portero.
+2. Asignar sin repetir jugadores mediante programación dinámica sobre las posiciones del formato
+   (máximo once). Primero completar las posiciones legales, después maximizar jugadores con
+   cuota de arbitraje completamente cubierta por pagos o saldos aprobados, y finalmente `Σscore`.
+3. La preferencia de selección no modifica las calificaciones, el entrenamiento ni el `score`
+   deportivo publicado. Durante la excepción del día, los pendientes completan las plazas;
+   un soporte en revisión o un abono parcial no concede prioridad.
 4. `explanation`: texto en español con el promedio de `predictedRating` del XI y 2-3 notas
    (ej. *"Se mantienen 8 titulares del último partido; Lucas M. (7.4) gana el puesto a Diego R. (6.8) por mejor rendimiento reciente."*).
 
@@ -1147,7 +1150,7 @@ Mantener §8.1 (features), §8.2 (entrenamiento) y §8.6/§8.7, **cambiando**:
 1. **Normalización** → `rate(v, minutes, formatMinutes)` de §12.1 (no más 90 fijo).
 2. **`minSamples`** → usar `profile.ai.minSamples` en lugar del `20` fijo de §8.2.
 3. **XI recomendado** → slots de `formationsFor(match.format)`; `playersOnPitch` del perfil.
-   El greedy y la mejora local de §8.4 se mantienen igual.
+   La asignación exacta y las prioridades de §8.4 se aplican a todos los formatos.
 4. **Probabilidad de resultado** → **softmax de 3 vías** (siempre suma 1, empate real):
 
    ```

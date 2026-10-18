@@ -11,6 +11,10 @@ export interface RefereePaymentRow {
   directPaid: number; creditApplied: number; creditTransferred: number; walletCredit: number;
   starterEligible: boolean; benchEligible: boolean;
 }
+/** Only approved payments/credits covering the full current share receive priority. */
+export function refereePaymentCovered(row?: Pick<RefereePaymentRow, 'amount' | 'outstanding'> | null): boolean {
+  return Boolean(row && row.amount > 0 && row.outstanding === 0);
+}
 export interface MatchRefereeView {
   isMatchDay: boolean; attendanceOnlyUntil: string | null;
   matchId: number; total: number; attendees: number; dueAt: string; rows: RefereePaymentRow[];
