@@ -98,6 +98,7 @@ export interface TeamSettings {
 export type AttendanceStatus = 'pendiente' | 'confirmado' | 'no_disponible';
 export interface MatchAttendance {
   starterEligible?: boolean; benchEligible?: boolean; referee?: import('./referee').RefereePaymentRow & {dueAt:string};
+  avatarUrl?: string | null;
   playerId: number; playerName: string; shirtNumber: number | null;
   position: Position; status: AttendanceStatus; updatedAt: string | null;
   eligible: boolean; reason: string | null;
@@ -107,6 +108,7 @@ export interface Strategy {
   id: number; matchId: number; title: string; kind: StrategyKind; content: string; createdAt: string;
 }
 export interface LineupSlot {
+  refereePaymentPending?: boolean;
   slotIndex: number; playerId: number | null; playerName?: string | null;
   shirtNumber?: number | null; playerPosition?: Position | null; avatarUrl?: string | null;
   x: number; y: number; role: 'POR' | 'DEF' | 'MED' | 'DEL'; label: string;

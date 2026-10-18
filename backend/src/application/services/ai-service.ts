@@ -303,6 +303,8 @@ export class AiService implements AiPort {
                                                                                                                                                 filled:assigned.length,naturalFit:assigned.filter(s=>s.playerPosition===s.role).length,
                                                                                                                                                 avgRating:round2(mean(assigned.map(s=>candidates.find(c=>c.playerId===s.playerId)!.predictedRating))),slots:xi.lineup};
                                                                                                                                             }))).sort((a,b)=>b.score-a.score || (a.key===match.formation?-1:1));
+    const fees = await this.refereePayments.status(matchId);
+    recommendation.lineup = this.refereePayments.markPending(recommendation.lineup, fees);
     const lineup = recommendation.lineup;
     const positions = (['POR','DEF','MED','DEL'] as const).map(role => {
       const available = candidates.filter(c=>c.position===role || c.secondaryPosition===role);

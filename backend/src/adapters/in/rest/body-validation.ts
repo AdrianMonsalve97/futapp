@@ -97,6 +97,7 @@ export function validateBody(path: string, method: string, body: unknown): void 
   if (/^\/players\/\d+\/approval$/.test(path)) return check(body, {});
   if (/^\/players(\/\d+)?$/.test(path)) return check(body, create ? { ...profile, ...credentials } : { ...profile, fullName: credentials.fullName, role: oneOf('admin', 'player'), active: boolean }, create ? ['email', 'password', 'fullName'] : []);
   if (/^\/matches(\/\d+)?$/.test(path)) return check(body, match, create ? ['opponent', 'kickOff'] : []);
+  if (/^\/matches\/\d+\/referee\/allow-confirmed-today$/.test(path)) return check(body, {date}, ['date']);
   if (path.endsWith('/formation')) return check(body, { formation: match.formation }, ['formation']);
   if (path.endsWith('/lineup/auto')) return check(body, { formation: match.formation });
   if (path.endsWith('/lineup')) return check(body, { phaseFormations: v => { check(v, { ataque: nonempty(40), repliegue: nonempty(40) }, ['ataque', 'repliegue']); return true; }, slots: v => {

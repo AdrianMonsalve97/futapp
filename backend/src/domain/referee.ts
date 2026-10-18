@@ -12,6 +12,7 @@ export interface RefereePaymentRow {
   starterEligible: boolean; benchEligible: boolean;
 }
 export interface MatchRefereeView {
+  isMatchDay: boolean; attendanceOnlyUntil: string | null;
   matchId: number; total: number; attendees: number; dueAt: string; rows: RefereePaymentRow[];
   collected?: number; pending?: number; outstanding?: number; credits?: number;
 }

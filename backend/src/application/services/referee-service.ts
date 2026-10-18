@@ -1,9 +1,10 @@
+import { colombiaDay, matchDayPolicy } from '../../domain/matchday';
 import type { RefereeRepository } from '../ports/out/referee.repository';
 import type { MatchRepository } from '../ports/out/match.repository';
 import type { QrPaymentRepository } from '../ports/out/qr-payment.repository';
 import type { PaymentDebt } from '../../domain/payments';
 import { REFEREE_TOTAL, refereeDeadline, refereeReceiptOnTime, splitReferee,parseSettledShares, type MatchRefereeView } from '../../domain/referee';
-import type { Match } from '../../domain/entities';
+import type { LineupSlot, Match } from '../../domain/entities';
 import { NotFoundError, ValidationError } from '../../domain/errors';
 import { allocateRefereeCredits } from '../../domain/referee-credit';
 
@@ -11,6 +12,14 @@ export class RefereeService {
   constructor(private fees:RefereeRepository,private matches:MatchRepository,private receipts:QrPaymentRepository,
     private now:()=>number=Date.now) {}
   async ensure(match:Match) { await this.fees.create(match.id,REFEREE_TOTAL); }
+  async allowConfirmedToday(matchId: number, date: string): Promise<MatchRefereeView> {
+    const match = await this.matches.findById(matchId);
+    if (!match) throw new NotFoundError('Partido no encontrado');
+    if (date !== colombiaDay(this.now()) || !matchDayPolicy(match, date, this.now()).isMatchDay) throw new ValidationError('La excepción solo se puede activar para el partido de hoy, hora de Colombia');
+    await this.fees.create(matchId, REFEREE_TOTAL);
+    await this.fees.setMatchdayAccess(matchId, date);
+    return this.status(matchId);
+  }
   normalizePaidAt(value:string):string {
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) throw new ValidationError('Indica fecha y hora del pago de arbitraje');
     const time=Date.parse(value);
@@ -41,6 +50,7 @@ export class RefereeService {
     const plan=allocateRefereeCredits(contexts.map(({match,shares})=>({...match,charges:shares})),approved,await this.fees.transfers());
     const views=new Map<number,MatchRefereeView>();
     for(const {match,total,attendance,enrolled,cancelled,settled,shares}of contexts) {
+      const policy = matchDayPolicy(match, feeMap.get(match.id)?.matchdayAccessDate, this.now());
       const dueAt=refereeDeadline(match.kickOff),receipts=allReceipts.filter(row=>row.targetId===match.id);
       const incoming=plan.allocations.filter(row=>row.matchId===match.id).map(row=>({...row,receipt:approved.find(receipt=>receipt.id===row.receiptId)!}));
       const people=[...attendance.map(row=>({playerId:row.playerId,playerName:row.playerName,eligible:row.eligible})),
@@ -58,13 +68,15 @@ export class RefereeService {
           carried.filter(part=>refereeReceiptOnTime(part.receipt,dueAt)).reduce((sum,part)=>sum+part.amount,0);
         const pending=related.filter(receipt=>receipt.status==='pendiente').reduce((sum,receipt)=>sum+receipt.amount,0);
         const amount=shares.get(row.playerId)??0,attending=shares.has(row.playerId);
-        const free=total===0&&!cancelled&&row.eligible&&(!enrolled||enrolled.has(row.playerId));
-        const starterEligible=free||(attending&&paidOnTime>=amount),benchEligible=free||(attending&&paid>=amount);
-        const status=free?'sin_cobro' as const:!attending?'no_asiste' as const:starterEligible?'a_tiempo' as const:benchEligible?'tardio' as const:pending>0?'en_revision' as const:'pendiente' as const;
+        const free=total===0&&!cancelled&&row.eligible&&(!enrolled||enrolled.has(row.playerId))&&(!policy.isMatchDay||attending);
+        const onTime = free || (attending && paidOnTime >= amount);
+        const exception = Boolean(policy.attendanceOnlyUntil) && attending && row.eligible;
+        const starterEligible = onTime || exception, benchEligible = free || (attending && paid >= amount) || exception;
+        const status=free?'sin_cobro' as const:!attending?'no_asiste' as const:onTime?'a_tiempo' as const:attending&&paid>=amount?'tardio' as const:pending>0?'en_revision' as const:'pendiente' as const;
         return {playerId:row.playerId,playerName:row.playerName,amount,paid,paidOnTime,pending,directPaid,creditApplied,creditTransferred,walletCredit:plan.wallet.get(row.playerId)??0,
           outstanding:Math.max(0,amount-paid),credit:Math.max(0,paid-amount),status,starterEligible,benchEligible};
       });
-      views.set(match.id,{matchId:match.id,total,attendees:shares.size,dueAt,rows,
+      views.set(match.id,{...policy,matchId:match.id,total,attendees:shares.size,dueAt,rows,
         collected:rows.reduce((sum,row)=>sum+row.paid,0),pending:rows.reduce((sum,row)=>sum+row.pending,0),
         outstanding:rows.reduce((sum,row)=>sum+row.outstanding,0),credits:rows.reduce((sum,row)=>sum+row.credit,0)});
     }
@@ -90,6 +102,10 @@ export class RefereeService {
       }
     }
     return result;
+  }
+  markPending<T extends LineupSlot>(slots: T[], view: MatchRefereeView): T[] {
+    const pending = new Set(view.rows.filter(row => row.outstanding > 0).map(row => row.playerId));
+    return slots.map(slot => ({ ...slot, refereePaymentPending: slot.playerId !== null && pending.has(slot.playerId) }));
   }
   async publishedLineup(matchId:number) {
     const lineup=await this.matches.getPublishedLineup(matchId),match=await this.matches.findById(matchId);

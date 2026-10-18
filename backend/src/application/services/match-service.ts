@@ -77,7 +77,7 @@ export class MatchService implements MatchPort {
     return {
       match: playerView ? publishedMatch(visibleMatch) : visibleMatch,
       strategies: (await this.matches.listStrategies(id)),
-      lineup,
+      lineup: playerView ? lineup : this.refereePayments.markPending(lineup, await this.refereePayments.status(id)),
       stats: (await this.stats.list({ matchId: id })),
     };
   }
@@ -90,11 +90,14 @@ export class MatchService implements MatchPort {
     const fees=await this.refereePayments.status(id),payments=new Map(fees.rows.map(row=>[row.playerId,row]));
     return (await this.matches.listAttendance(id)).filter(row => (!enrolled || enrolled.has(row.playerId)) && (userId === undefined || row.playerId === own?.id)).map(row => {
       const payment=payments.get(row.playerId)!;
-      const reason=suspended.has(row.playerId)?'Suspensión activa':row.reason??(payment.status==='tardio'?'Pago fuera de plazo: solo suplente':!payment.starterEligible?row.status!=='confirmado'?'Confirma tu asistencia para generar la cuota':payment.status==='en_revision'?'Soporte de arbitraje en revisión':'Arbitraje pendiente de pago aprobado':null);
+      const reason=suspended.has(row.playerId)?'Suspensión activa':row.reason??(payment.status==='tardio'&&!payment.starterEligible?'Pago fuera de plazo: solo suplente':(!payment.starterEligible||payment.outstanding>0)?row.status!=='confirmado'?'Confirma tu asistencia para generar la cuota':payment.status==='en_revision'?'Soporte de arbitraje en revisión':'Arbitraje pendiente de pago aprobado':null);
       return {...row,eligible:row.eligible&&!suspended.has(row.playerId)&&payment.starterEligible,reason,
         starterEligible:row.eligible&&!suspended.has(row.playerId)&&payment.starterEligible,
         benchEligible:row.eligible&&!suspended.has(row.playerId)&&payment.benchEligible,referee:{...payment,dueAt:fees.dueAt}};
     });
+  }
+  async allowConfirmedToday(id:number,date:string) {
+    return this.uow.run(() => this.refereePayments.allowConfirmedToday(id,date));
   }
   async referee(id:number,userId?:number) {
     const view=await this.refereePayments.status(id);

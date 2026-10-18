@@ -1,3 +1,4 @@
+import type { MatchRefereeView } from "../types/referee";
 import { resolvePhaseFormations } from "../../../backend/src/domain/tactical-phases";
 import type { PhaseFormations } from "../types/tactics";
 import { assignLineupSlot, pitchSlotsFrom } from "../utils/lineup-slots";
@@ -52,6 +53,28 @@ export function useLineupEditor({
     `/api/matches/${matchId}/attendance`,
     [lineup],
   );
+  const referee = useFetch<MatchRefereeView>(
+    `/api/matches/${matchId}/referee`,
+    [lineup],
+  );
+  const isMatchDay = referee.data?.isMatchDay === true;
+  useEffect(() => {
+    if (!isMatchDay) return;
+    const refresh = () => {
+      if (document.visibilityState === "visible") {
+        attendance.reload();
+        referee.reload();
+      }
+    };
+    const timer = window.setInterval(refresh, 30000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [isMatchDay, attendance.reload, referee.reload]);
   const [slots, setSlots] = useState<PitchSlot[]>(() =>
     pitchSlotsFrom(formation, lineup, format),
   );
@@ -257,7 +280,21 @@ export function useLineupEditor({
     },
     openSlot,
     attendance,
-    slots,
+    slots: slots.map((slot) => ({
+      ...slot,
+      refereePaymentPending:
+        slot.playerId != null &&
+        attendance.data?.some(
+          (row) =>
+            row.playerId === slot.playerId &&
+            (row.referee?.outstanding ?? 0) > 0,
+        ) === true,
+    })),
+    matchdayRoster: referee.data?.isMatchDay
+      ? (attendance.data?.filter((row) => row.status === "confirmado") ?? [])
+      : null,
+    attendanceOnlyUntil: referee.data?.attendanceOnlyUntil,
+    refereeError: referee.error,
     formationKey,
     pendingSlot,
     setPendingSlot,

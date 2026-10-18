@@ -13,6 +13,7 @@ export function assignLineupSlot(
 ): PitchSlot[] {
   if (!slots.some((slot) => slot.slotIndex === slotIndex)) return slots;
   const clear = {
+    refereePaymentPending: false,
     playerId: null,
     playerName: null,
     shirtNumber: null,
@@ -46,6 +47,7 @@ export function pitchSlotsFrom(
       y: saved?.y ?? item.y,
       role: item.role,
       label: item.label,
+      refereePaymentPending: saved?.refereePaymentPending,
       playerId: saved?.playerId ?? null,
       playerName: saved?.playerName ?? null,
       shirtNumber: saved?.shirtNumber ?? null,

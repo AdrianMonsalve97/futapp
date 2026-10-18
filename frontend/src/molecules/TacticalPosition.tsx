@@ -1,3 +1,4 @@
+import { RefereePendingDot } from "../atoms/RefereePendingDot";
 import { Avatar } from "../atoms/Avatar";
 import type { PitchSlot } from "../types/tactics";
 
@@ -27,8 +28,11 @@ export function TacticalPosition({
       aria-pressed={selected}
       onClick={onSelect}
       disabled={!onSelect}
-      aria-label={`${slot.label}: ${slot.playerName ?? "Vacante"}${slot.shirtNumber != null ? `, dorsal ${slot.shirtNumber}` : ""}. ${TACTICAL_ROLE_NAMES[slot.role]}${slot.highlighted ? " · Tu posición" : ""}`}
+      aria-label={`${slot.label}: ${slot.playerName ?? "Vacante"}${slot.shirtNumber != null ? `, dorsal ${slot.shirtNumber}` : ""}. ${TACTICAL_ROLE_NAMES[slot.role]}${slot.highlighted ? " · Tu posición" : ""}${slot.refereePaymentPending && slot.playerId != null ? ", arbitraje pendiente de pago aprobado" : ""}`}
     >
+      {slot.refereePaymentPending && slot.playerId != null && (
+        <RefereePendingDot />
+      )}
       <span className="fc-position-top">
         <b>{slot.label}</b>
         <span>{slot.shirtNumber ?? (slot.playerId ? "—" : "+")}</span>

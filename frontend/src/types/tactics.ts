@@ -59,6 +59,7 @@ export interface CoachingResearch {
 }
 
 export interface PitchSlot {
+  refereePaymentPending?: boolean;
   slotIndex: number;
   x: number;
   y: number;

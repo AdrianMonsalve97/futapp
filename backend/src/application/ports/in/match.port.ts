@@ -75,6 +75,7 @@ export interface XiSuggestion {
 
 /** Casos de uso de partidos (§7.3). */
 export interface MatchPort {
+  allowConfirmedToday(id:number,date:string):Promise<import('../../../domain/referee').MatchRefereeView>;
   referee(id:number,userId?:number):Promise<import('../../../domain/referee').MatchRefereeView>;
   list(playerView?: boolean): Promise<Match[]>;
   get(id: number, playerView?: boolean): Promise<MatchDetail>;

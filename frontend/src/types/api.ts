@@ -221,6 +221,7 @@ export interface Match {
 }
 export type AttendanceStatus = "pendiente" | "confirmado" | "no_disponible";
 export interface MatchAttendance {
+  avatarUrl?: string | null;
   starterEligible?: boolean;
   benchEligible?: boolean;
   referee?: import("./referee").RefereePaymentRow & { dueAt: string };
@@ -242,6 +243,7 @@ export interface Strategy {
   createdAt: string;
 }
 export interface LineupSlot {
+  refereePaymentPending?: boolean;
   slotIndex: number;
   playerId: number | null;
   playerName?: string | null;

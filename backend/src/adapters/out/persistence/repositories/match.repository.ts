@@ -47,7 +47,7 @@ export class SqliteMatchRepository implements MatchRepository {
 
   async listAttendance(matchId: number): Promise<MatchAttendance[]> {
     const rows = (await this.db.prepare(`SELECT p.id AS playerId, u.full_name AS playerName, p.shirt_number AS shirtNumber,
-      p.position, COALESCE(a.status, 'pendiente') AS status, a.updated_at AS updatedAt
+      u.avatar_url AS avatarUrl, p.position, COALESCE(a.status, 'pendiente') AS status, a.updated_at AS updatedAt
       FROM players p JOIN users u ON u.id = p.user_id
       LEFT JOIN match_attendance a ON a.player_id = p.id AND a.match_id = ?
       WHERE u.active = 1 ORDER BY p.position, u.full_name`).all(matchId)) as Array<{ playerId: number; playerName: string; shirtNumber: number | null; position: Position; status: AttendanceStatus; updatedAt: string | null }>;

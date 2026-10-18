@@ -193,6 +193,7 @@ export function migrate(db: Database = getDb()): void {
     match_id INTEGER PRIMARY KEY REFERENCES matches(id) ON DELETE CASCADE,
     total INTEGER NOT NULL DEFAULT 120000 CHECK(total>=0), settled_shares TEXT
   ); INSERT OR IGNORE INTO match_referee_fees(match_id) SELECT id FROM matches WHERE status IN ('programado','pospuesto');`);
+  if (!hasColumn(db,'match_referee_fees','matchday_access_date')) db.exec('ALTER TABLE match_referee_fees ADD COLUMN matchday_access_date TEXT');
   if (!hasColumn(db,'match_referee_fees','settled_shares')) db.exec('ALTER TABLE match_referee_fees ADD COLUMN settled_shares TEXT');
   db.exec(`CREATE TABLE IF NOT EXISTS match_referee_transfers (
     receipt_id INTEGER NOT NULL REFERENCES payment_receipts(id) ON DELETE CASCADE,

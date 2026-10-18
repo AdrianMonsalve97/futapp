@@ -114,6 +114,14 @@ export class FileMigrationStore implements MigrationPort {
       const id=matches.columns.indexOf('id'),status=matches.columns.indexOf('status');
       p.tables.match_referee_fees={columns:['match_id','total','settled_shares'],rows:matches.rows.filter(row=>['programado','pospuesto'].includes(String(row[status]))).map(row=>[row[id],120000,null])};
     }
+    const fees = p.tables.match_referee_fees;
+    if (fees && Array.isArray(fees.columns) && Array.isArray(fees.rows) && fees.rows.every(Array.isArray) && !fees.columns.includes('matchday_access_date')) {
+      fees.columns.push('matchday_access_date'); fees.rows = fees.rows.map(row => [...row, null]);
+    }
+    if (fees && Array.isArray(fees.columns) && Array.isArray(fees.rows) && fees.rows.every(Array.isArray)) {
+      const column = fees.columns.indexOf('matchday_access_date');
+      for (const row of fees.rows) if (row[column] !== null && (typeof row[column] !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(String(row[column])) || !Number.isFinite(Date.parse(String(row[column])+'T00:00:00Z')) || new Date(String(row[column])+'T00:00:00Z').toISOString().slice(0,10) !== row[column])) throw new ValidationError('Fecha de excepción de arbitraje inválida');
+    }
     if (Object.keys(p.tables).sort().join() !== names.sort().join()) throw new ValidationError('Las versiones de origen y destino deben coincidir. Actualiza ambas y vuelve a exportar.');
     let rows = 0;
     for (const name of names) {

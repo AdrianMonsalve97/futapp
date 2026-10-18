@@ -26,6 +26,10 @@ export function matchRoutes(matches: MatchPort): Router {
   });
 
   router.get('/matches/:id/attendance', ...admin, async (req, res) => res.json((await matches.attendance(paramId(req)))));
+  router.post('/matches/:id/referee/allow-confirmed-today', ...admin, async (req,res) => {
+    const body = jsonBody<{date:string}>(req);
+    res.json(await matches.allowConfirmedToday(paramId(req), body.date));
+  });
   router.get('/matches/:id/referee',requireAuth,async(req,res)=>res.json(await matches.referee(paramId(req),getAuth(req).role==='admin'?undefined:getAuth(req).userId)));
   router.get('/me/matches/:id/attendance', requireAuth, async (req, res) => res.json((await matches.attendance(paramId(req), getAuth(req).userId))));
   router.put('/me/matches/:id/attendance', requireAuth, async (req, res) => {

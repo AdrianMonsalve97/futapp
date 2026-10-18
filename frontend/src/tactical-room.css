@@ -231,6 +231,59 @@
     border-color 0.2s,
     box-shadow 0.2s;
 }
+
+.referee-pending-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+  background: #ff4c58;
+  border: 1px solid #ffd1d5;
+  box-shadow: 0 0 0 2px #1c1119, 0 0 8px #ff4c5870;
+}
+.fc-position > .referee-pending-dot {
+  position: absolute;
+  z-index: 4;
+  right: 4px;
+  top: 18px;
+}
+.matchday-roster {
+  margin-bottom: 1rem;
+  padding: .8rem;
+  border: 1px solid #d8b76c40;
+  border-radius: .75rem;
+}
+.matchday-roster-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .5rem;
+}
+.matchday-roster-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: .5rem;
+  margin-top: .75rem;
+}
+.matchday-roster-list li {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  min-width: 0;
+  padding: .6rem;
+  background: #ffffff05;
+  border-radius: .5rem;
+}
+.matchday-roster-list strong,
+.matchday-roster-list small {
+  display: block;
+  font-size: .75rem;
+  overflow-wrap: anywhere;
+}
+.matchday-roster-list small { opacity: .65; }
 .fc-position[data-role="DEF"] {
   border-top-color: #92bfd5;
 }

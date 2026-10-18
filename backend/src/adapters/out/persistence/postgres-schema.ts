@@ -37,6 +37,7 @@ export async function migratePostgres(db: PostgresDatabase) {
           await db.prepare('UPDATE auth_sessions SET last_activity_at=?').run(Date.now());
         }
       }
+      if (table.name === 'match_referee_fees') await db.execute('ALTER TABLE match_referee_fees ADD COLUMN IF NOT EXISTS matchday_access_date TEXT');
       if (table.name === 'matches') {
         for (const column of ['venue_maps_url', 'phase_formations', 'published_phase_formations']) await db.execute(`ALTER TABLE matches ADD COLUMN IF NOT EXISTS ${column} TEXT`);
       }

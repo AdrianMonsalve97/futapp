@@ -1,3 +1,5 @@
+import { MatchdayRoster } from "../molecules/MatchdayRoster";
+import { formatColombiaDateTime } from "../utils/format";
 import {
   useLineupEditor,
   type LineupEditorProps,
@@ -34,6 +36,9 @@ export function LineupEditor(props: LineupEditorProps) {
           {state.notice}
         </Alert>
       )}
+      {state.attendanceOnlyUntil && <Alert tone="warning">Excepción de hoy: puedes alinear a los confirmados con arbitraje pendiente hasta {formatColombiaDateTime(state.attendanceOnlyUntil)}. Las deudas y los comprobantes siguen vigentes.</Alert>}
+      {state.refereeError && <Alert tone="error">{state.refereeError}</Alert>}
+      {state.matchdayRoster && <MatchdayRoster confirmed={state.matchdayRoster} slots={state.slots} />}
       <div className="fc-tactical-workspace">
         <aside className="fc-tactical-console">
           <p className="sport-eyebrow">TU PLAN DE PARTIDO</p>
@@ -90,8 +95,7 @@ export function LineupEditor(props: LineupEditorProps) {
             </p>
           </div>
           <p className="fc-console-help">
-            Elige una ficha para asignar o mover un jugador. La convocatoria y
-            el pago de arbitraje determinan quién puede ser titular.
+            Elige una ficha para asignar o mover un jugador. {state.attendanceOnlyUntil ? "Hoy se habilita por asistencia confirmada; el punto rojo conserva visible el arbitraje pendiente." : "La convocatoria y el pago aprobado de arbitraje determinan quién puede ser titular."}
           </p>
         </aside>
         <TacticalBoard
