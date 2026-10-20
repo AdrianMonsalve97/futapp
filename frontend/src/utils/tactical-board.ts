@@ -1,5 +1,4 @@
-
-export const TACTICAL_TILE_HEIGHT = 48;
+export const TACTICAL_TILE_HEIGHT = 72;
 
 /** Fit the whole pitch in its container without changing the stored formation. */
 export function tacticalLayout<
@@ -14,15 +13,14 @@ export function tacticalLayout<
   }
   const projected = slots.map((slot) => {
     const row = rows.findIndex((values) => values.includes(slot.y));
-    const position = rows.length < 2 ? 50 : 14 + (row * 76) / (rows.length - 1);
-    const depth = Math.max(10, Math.min(92, position)) / 100;
+    const depth = rows.length < 2 ? 0.5 : row / (rows.length - 1);
     return {
       ...slot,
-      left: 50 + (slot.x - 50) * (0.68 + 0.28 * depth),
-      top: 7 + depth * 84,
+      left: 50 + (slot.x - 50) * (0.72 + 0.24 * depth),
+      top: 12 + depth * 76,
     };
   });
-  const tileWidth = Math.min(92, Math.max(44, fieldWidth * 0.14));
+  const tileWidth = Math.min(76, Math.max(44, fieldWidth * 0.12));
   const gap = ((tileWidth + 4) * 100) / fieldWidth;
   const edge = ((tileWidth / 2 + 18) * 100) / fieldWidth;
   // Spread crowded lines only as needed. Keep their centre and left/right order.
@@ -56,13 +54,10 @@ export function tacticalLayout<
     tileWidth,
     // Includes a gap between targets and leaves the goalkeeper anchored.
     height: Math.max(
-      260,
+      320,
       rows.length < 2
         ? 0
-        : Math.ceil(
-            (TACTICAL_TILE_HEIGHT + 10) /
-              ((76 / (rows.length - 1) - 2) * 0.0084),
-          ),
+        : Math.ceil((TACTICAL_TILE_HEIGHT + 12) / (0.76 / (rows.length - 1))),
     ),
   };
 }

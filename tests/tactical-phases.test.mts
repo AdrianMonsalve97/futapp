@@ -175,9 +175,10 @@ test("the board exposes independent phase systems and renders their actual roles
   assert(defense.includes("Sistema sin balón"));
   assert(defense.includes('value="1-3-2-2" selected=""'));
   const anchors = (html: string) =>
-    [...html.matchAll(/class="fc-position-anchor" style="([^"]+)/g)].map(
+    [...html.matchAll(/class="fc-position-anchor"[^>]*?style="([^"]+)/g)].map(
       (match) => match[1],
     );
+  assert.equal(anchors(base).length, 8);
   assert.notDeepEqual(anchors(base), anchors(attack));
   assert.notDeepEqual(anchors(attack), anchors(defense));
   for (const html of [base, attack, defense])

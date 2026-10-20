@@ -13,7 +13,10 @@ import {
   upcomingFixtures,
 } from "../backend/src/domain/match-schedule";
 import { tacticalMotion } from "../frontend/src/utils/tactical-motion";
-import { tacticalLayout } from "../frontend/src/utils/tactical-board";
+import {
+  TACTICAL_TILE_HEIGHT,
+  tacticalLayout,
+} from "../frontend/src/utils/tactical-board";
 import {
   phaseSlots,
   resolvePhaseFormations,
@@ -150,15 +153,16 @@ test("off-ball rehearsal moves the actual cards, preserves photos and goalkeeper
                   (slot.left * width) / 100 + layout.tileWidth / 2 <= width,
               );
               assert(
-                (slot.top * layout.height) / 100 >= 24 &&
-                  (slot.top * layout.height) / 100 <= layout.height - 24,
+                (slot.top * layout.height) / 100 >= TACTICAL_TILE_HEIGHT / 2 &&
+                  (slot.top * layout.height) / 100 <=
+                    layout.height - TACTICAL_TILE_HEIGHT / 2,
               );
               for (const other of frame.slice(index + 1))
                 assert(
                   (Math.abs(slot.left - other.left) * width) / 100 >=
                     layout.tileWidth + 3.99 ||
                     (Math.abs(slot.top - other.top) * layout.height) / 100 >=
-                      52,
+                      TACTICAL_TILE_HEIGHT + 8,
                   `${format}/${formation.key}/${play.id}/${step}/${width}: overlapping cards`,
                 );
             }

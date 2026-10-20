@@ -35,10 +35,17 @@ export function TacticalPosition({
       )}
       <span className="fc-position-top">
         <b>{slot.label}</b>
-        <span>{slot.shirtNumber ?? (slot.playerId ? "—" : "+")}</span>
+        <span
+          title={
+            slot.shirtNumber != null ? `Dorsal ${slot.shirtNumber}` : undefined
+          }
+        >
+          {slot.shirtNumber ?? (slot.playerId ? "—" : "+")}
+        </span>
       </span>
       <span className="fc-position-photo" aria-hidden="true">
         <Avatar
+          key={slot.playerId ?? "vacante"}
           name={slot.playerName ?? slot.label}
           src={slot.playerId != null ? slot.avatarUrl : null}
           size="lg"

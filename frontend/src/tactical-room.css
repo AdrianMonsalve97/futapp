@@ -1,13 +1,15 @@
 .fc-lineup-workspace {
-  border: 1px solid #7ea2b333;
+  border: 1px solid #818ade40;
   border-radius: 1rem;
   background:
-    radial-gradient(ellipse at 90% 5%, #d8b76c16, transparent 55%),
-    linear-gradient(130deg, #101a1c, #172b28 60%, #16231f);
-  color: #eef5f5;
+    radial-gradient(ellipse at 90% 0%, #6950da22, transparent 60%),
+    linear-gradient(135deg, #101527, #131e3b 65%, #171734);
+  color: #eef5ff;
   overflow: hidden;
-  padding: clamp(16px, 2.4vw, 30px);
-  box-shadow: 0 20px 70px #0003;
+  padding: clamp(12px, 2vw, 24px);
+  box-shadow:
+    0 20px 70px #0004,
+    inset 0 1px #c6d8ff0d;
 }
 .fc-lineup-heading {
   display: flex;
@@ -140,16 +142,19 @@
   min-width: 0;
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 50% 65%, #86b68d18, transparent 70%), #0d1919;
-  color: #edf5f5;
-  border-radius: 1rem;
+    radial-gradient(ellipse at 80% 0%, #6e48d42a, transparent 65%), #0b1026;
+  color: #edf2ff;
+  border: 1px solid #9fafff24;
+  border-radius: 0.85rem;
+  box-shadow: inset 0 1px #d3dcff10;
 }
 .fc-board-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.6rem 1rem;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(110deg, #18234c70, #31245c35);
 }
 .fc-board-heading h3 {
   font-size: 1.1rem;
@@ -158,8 +163,13 @@
   margin-top: 0.35rem;
 }
 .fc-board-count {
-  font-size: 1.35rem;
+  font-size: 1.6rem;
   font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  color: #e7d097;
+  padding: 0.2rem 0.7rem;
+  border-inline-end: 2px solid #69d6ff;
+  background: #97b4ff0a;
 }
 .fc-board-count small {
   font-size: 0.85rem;
@@ -176,33 +186,43 @@
   border-color: #b1ced32b;
 }
 .fc-board .sport-section-nav button[aria-pressed="true"] {
-  color: #182a31;
-  background: #b0dfc1;
-  border-color: #b0dfc1;
-  box-shadow: none;
+  color: #e7edff;
+  background: linear-gradient(125deg, #5974cd38, #a16bdd26);
+  border-color: #96c7ff;
+  box-shadow:
+    0 0 16px #7b8dff18,
+    inset 0 1px #e5edff24;
 }
 .fc-field-viewport {
   width: 100%;
   max-width: 860px;
   margin-inline: auto;
+  position: relative;
 }
 .fc-tactical-field {
+  --stage-glow: #6ed7ff;
+  --stage-aura: #7763ed;
   position: relative;
   width: 100%;
   isolation: isolate;
   background:
-    radial-gradient(ellipse at 50% 0%, #f6e6b328, transparent 65%),
-    repeating-linear-gradient(90deg, #ffffff02 0 1px, transparent 1px 7px),
-    #0b1718;
+    radial-gradient(ellipse at 50% 85%, #5366c52e, transparent 65%),
+    radial-gradient(
+      ellipse at 50% 0%,
+      color-mix(in srgb, var(--stage-aura) 20%, transparent),
+      transparent 70%
+    ),
+    #090f29;
 }
 .fc-pitch-lines {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  filter: drop-shadow(0 12px 18px #02080e88);
+  filter: drop-shadow(0 14px 12px #02051899);
 }
 .fc-position-anchor {
+  --card-accent: #80d4ff;
   position: absolute;
   transform: translate(-50%, -50%);
   width: var(--tile-width);
@@ -221,35 +241,30 @@
 .fc-position-anchor[data-possession="true"]::after {
   content: "";
   position: absolute;
-  inset: auto 6% -8px;
+  inset: auto 14% -8px;
   height: 5px;
   border-radius: 50%;
   background: #f4d78c;
-  box-shadow: 0 0 13px #f4d78c88;
+  box-shadow:
+    0 0 0 3px #f4d78c20,
+    0 0 16px #f4d78c90;
 }
 .fc-position-anchor[data-next="true"] .fc-position {
-  outline: 1px dashed #b9efd0;
+  outline: 1px dashed #adbdff;
   outline-offset: 3px;
 }
-.fc-field-direction,
-.fc-field-status {
+
+.fc-field-direction {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 12px;
+  top: 10px;
   font-size: 0.5rem;
   font-weight: 800;
-  letter-spacing: 0.2em;
-  color: #c9dfcc99;
+  letter-spacing: 0.18em;
+  color: #bddcff9c;
   pointer-events: none;
-  white-space: nowrap;
 }
-.fc-field-direction {
-  top: 0;
-}
-.fc-field-status {
-  bottom: 0;
-  color: #dec78e;
-}
+
 .fc-running-lane {
   fill: none;
   stroke: #c0f1bc;
@@ -297,10 +312,10 @@
 }
 .fc-replay-speed select {
   min-height: 44px;
-  border: 1px solid #b1ced340;
+  border: 1px solid #a7b5ed40;
   border-radius: 0.5rem;
-  background: #142522;
-  color: #eff6ee;
+  background: #17203e;
+  color: #eff3ff;
   padding: 0.4rem;
 }
 .fc-replay-speed select:focus-visible {
@@ -330,18 +345,21 @@
   width: 100%;
   height: var(--tile-height);
   position: relative;
-  border: 1px solid #9ab7c24d;
-  border-top: 2px solid #a9d8bc;
-  border-radius: 5px;
+  border: 1px solid color-mix(in srgb, var(--card-accent, #80d4ff) 65%, #202745);
+  border-radius: 10px 3px 10px 3px;
   padding: 0;
-  background: linear-gradient(150deg, #192c35, #0d161b 80%);
-  box-shadow: 0 9px 12px #0005;
+  background: linear-gradient(145deg, #324778ee, #141b38 58%, #10162c);
+  box-shadow:
+    inset 0 1px #f2f5ff32,
+    inset 0 -2px #8796dc35,
+    0 10px 13px #02051899;
   text-align: center;
   color: #fff;
+  transform-origin: 50% 85%;
   transition:
-    transform 0.2s,
-    border-color 0.2s,
-    box-shadow 0.2s;
+    transform 0.28s ease,
+    border-color 0.28s ease,
+    box-shadow 0.28s ease;
 }
 
 .referee-pending-dot {
@@ -360,7 +378,7 @@
   position: absolute;
   z-index: 4;
   right: 4px;
-  top: 18px;
+  bottom: 17px;
 }
 .matchday-roster {
   margin-bottom: 1rem;
@@ -400,61 +418,79 @@
 .matchday-roster-list small {
   opacity: 0.65;
 }
+.fc-position-anchor[data-role="DEF"],
 .fc-position[data-role="DEF"] {
-  border-top-color: #92bfd5;
+  --card-accent: #7fcfff;
 }
+.fc-position-anchor[data-role="MED"],
 .fc-position[data-role="MED"] {
-  border-top-color: #e0c88b;
+  --card-accent: #e0c88b;
 }
+.fc-position-anchor[data-role="DEL"],
 .fc-position[data-role="DEL"] {
-  border-top-color: #b4a2d7;
+  --card-accent: #b9a0ff;
 }
 .fc-position:not(:disabled):hover,
 .fc-position[aria-pressed="true"] {
-  transform: translateY(-2px);
-  border-color: #b2f1c8;
+  transform: perspective(350px) rotateX(4deg) translateY(-4px);
+  border-color: #d4e7ff;
   box-shadow:
-    0 0 0 2px #acf2c41f,
-    0 10px 22px #0006;
+    0 0 0 2px #a5bfff28,
+    0 0 24px #7896ff35,
+    0 12px 19px #0009;
 }
 .fc-position:disabled {
   cursor: default;
 }
 .fc-position[data-empty="true"] {
-  opacity: 0.65;
+  opacity: 0.62;
   border-style: dashed;
-  background: #0c1c298c;
+  background:
+    repeating-linear-gradient(135deg, #a2bfff06 0 1px, transparent 1px 6px),
+    #111b3b;
 }
 .fc-position-top {
   position: absolute;
   z-index: 2;
-  inset: 2px 3px auto;
+  inset: 3px 3px auto;
   display: flex;
   justify-content: space-between;
   gap: 2px;
-  align-items: center;
+  align-items: start;
   font-size: 0.5rem;
   line-height: 1;
-  color: #d0e2e7;
+  color: #e4edff;
+  pointer-events: none;
 }
 .fc-position-top > b,
 .fc-position-top > span {
-  padding: 1px 2px;
-  border-radius: 2px;
-  background: #071018ba;
+  padding: 3px 2px;
+  background: #10182ce8;
   text-shadow: 0 1px 3px #000;
 }
 .fc-position-top > span {
-  color: #edcf84;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  padding: 2px 0;
+  color: #f4d68e;
+  font-size: 0.7rem;
+  font-weight: 850;
+  border: 1px solid #d6bd8155;
+  clip-path: polygon(18% 0, 100% 0, 100% 82%, 0 100%, 0 18%);
 }
 .fc-position > strong {
   position: absolute;
-  inset: auto 3px 2px;
+  inset: auto 2px 3px;
   z-index: 2;
   display: block;
   text-shadow: 0 1px 4px #000;
-  font-size: 0.6rem;
-  font-weight: 750;
+  font-size: 0.58rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -627,9 +663,6 @@
     grid-column: 1/-1;
     margin: 0;
   }
-  .fc-tactical-field {
-    aspect-ratio: 1.4;
-  }
 }
 @media (max-width: 480px) {
   .fc-lineup-workspace {
@@ -685,23 +718,6 @@
     padding: 0.75rem 0.4rem;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .fc-position-anchor,
-  .fc-position {
-    transition: none;
-  }
-  .fc-position:not(:disabled):hover,
-  .fc-position[aria-pressed="true"] {
-    transform: none;
-  }
-}
-html[data-motion="off"] :is(.fc-position-anchor, .fc-position) {
-  transition: none;
-}
-html[data-motion="off"] .fc-position:not(:disabled):hover,
-html[data-motion="off"] .fc-position[aria-pressed="true"] {
-  transform: none;
-}
 
 .fc-console-assistant .btn-outline:hover,
 .fc-lineup-savebar .btn-outline:hover {
@@ -747,7 +763,7 @@ html[data-motion="off"] .fc-position[aria-pressed="true"] {
 .fc-formation-select select {
   width: auto;
   min-width: 10rem;
-  background: #142522;
+  background: #17203e;
   color: #f3efdf;
   border-color: #d8b76c60;
 }
@@ -767,20 +783,16 @@ html[data-motion="off"] .fc-position[aria-pressed="true"] {
 /* One field and one set of portrait cards across the tactical workspace. */
 .fc-position-photo {
   position: absolute;
-  inset: 0;
+  inset: 4px 2px 14px;
+  border-radius: 5px 2px 0 0;
+  overflow: hidden;
   pointer-events: none;
 }
 .fc-position-photo::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    180deg,
-    #0d161b38,
-    transparent 30%,
-    #0d161b40 55%,
-    #0d161bf2
-  );
+  background: linear-gradient(180deg, #15204810, transparent 48%, #11172dd9);
 }
 .fc-position-portrait,
 .fc-position-portrait > div {
@@ -792,7 +804,8 @@ html[data-motion="off"] .fc-position[aria-pressed="true"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #253e47;
+  background: radial-gradient(ellipse at 50% 10%, #5e71af, #202f57 75%);
+  color: #d3e6ff;
 }
 .fc-position-portrait img {
   border-radius: 0;
@@ -802,6 +815,7 @@ html[data-motion="off"] .fc-position[aria-pressed="true"] {
   border-color: #edcf84;
   box-shadow:
     0 0 0 2px #edcf8438,
+    0 0 18px #edcf842a,
     0 9px 12px #0005;
 }
 .fc-position:focus-visible {
@@ -867,15 +881,16 @@ html[data-motion="off"] .fc-position[aria-pressed="true"] {
 }
 .fc-support-line {
   fill: none;
-  stroke: #b0dfc1;
+  stroke: #a0d6ff;
   stroke-width: 0.3;
   stroke-dasharray: 1 1;
-  opacity: 0.45;
+  opacity: 0.6;
+  animation: fc-support-flow 8s linear infinite;
 }
 .fc-play-ball {
   position: absolute;
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   border: 2px solid #fff;
   border-radius: 50%;
   background: radial-gradient(
@@ -887,11 +902,12 @@ html[data-motion="off"] .fc-position[aria-pressed="true"] {
   );
   box-shadow:
     0 0 0 5px #edcf842b,
-    0 0 20px #edcf8480;
+    0 0 0 9px #82baff10,
+    0 0 23px #edcf8490;
   transform: translate(-50%, -50%);
   transition:
-    left 0.65s ease,
-    top 0.65s ease;
+    left 0.85s cubic-bezier(0.22, 0.65, 0.25, 1),
+    top 0.85s cubic-bezier(0.22, 0.65, 0.25, 1);
   z-index: 2;
   pointer-events: none;
 }
@@ -967,11 +983,185 @@ html[data-motion="off"] .fc-position[aria-pressed="true"] {
   line-height: 1.6;
   margin-top: 0.5rem;
 }
-@media (prefers-reduced-motion: reduce) {
-  .fc-play-ball {
-    transition: none;
+
+/* The stage stays within the shared field, with no extra images or 3D runtime. */
+.fc-tactical-field[data-phase="ataque"] {
+  --stage-glow: #bc9dff;
+  --stage-aura: #8b65ef;
+}
+.fc-tactical-field[data-phase="repliegue"] {
+  --stage-glow: #80c7f2;
+  --stage-aura: #466cc4;
+}
+.fc-tactical-field::before,
+.fc-tactical-field::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  border-color: var(--stage-glow);
+  border-style: solid;
+  opacity: 0.6;
+}
+.fc-tactical-field::before {
+  left: 4px;
+  top: 4px;
+  border-width: 1px 0 0 1px;
+}
+.fc-tactical-field::after {
+  right: 4px;
+  bottom: 4px;
+  border-width: 0 1px 1px 0;
+}
+.fc-stage-ribbons {
+  opacity: 0.4;
+  animation: fc-stage-breathe 10s ease-in-out infinite alternate;
+}
+.fc-pitch-grid {
+  stroke: #93baff;
+  opacity: 0.14;
+}
+.fc-pitch-markings {
+  stroke: #b5d3ff;
+  stroke-opacity: 0.5;
+}
+.fc-pitch-rails {
+  stroke: var(--stage-glow);
+  opacity: 0.7;
+}
+.fc-pitch-spots {
+  fill: #c9e4ff;
+  opacity: 0.65;
+}
+.fc-pitch-plinth {
+  fill: #3b5592;
+  opacity: 0.5;
+}
+.fc-pitch-scan {
+  stroke: var(--stage-glow);
+  opacity: 0;
+  animation: fc-stage-scan 12s linear infinite;
+}
+.fc-position-anchor::before {
+  content: "";
+  position: absolute;
+  inset: auto 6% -5px;
+  height: 6px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 55%, transparent);
+  background: #7089db18;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #769cfa24;
+  pointer-events: none;
+}
+.fc-position-top > b {
+  border-inline-start: 2px solid var(--card-accent, #80d4ff);
+  font-size: 0.45rem;
+  padding-inline: 1px;
+}
+.fc-position-portrait {
+  animation: fc-portrait-reveal 0.45s ease-out both;
+  animation-delay: calc(var(--card-order, 0) * 35ms);
+}
+.fc-position::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    #e2f2ff26 50%,
+    transparent 70%
+  );
+  transform: translateX(-140%);
+  pointer-events: none;
+}
+.fc-position:not(:disabled):is(:hover, :focus-visible)::after {
+  animation: fc-card-glint 0.8s ease-out;
+}
+.fc-position[data-empty="true"] .fc-position-photo {
+  opacity: 0.35;
+}
+
+@keyframes fc-stage-breathe {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 0.65;
   }
 }
-html[data-motion="off"] .fc-play-ball {
+@keyframes fc-stage-scan {
+  0%,
+  10% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  15%,
+  70% {
+    opacity: 0.5;
+  }
+  85%,
+  100% {
+    opacity: 0;
+    transform: translateY(94px);
+  }
+}
+@keyframes fc-card-glint {
+  to {
+    transform: translateX(140%);
+  }
+}
+@keyframes fc-portrait-reveal {
+  from {
+    opacity: 0.2;
+    transform: translateY(4px) scale(1.04);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fc-support-flow {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-board
+    :is(
+      .fc-position-anchor,
+      .fc-position,
+      .fc-position-portrait,
+      .fc-play-ball,
+      .fc-stage-ribbons,
+      .fc-pitch-scan,
+      .fc-support-line
+    ),
+  .fc-board .fc-position::after {
+    animation: none;
+    transition: none;
+  }
+  .fc-board .fc-position {
+    transform: none;
+  }
+}
+html[data-motion="off"]
+  .fc-board
+  :is(
+    .fc-position-anchor,
+    .fc-position,
+    .fc-position-portrait,
+    .fc-play-ball,
+    .fc-stage-ribbons,
+    .fc-pitch-scan,
+    .fc-support-line
+  ),
+html[data-motion="off"] .fc-board .fc-position::after {
+  animation: none;
   transition: none;
+}
+html[data-motion="off"] .fc-board .fc-position {
+  transform: none;
 }

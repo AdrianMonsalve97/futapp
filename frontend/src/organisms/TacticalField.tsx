@@ -127,9 +127,16 @@ export function TacticalField({
           <div
             key={slot.slotIndex}
             className="fc-position-anchor"
+            data-role={slot.role}
             data-possession={playback && slot.slotIndex === receiver?.slotIndex}
             data-next={playback && slot.slotIndex === next?.slotIndex}
-            style={{ left: `${slot.left}%`, top: `${slot.top}%` }}
+            style={
+              {
+                left: `${slot.left}%`,
+                top: `${slot.top}%`,
+                "--card-order": slot.slotIndex,
+              } as CSSProperties
+            }
           >
             <TacticalPosition
               slot={slot}
@@ -150,13 +157,6 @@ export function TacticalField({
             style={{ left: `${ball.left}%`, top: `${ball.top}%` }}
             aria-hidden="true"
           />
-        )}
-        {playback && (
-          <span className="fc-field-status" aria-hidden="true">
-            {phase === "repliegue"
-              ? "BLOQUE COMPACTO"
-              : "PASE · APOYO · MOVILIDAD"}
-          </span>
         )}
       </div>
     </div>

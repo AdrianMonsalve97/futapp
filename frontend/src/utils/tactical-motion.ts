@@ -1,5 +1,6 @@
 import type { PitchSlot } from "../types/tactics";
 import { tacticalRoute } from "./tactical-play";
+import { TACTICAL_TILE_HEIGHT } from "./tactical-board";
 
 type ProjectedSlot = PitchSlot & { left: number; top: number };
 const clamp = (value: number, min: number, max: number) =>
@@ -57,7 +58,8 @@ export function tacticalMotion<T extends ProjectedSlot>(
             (other) =>
               (Math.abs(slot.left - other.left) * width) / 100 >=
                 tileWidth + 3.99 ||
-              (Math.abs(slot.top - other.top) * height) / 100 >= 52,
+              (Math.abs(slot.top - other.top) * height) / 100 >=
+                TACTICAL_TILE_HEIGHT + 8,
           ),
       )
     )

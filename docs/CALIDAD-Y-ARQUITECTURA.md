@@ -131,8 +131,8 @@ escudo registrado, y animación CSS que respeta ambas preferencias de movimiento
   para las marcas y `TacticalPosition` para las fichas con fotos privadas. La sesión
   sigue usando cookies HttpOnly y `Avatar` resuelve las imágenes autenticadas.
 - `tacticalLayout` concentra la proyección trapezoidal, las distancias de las fichas
-  y la altura acotada (260–407 px). El ancho real del contenedor determina fichas
-  compactas de al menos 44×48 px y separa las líneas concurridas sin recortar la cancha.
+  y la altura acotada (320–443 px). El ancho real del contenedor determina fichas
+  verticales de al menos 44×72 px y separa las líneas concurridas sin recortar la cancha.
   El formato se recibe del partido o de la preparación, sin
   inferirlo del número de puestos ocupados. Se conservaron las coordenadas guardadas.
   `FormationPitch`, `PitchPortrait` y la geometría plana anterior se retiraron junto
@@ -169,3 +169,13 @@ locales, reutilizando el selector de jugadores. Se retiró el contrato táctico
 duplicado del frontend. `domain/match-schedule.ts` comparte la clasificación temporal
 entre backend y frontend; `useMatchResult` coordina el cierre desde el diálogo
 reutilizado por calendario y sala. Ver [Ensayo y resultados](ENSAYO-Y-RESULTADOS.md).
+
+
+La sala táctica utiliza un escenario holográfico azul con líneas cian y violeta,
+cartas de 72 px de altura y dorsales reales. `TacticalPitch` conserva la geometría
+compartida de todas las capas; las luces, barrido y brillo de selección son SVG/CSS,
+sin librerías 3D ni imágenes nuevas. El campo F8 ocupa 332 px y el catálogo completo
+queda entre 320 y 443 px. Las pruebas de espaciado y de movimientos usan la misma
+altura de carta; portero, fotos, pagos y sistemas guardados conservan su identidad.
+Las animaciones se anulan tanto por preferencia del sistema como por el ajuste de
+movimiento de la aplicación. No se inventan medias de rendimiento al mostrar dorsales.

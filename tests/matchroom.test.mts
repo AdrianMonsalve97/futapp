@@ -1,4 +1,7 @@
-import { phaseSlots, resolvePhaseFormations } from "../backend/src/domain/tactical-phases";
+import {
+  phaseSlots,
+  resolvePhaseFormations,
+} from "../backend/src/domain/tactical-phases";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -52,7 +55,16 @@ test("the complete compact field fits mobile and desktop without clipping or ove
         const slots = pitchSlotsFrom(formation.key, [], format),
           original = structuredClone(slots);
         for (const width of [224, 256, 320, 390, 768, 860]) {
-          const layout = tacticalLayout(phase === "estructura" ? slots : phaseSlots(slots, resolvePhaseFormations(formation.key, format)[phase], format), width);
+          const layout = tacticalLayout(
+            phase === "estructura"
+              ? slots
+              : phaseSlots(
+                  slots,
+                  resolvePhaseFormations(formation.key, format)[phase],
+                  format,
+                ),
+            width,
+          );
           assert.equal(layout.slots.length, format);
           assert.equal(
             layout.slots.filter((slot) => slot.role === "POR").length,
@@ -64,11 +76,11 @@ test("the complete compact field fits mobile and desktop without clipping or ove
             "display must not change saved positions",
           );
           assert(
-            layout.height >= 260 && layout.height <= 410,
+            layout.height >= 320 && layout.height <= 450,
             "whole pitch uses a bounded height even for F11",
           );
           assert(
-            layout.tileWidth >= 44 && layout.tileWidth <= 92,
+            layout.tileWidth >= 44 && layout.tileWidth <= 76,
             "touch targets stay usable without large cards",
           );
           for (const [index, slot] of layout.slots.entries()) {
