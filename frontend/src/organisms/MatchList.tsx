@@ -12,6 +12,7 @@ import { useSettings } from "../context/SettingsContext";
 import { getFormat } from "../data/formations";
 import { formatKickoffDate } from "../utils/match-clock";
 import type { CalendarMatch, Match } from "../types/api";
+import { awaitingResult } from "../utils/upcoming-fixtures";
 
 export interface MatchListProps {
   matches: CalendarMatch[];
@@ -20,6 +21,7 @@ export interface MatchListProps {
   /** Ruta de detalle para el modo jugador. */
   detailHref?: (match: Match) => string;
   onEdit?: (match: Match) => void;
+  onResult?: (match: Match) => void;
   onDelete?: (match: Match) => void | Promise<void>;
   isLoading?: boolean;
   error?: string | null;
@@ -34,6 +36,7 @@ export function MatchList({
   mode = "player",
   detailHref,
   onEdit,
+  onResult,
   onDelete,
   isLoading = false,
   error = null,
@@ -64,6 +67,7 @@ export function MatchList({
     <div className={`space-y-3 ${className}`.trim()}>
       {matches.map((match) => {
         const played = match.status === "jugado";
+        const pendingResult = awaitingResult(match);
         const inStartingLineup = Boolean(match.mySlot);
         const isWholeCardLink = mode === "player" && Boolean(detailHref);
         const profile = getFormat(match.format ?? settings.profile.format);
@@ -89,7 +93,13 @@ export function MatchList({
                     <p className="font-semibold break-words">
                       vs. {match.opponent}
                     </p>
-                    <StatusBadge status={match.status} />
+                    {pendingResult ? (
+                      <Badge tone="warning" size="xs">
+                        Pendiente de resultado
+                      </Badge>
+                    ) : (
+                      <StatusBadge status={match.status} />
+                    )}
                     {mode === "player" && inStartingLineup ? (
                       <Badge tone="success" size="xs">
                         En el {profile.playersOnPitch} inicial
@@ -131,7 +141,7 @@ export function MatchList({
                 {mode === "player" && (
                   <ClubLogo className="club-fixture-crest w-11 h-11" />
                 )}
-                {played &&
+                {(played || pendingResult) &&
                 match.goalsFor !== null &&
                 match.goalsAgainst !== null ? (
                   <div className="text-center">
@@ -140,27 +150,40 @@ export function MatchList({
                       <span>–</span>
                       <strong>{match.goalsAgainst}</strong>
                     </div>
-                    <p
-                      className="club-fixture-outcome mt-2"
-                      data-outcome={
-                        match.goalsFor > match.goalsAgainst
+                    {played ? (
+                      <p
+                        className="club-fixture-outcome mt-2"
+                        data-outcome={
+                          match.goalsFor > match.goalsAgainst
+                            ? "Victoria"
+                            : match.goalsFor === match.goalsAgainst
+                              ? "Empate"
+                              : "Derrota"
+                        }
+                      >
+                        {match.goalsFor > match.goalsAgainst
                           ? "Victoria"
                           : match.goalsFor === match.goalsAgainst
                             ? "Empate"
-                            : "Derrota"
-                      }
-                    >
-                      {match.goalsFor > match.goalsAgainst
-                        ? "Victoria"
-                        : match.goalsFor === match.goalsAgainst
-                          ? "Empate"
-                          : "Derrota"}
-                    </p>
+                            : "Derrota"}
+                      </p>
+                    ) : (
+                      <p className="text-xs mt-2 text-warning">
+                        Marcador sin confirmar
+                      </p>
+                    )}
                   </div>
                 ) : null}
 
                 {mode === "admin" ? (
                   <div className="flex max-w-full flex-wrap items-center gap-2">
+                    {onResult &&
+                      match.status !== "cancelado" &&
+                      match.status !== "pospuesto" && (
+                        <Button size="sm" onClick={() => onResult(match)}>
+                          {played ? "Corregir resultado" : "Finalizar partido"}
+                        </Button>
+                      )}
                     {detailHref ? (
                       <Link
                         to={detailHref(match)}

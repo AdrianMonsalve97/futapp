@@ -6,11 +6,11 @@ type Selection = Pick<
   PitchSlot,
   "playerId" | "playerName" | "shirtNumber" | "avatarUrl" | "playerPosition"
 >;
-export function assignLineupSlot(
-  slots: PitchSlot[],
+export function assignLineupSlot<T extends PitchSlot>(
+  slots: T[],
   slotIndex: number,
   selection: Selection | null,
-): PitchSlot[] {
+): T[] {
   if (!slots.some((slot) => slot.slotIndex === slotIndex)) return slots;
   const clear = {
     refereePaymentPending: false,

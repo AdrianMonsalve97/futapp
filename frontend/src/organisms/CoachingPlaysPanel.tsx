@@ -67,14 +67,16 @@ export function CoachingPlaysPanel({
             <div className="space-y-3">
               <TacticalPlayDetails play={activePlay} />
               <div>
-                <Button
-                  size="sm"
-                  onClick={() => onSave(activePlay)}
-                  disabled={!editable || busy !== null}
-                  loading={busy === activePlay.id}
-                >
-                  Guardar jugada en el partido
-                </Button>
+                {plan.mode === "match" && (
+                  <Button
+                    size="sm"
+                    onClick={() => onSave(activePlay)}
+                    disabled={!editable || busy !== null}
+                    loading={busy === activePlay.id}
+                  >
+                    Guardar jugada en el partido
+                  </Button>
+                )}
               </div>
             </div>
           </div>

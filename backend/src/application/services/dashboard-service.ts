@@ -17,7 +17,7 @@ import { NotFoundError } from '../../domain/errors';
 import type { RefereeService } from './referee-service';
 import { deriveInscriptionStatus, emptyStatsSummary, summarizeStats } from './shared';
 
-const UPCOMING = new Set(['programado', 'pospuesto']);
+import { upcomingFixtures } from '../../domain/match-schedule';
 
 export class DashboardService implements DashboardPort {
   constructor(
@@ -129,12 +129,7 @@ export class DashboardService implements DashboardPort {
   }
 
   private async nextMatch() {
-    return (
-      (await this.matches
-                .list())
-        .filter((m) => UPCOMING.has(m.status))
-        .sort((a, b) => a.kickOff.localeCompare(b.kickOff))[0] ?? null
-    );
+    return upcomingFixtures(await this.matches.list()).featured;
   }
 
   private async upcomingMatchWithSlot(playerId: number | null) {

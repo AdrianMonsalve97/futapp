@@ -4,8 +4,8 @@ import { NextMatchSpotlight } from "./NextMatchSpotlight";
 
 export function UpcomingMatches(props: MatchListProps) {
   const { featured, remaining } = upcomingFixtures(props.matches);
-  if (props.isLoading || props.error || !featured)
-    return <MatchList {...props} />;
+  if (props.isLoading || props.error) return <MatchList {...props} />;
+  if (!featured) return <MatchList {...props} matches={[]} />;
   return (
     <div className="upcoming-match-experience">
       <NextMatchSpotlight

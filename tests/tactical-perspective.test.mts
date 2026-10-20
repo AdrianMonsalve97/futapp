@@ -1,4 +1,8 @@
-import { phaseSlots, resolvePhaseFormations } from "../backend/src/domain/tactical-phases";
+import { tacticalMotion } from "../frontend/src/utils/tactical-motion";
+import {
+  phaseSlots,
+  resolvePhaseFormations,
+} from "../backend/src/domain/tactical-phases";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import React from "react";
@@ -36,7 +40,14 @@ test("actual coaching routes follow the shared perspective in every system, step
           for (let step = 0; step < play.route.length; step++) {
             for (const fieldWidth of [224, 256, 320, 390, 768, 860]) {
               const phase = tacticalPlayPhase(play.phase, step);
-              const active = phase === "estructura" ? slots : phaseSlots(slots, resolvePhaseFormations(formation.key, format)[phase], format);
+              const active =
+                phase === "estructura"
+                  ? slots
+                  : phaseSlots(
+                      slots,
+                      resolvePhaseFormations(formation.key, format)[phase],
+                      format,
+                    );
               const layout = tacticalLayout(active, fieldWidth);
               const route = tacticalRoute(play.route, layout.slots);
               assert.deepEqual(
@@ -100,10 +111,19 @@ test("formation and animated play share the exact field, portraits and eight pos
   }));
   const play = buildPlays(slots, "equilibrado")[0];
   const board = render(
-    React.createElement(TacticalBoard, { slots, format: 8, formation: "1-3-3-1" }),
+    React.createElement(TacticalBoard, {
+      slots,
+      format: 8,
+      formation: "1-3-3-1",
+    }),
   );
   const replay = render(
-    React.createElement(TacticalPlayboard, { slots, format: 8, formation: "1-3-3-1", play }),
+    React.createElement(TacticalPlayboard, {
+      slots,
+      format: 8,
+      formation: "1-3-3-1",
+      play,
+    }),
   );
   for (const html of [board, replay]) {
     assert.equal((html.match(/class="fc-position"/g) ?? []).length, 8);
@@ -129,7 +149,15 @@ test("role focus, support lines and replay arrows retain the same projected coor
   }));
   const layout = tacticalLayout(slots);
   const route = [0, 1, 0];
-  const points = tacticalRoute(route, layout.slots).map((slot) =>
+  const moved = tacticalMotion(
+    layout.slots,
+    route,
+    1,
+    320,
+    layout.height,
+    layout.tileWidth,
+  );
+  const points = tacticalRoute(route, moved).map((slot) =>
     tacticalBallPoint(slot, layout.tileWidth, 320),
   );
   const html = render(
@@ -161,7 +189,12 @@ test("an unavailable route renders an explanation and no ball or enabled transpo
   }));
   const play = { ...buildPlays(slots, "equilibrado")[0], route: [900] };
   const html = render(
-    React.createElement(TacticalPlayboard, { slots, format: 8, formation: "1-3-3-1", play }),
+    React.createElement(TacticalPlayboard, {
+      slots,
+      format: 8,
+      formation: "1-3-3-1",
+      play,
+    }),
   );
   assert(html.includes("Sin recorrido disponible"));
   assert(html.includes("no tiene posiciones válidas"));

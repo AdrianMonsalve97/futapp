@@ -83,7 +83,8 @@ La próxima fecha del calendario se compone con `UpcomingMatches`,
 `NextMatchSpotlight` y la molécula `MatchFaceoff`. Reutiliza el contador, el escudo
 y las confirmaciones existentes. La selección cronológica es pura y no muta el
 calendario: prioriza una fecha futura programada sobre aplazados, y conserva las
-fechas vencidas o sin hora para poder administrarlas. El partido destacado se
+fechas sin hora para poder administrarlas. Los encuentros con su duración cumplida
+pasan a Resultados, pendientes de confirmación; no vuelven al destacado. El partido destacado se
 excluye de la lista restante. `useMatchCalendar` concentra consultas y acciones;
 las páginas conservan solo la composición. El jugador ve el sistema publicado y
 los administradores acceden al borrador; ningún atributo deportivo se inventa.
@@ -161,3 +162,10 @@ en `coaching-sources` y composición en `coaching`. El selector agrupado
 `TacticalPlayPicker` se comparte entre administración y preparación individual; su
 contrato de jugada proviene del dominio, sin otra interfaz duplicada. Ver
 [Jugadas asociativas](JUGADAS-ASOCIATIVAS.md).
+
+El ensayo libre usa `domain/training-plan.ts`, sin I/O ni filtros financieros;
+`AiService` carga sus candidatos y el hook `useTrainingDraft` mantiene las ediciones
+locales, reutilizando el selector de jugadores. Se retiró el contrato táctico
+duplicado del frontend. `domain/match-schedule.ts` comparte la clasificación temporal
+entre backend y frontend; `useMatchResult` coordina el cierre desde el diálogo
+reutilizado por calendario y sala. Ver [Ensayo y resultados](ENSAYO-Y-RESULTADOS.md).

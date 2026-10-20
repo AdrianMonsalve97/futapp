@@ -4,7 +4,8 @@ import { LeagueContextPanel } from "../molecules/LeagueContextPanel";
 import { TACTICAL_ROLE_NAMES } from "../molecules/TacticalPosition";
 import { TacticalBoard } from "./TacticalBoard";
 import { pitchSlotsFrom } from "../utils/lineup-slots";
-import type { TacticalPlan } from "../types/tactics";
+import type { TacticalPlan, PitchSlot } from "../types/tactics";
+import { Select } from "../atoms/Select";
 
 export function CoachingPlanPanel({
   plan,
@@ -12,12 +13,19 @@ export function CoachingPlanPanel({
   editable,
   onApply,
   onFormation,
+  onSlotSelect,
+  onPhaseFormationChange,
 }: {
   plan: TacticalPlan;
   busy: string | null;
   editable: boolean;
   onApply: () => void;
   onFormation: (formation: string) => void;
+  onSlotSelect?: (slot: PitchSlot) => void;
+  onPhaseFormationChange?: (
+    phase: "ataque" | "repliegue",
+    formation: string,
+  ) => void;
 }) {
   return (
     <div className="space-y-5">
@@ -25,30 +33,57 @@ export function CoachingPlanPanel({
         <header className="fc-lineup-heading">
           <div>
             <p className="sport-eyebrow">
-              PROPUESTA DEL EQUIPO · F{plan.match.format}
+              {plan.mode === "training"
+                ? "ENSAYO LIBRE"
+                : "PROPUESTA DEL EQUIPO"}{" "}
+              · F{plan.match.format}
             </p>
             <h2>{plan.recommendation.formation}</h2>
             <p>
-              vs. {plan.match.opponent} · {plan.match.minutes} minutos
+              {plan.match.opponent
+                ? `Referencia: vs. ${plan.match.opponent}`
+                : "Todo el plantel activo"}{" "}
+              · {plan.match.minutes} minutos
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link
-              className="btn btn-outline btn-sm"
-              to={`/admin/partidos/${plan.match.id}`}
-            >
-              Abrir sala de partido
-            </Link>
-            <Button
-              onClick={onApply}
-              disabled={!editable || busy !== null}
-              loading={busy === "apply"}
-            >
-              Usar propuesta como borrador
-            </Button>
+            {plan.match.id !== null && (
+              <Link
+                className="btn btn-outline btn-sm"
+                to={`/admin/partidos/${plan.match.id}`}
+              >
+                Abrir sala de partido
+              </Link>
+            )}
+            {plan.mode === "match" && (
+              <Button
+                onClick={onApply}
+                disabled={!editable || busy !== null}
+                loading={busy === "apply"}
+              >
+                Usar propuesta como borrador
+              </Button>
+            )}
           </div>
         </header>
+        <label className="fc-formation-select">
+          Sistema de juego
+          <Select
+            value={plan.recommendation.formation}
+            disabled={busy !== null}
+            onChange={(event) => onFormation(event.target.value)}
+          >
+            {plan.formations.map((row) => (
+              <option key={row.key} value={row.key}>
+                {row.key}
+              </option>
+            ))}
+          </Select>
+        </label>
         <TacticalBoard
+          onSlotSelect={onSlotSelect}
+          onPhaseFormationChange={onPhaseFormationChange}
+          allowedFormations={plan.formations.map((row) => row.key)}
           slots={pitchSlotsFrom(
             plan.recommendation.formation,
             plan.recommendation.lineup,
@@ -63,13 +98,22 @@ export function CoachingPlanPanel({
           <p>{plan.recommendation.explanation}</p>
           <p>
             <strong>Banco propuesto:</strong>{" "}
-            {plan.recommendation.bench
-              .map((player) => player.playerName)
-              .join(", ") || "Sin suplentes disponibles"}
+            {(plan.mode === "training"
+              ? (plan.roster ?? [])
+                  .filter(
+                    (player) =>
+                      !plan.recommendation.lineup.some(
+                        (slot) => slot.playerId === player.playerId,
+                      ),
+                  )
+                  .map((player) => player.name)
+              : plan.recommendation.bench.map((player) => player.playerName)
+            ).join(", ") || "Sin suplentes disponibles"}
           </p>
           <p className="text-sm">
-            La propuesta respeta asistencia, pagos aprobados y normativa.
-            Guardarla no publica la alineación.
+            {plan.mode === "training"
+              ? "Cambia de sistema, prueba asociaciones y reproduce las jugadas con el plantel completo. El ensayo no altera la alineación oficial."
+              : "La propuesta respeta asistencia, pagos aprobados y normativa. Guardarla no publica la alineación."}
           </p>
         </div>
       </section>
@@ -79,7 +123,10 @@ export function CoachingPlanPanel({
         </summary>
         <p className="text-sm text-base-content/65 my-4">
           El índice compara encaje y vacantes; no expresa una probabilidad de
-          ganar. Solo se evalúan sistemas permitidos por la liga.
+          ganar.{" "}
+          {plan.mode === "training"
+            ? "En ensayo puedes comparar todos los sistemas del formato."
+            : "Solo se evalúan sistemas permitidos por la liga."}
         </p>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-3">

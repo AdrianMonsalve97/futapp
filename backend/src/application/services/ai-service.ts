@@ -1,3 +1,4 @@
+import { buildTrainingPlan, selectedLineup } from '../../domain/training-plan';
 import { refereePaymentCovered } from '../../domain/referee';
 import { resolvePhaseFormations } from '../../domain/tactical-phases';
 import type { AiPort, XiSuggestion } from '../ports/in/ai.port';
@@ -213,7 +214,7 @@ export class AiService implements AiPort {
   }
 
   /** Jugadores disponibles: activos y sin suspensión activa (§8.4). */
-  private async xiCandidates(matchId?: number,forBench=false): Promise<{ candidates: XiCandidate[]; suspended: Set<number> }> {
+  private async xiCandidates(matchId?: number,forBench=false,training=false): Promise<{ candidates: XiCandidate[]; suspended: Set<number> }> {
     const suspended = new Set(
       (await this.sanctions.list({ type: 'suspension', status: 'activa' })).map((s) => s.playerId),
     );
@@ -228,7 +229,7 @@ export class AiService implements AiPort {
     for (const { user, player } of (await this.players.list())) {
       if (!user.active) continue;
       if (enrolled && !enrolled.has(player.id)) continue;
-      if (suspended.has(player.id)) continue;
+      if (!training && suspended.has(player.id)) continue;
       if (unavailable.has(player.id)) continue;
       if (paid&&!paid.has(player.id)) continue;
       const rating = ratings.get(player.id);
@@ -318,41 +319,24 @@ export class AiService implements AiPort {
     const rotation = rules?.maxSubstitutions===null
       ? `Cambios ilimitados durante ${match.minutes} min. Planifica relevos por función y carga observada; ${rules.rollingSubstitutions===null?'reingreso pendiente de confirmar':rules.rollingSubstitutions?'se permite reingresar':'no se permite reingresar'}.`
       : `Partido de ${match.minutes} min. ${rules ? 'Máximo '+rules.maxSubstitutions+' cambios.' : 'Confirma los cambios permitidos con la liga.'}`;
-    return {match:{id:match.id,opponent:match.opponent,format:match.format,minutes:match.minutes},style,
+    return {mode:'match',match:{id:match.id,opponent:match.opponent,format:match.format,minutes:match.minutes},style,
       recommendation:{...recommendation,phaseFormations:resolvePhaseFormations(recommendation.formation!,match.format,match.phaseFormations,match.tournamentRules?.allowedFormations),formation:recommendation.formation!,bench:recommendation.bench??[]},
       formations,positions,plays:buildPlays(lineup,style),rotation,
       methodology:'Alineación basada en rendimiento, disponibilidad y encaje de posiciones. Las jugadas son propuestas adaptadas por reglas deportivas y referencias de entrenamiento, para revisar con el entrenador.'};
   }
 
+  async trainingPlan(matchId?: number, styleOverride?: TacticalStyle, formationKey?: string): Promise<TacticalPlan> {
+    const match = matchId === undefined ? null : await this.matches.findById(matchId);
+    if (matchId !== undefined && !match) throw new NotFoundError('Partido no encontrado');
+    const profile = match ? getFormat(match.format) : await this.teamProfile();
+    const style = styleOverride ?? match?.tournamentRules?.tacticalStyle ?? 'equilibrado';
+    const {candidates} = await this.xiCandidates(undefined,false,true);
+    return buildTrainingPlan(profile,candidates,{reference:match??undefined,style,formation:formationKey});
+  }
+
   private async buildXi(formation: FormationDef, matchId?: number): Promise<XiSuggestion> {
     const { candidates, suspended } = (await this.xiCandidates(matchId));
-    const selection = selectXi(formation, candidates);
-    const byId = new Map(candidates.map((c) => [c.playerId, c]));
-
-    const slots: LineupSlot[] = formation.slots.map((slot) => {
-      const assignment = selection.assignments.find((a) => a.slotIndex === slot.slotIndex);
-      const playerId = assignment ? assignment.playerId : null;
-      const candidate = playerId !== null ? byId.get(playerId) : undefined;
-      return {
-        slotIndex: slot.slotIndex,
-        playerId,
-        playerName: candidate ? candidate.playerName : null,
-        avatarUrl: candidate?.avatarUrl ?? null,
-        shirtNumber: candidate ? candidate.shirtNumber : null,
-        playerPosition: candidate ? candidate.position : null,
-        x: slot.x,
-        y: slot.y,
-        role: slot.role,
-        label: slot.label,
-      };
-    });
-
-    const assignedIds = slots
-      .map((slot) => slot.playerId)
-      .filter((id): id is number => id !== null);
-    const avgPredicted = round2(
-      mean(assignedIds.map((id) => (byId.get(id) ? (byId.get(id) as XiCandidate).predictedRating : 0))),
-    );
+    const {lineup:slots,avgRating:avgPredicted} = selectedLineup(formation,candidates);
     const explanation = (await this.buildExplanation(formation, slots, candidates, suspended, avgPredicted)) +
       (candidates.some(row => row.selectionPriority === 1) && candidates.some(row => row.selectionPriority === 0) ? " Prioridad del inicial: cuota completa de arbitraje cubierta con pagos o saldos aprobados; los pendientes completan las posiciones disponibles por la excepción de hoy." : "");
     return { lineup: slots, explanation };

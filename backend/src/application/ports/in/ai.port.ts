@@ -10,6 +10,7 @@ export interface XiSuggestion {
 
 /** Casos de uso de IA (§7.10 y §8). */
 export interface AiPort {
+  trainingPlan(matchId?: number, style?: import('../../../domain/tactics').TacticalStyle, formation?: string): Promise<import('../../../domain/tactics').TacticalPlan>;
   tacticalPlan(matchId: number, style?: import('../../../domain/tactics').TacticalStyle, formation?: string): Promise<import('../../../domain/tactics').TacticalPlan>;
   getModelInfo(): Promise<ModelInfo>;
   train(): Promise<ModelInfo>;

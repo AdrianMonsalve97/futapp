@@ -39,8 +39,19 @@ export function SquadTacticalOverview({
   if (!state.next || !state.detail.data)
     return (
       <EmptyState
-        title="El próximo sistema empieza con un partido"
-        message="Cuando se programe el siguiente encuentro, aquí podrás ver su formación y sus jugadores."
+        title="La preparación sigue en la cancha"
+        message={
+          user?.role === "admin"
+            ? "Puedes ensayar formaciones y jugadas con todo el plantel, incluso sin un partido programado."
+            : "Cuando se programe el siguiente encuentro, aquí podrás ver su formación y sus jugadores."
+        }
+        action={
+          user?.role === "admin" ? (
+            <Link className="btn btn-primary" to="/admin/ia">
+              Ensayar con todo el plantel →
+            </Link>
+          ) : undefined
+        }
         icon="futbol"
       />
     );
@@ -82,6 +93,11 @@ export function SquadTacticalOverview({
               ? "Alineación publicada. Toca a un compañero para ver su rendimiento."
               : "El entrenador está preparando el equipo. Las posiciones se completarán cuando publique la alineación."}
         </p>
+        {user?.role === "admin" && (
+          <Link className="btn btn-outline btn-sm" to="/admin/ia">
+            Ensayo libre · todo el plantel →
+          </Link>
+        )}
       </div>
     </section>
   );

@@ -1,4 +1,5 @@
 import { MatchKickoffPanel } from "../../organisms/MatchKickoffPanel";
+import { MatchResultDialog } from "../../organisms/MatchResultDialog";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useFetch } from "../../hooks/useFetch";
@@ -32,6 +33,7 @@ export function MatchBuilderPage() {
   );
   const [section, setSection] = useState<Section>("tactica");
   const [editing, setEditing] = useState(false);
+  const [closing, setClosing] = useState(false);
   const players = useFetch<PlayerListItem[]>(
     section === "tactica" || section === "rendimiento" ? "/api/players" : null,
   );
@@ -58,6 +60,13 @@ export function MatchBuilderPage() {
         subtitle="Convocatoria, táctica y rendimiento del equipo"
         actions={
           <>
+            {match.status !== "cancelado" && match.status !== "pospuesto" && (
+              <Button size="sm" onClick={() => setClosing(true)}>
+                {match.status === "jugado"
+                  ? "Corregir resultado"
+                  : "Finalizar partido"}
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -201,6 +210,17 @@ export function MatchBuilderPage() {
         teamFormat={profile.format}
         onSaved={detail.reload}
       />
+      {closing && (
+        <MatchResultDialog
+          key={match.id}
+          match={match}
+          onClose={() => setClosing(false)}
+          onSaved={() => {
+            setClosing(false);
+            detail.reload();
+          }}
+        />
+      )}
     </>
   );
 }

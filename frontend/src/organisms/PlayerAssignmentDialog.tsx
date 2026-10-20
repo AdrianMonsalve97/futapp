@@ -7,7 +7,7 @@ import { Button } from "../atoms/Button";
 import { Modal } from "../atoms/Modal";
 import { Spinner } from "../atoms/Spinner";
 
-import type { PlayerListItem } from "../types/api";
+import type { Player, User } from "../types/api";
 
 export function PlayerAssignmentDialog({
   slot,
@@ -19,9 +19,13 @@ export function PlayerAssignmentDialog({
   onAssign,
   loading,
   attendance = [],
+  training = false,
 }: {
   slot: PitchSlot;
-  players: PlayerListItem[];
+  players: {
+    player: Pick<Player, "id" | "position" | "shirtNumber">;
+    user: Pick<User, "fullName" | "avatarUrl">;
+  }[];
   slots: PitchSlot[];
   selectedId: string;
   onSelect: (id: string) => void;
@@ -29,6 +33,7 @@ export function PlayerAssignmentDialog({
   onAssign: () => void;
   loading: boolean;
   attendance?: MatchAttendance[];
+  training?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const key = (value: string) =>
@@ -56,8 +61,10 @@ export function PlayerAssignmentDialog({
       }
     >
       <p className="text-sm text-base-content/60 mb-4">
-        Solo aparecen jugadores habilitados para el inicial. Si eliges a alguien
-        que ya está en la cancha, se moverá a esta posición.
+        {training
+          ? "Ensayo con todo el plantel activo."
+          : "Solo aparecen jugadores habilitados para el inicial."}{" "}
+        Si eliges a alguien que ya está en la cancha, se moverá a esta posición.
       </p>
       <label className="form-control mb-3">
         <span className="text-xs mb-1">Buscar por nombre o dorsal</span>
@@ -136,8 +143,9 @@ export function PlayerAssignmentDialog({
         )}
         {!loading && !filtered.length && (
           <p className="text-sm text-base-content/60 p-4">
-            No hay jugadores habilitados con este filtro. Revisa la asistencia,
-            inscripción al torneo y pagos aprobados de arbitraje.
+            {training
+              ? "No hay jugadores con ese nombre o dorsal."
+              : "No hay jugadores habilitados con este filtro. Revisa asistencia, inscripción al torneo y pagos aprobados de arbitraje."}
           </p>
         )}
       </div>

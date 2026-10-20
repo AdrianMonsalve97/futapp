@@ -1,4 +1,7 @@
 import { useMatchCalendar } from "../../hooks/useMatchCalendar";
+import { useState } from "react";
+import type { Match } from "../../types/api";
+import { MatchResultDialog } from "../../organisms/MatchResultDialog";
 import { useSettings } from "../../context/SettingsContext";
 import { PageHeader } from "../../templates/PageHeader";
 import { Alert } from "../../atoms/Alert";
@@ -10,6 +13,7 @@ import { MatchFormModal } from "../../organisms/MatchFormModal";
 import { SectionNavigation } from "../../molecules/SectionNavigation";
 
 export function MatchesPage() {
+  const [resultMatch, setResultMatch] = useState<Match | null>(null);
   const { settings } = useSettings();
   const {
     loading,
@@ -59,6 +63,24 @@ export function MatchesPage() {
           { key: "archive", label: "Cancelados", count: archive.length },
         ]}
       />
+      {view === "upcoming" &&
+        played.some((match) => match.status === "programado") && (
+          <Alert tone="info" className="mb-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <span>
+                Hay partidos con su tiempo reglamentario cumplido. Confirma sus
+                marcadores para actualizar la tabla.
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setView("played")}
+              >
+                Revisar resultados
+              </Button>
+            </div>
+          </Alert>
+        )}
       <div className="space-y-5">
         {view === "upcoming" && !error && (
           <UpcomingMatches
@@ -76,9 +98,12 @@ export function MatchesPage() {
         {view === "played" && (
           <Card>
             <CardBody className="gap-3">
-              <CardTitle className="text-base">Jugados</CardTitle>
+              <CardTitle className="text-base">
+                Resultados y partidos por cerrar
+              </CardTitle>
               <MatchList
                 matches={played}
+                onResult={setResultMatch}
                 mode="admin"
                 detailHref={(match) => `/admin/partidos/${match.id}`}
                 onEdit={edit}
@@ -113,6 +138,18 @@ export function MatchesPage() {
         teamFormat={settings.profile.format}
         onSaved={reload}
       />
+      {resultMatch && (
+        <MatchResultDialog
+          key={resultMatch.id}
+          match={resultMatch}
+          onClose={() => setResultMatch(null)}
+          onSaved={() => {
+            setResultMatch(null);
+            setView("played");
+            reload();
+          }}
+        />
+      )}
     </>
   );
 }

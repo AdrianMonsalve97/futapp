@@ -7,6 +7,7 @@ import { tacticalBallPoint, tacticalRoute } from "../utils/tactical-play";
 import { TacticalPosition } from "../molecules/TacticalPosition";
 import { TacticalPitch } from "../molecules/TacticalPitch";
 import { TacticalPlayRoute } from "../molecules/TacticalPlayRoute";
+import { tacticalMotion } from "../utils/tactical-motion";
 
 export function TacticalField({
   slots,
@@ -31,12 +32,23 @@ export function TacticalField({
 }) {
   const field = useElementWidth();
   const layout = tacticalLayout(slots, field.width ?? 320);
-  const route = tacticalRoute(playback?.route ?? [], layout.slots);
+  const positions = playback
+    ? tacticalMotion(
+        layout.slots,
+        playback.route,
+        playback.step,
+        field.width ?? 320,
+        layout.height,
+        layout.tileWidth,
+      )
+    : layout.slots;
+  const route = tacticalRoute(playback?.route ?? [], positions);
   const points = route.map((slot) =>
     tacticalBallPoint(slot, layout.tileWidth, field.width ?? 320),
   );
   const receiver = route[playback?.step ?? 0];
   const ball = points[playback?.step ?? 0];
+  const next = route[(playback?.step ?? 0) + 1];
   return (
     <div className="fc-field-viewport">
       <div
@@ -44,6 +56,7 @@ export function TacticalField({
         className="fc-tactical-field"
         data-format={format}
         data-phase={phase}
+        data-playback={Boolean(playback)}
         style={
           {
             height: layout.height,
@@ -53,8 +66,23 @@ export function TacticalField({
         }
       >
         <TacticalPitch>
+          {playback &&
+            positions.map((slot, index) => {
+              const start = layout.slots[index];
+              if (
+                Math.hypot(start.left - slot.left, start.top - slot.top) < 0.5
+              )
+                return null;
+              return (
+                <path
+                  key={`run-${slot.slotIndex}`}
+                  className="fc-running-lane"
+                  d={`M${start.left} ${start.top}Q${slot.left} ${start.top} ${slot.left} ${slot.top}`}
+                />
+              );
+            })}
           {focusRole &&
-            layout.slots
+            positions
               .filter((slot) => slot.role === focusRole)
               .map((slot) => (
                 <ellipse
@@ -67,8 +95,8 @@ export function TacticalField({
                 />
               ))}
           {connections &&
-            layout.slots.flatMap((from, index) =>
-              layout.slots
+            positions.flatMap((from, index) =>
+              positions
                 .slice(index + 1)
                 .filter(
                   (to) =>
@@ -92,10 +120,15 @@ export function TacticalField({
             />
           )}
         </TacticalPitch>
-        {layout.slots.map((slot) => (
+        <span className="fc-field-direction" aria-hidden="true">
+          ATAQUE ↑
+        </span>
+        {positions.map((slot) => (
           <div
             key={slot.slotIndex}
             className="fc-position-anchor"
+            data-possession={playback && slot.slotIndex === receiver?.slotIndex}
+            data-next={playback && slot.slotIndex === next?.slotIndex}
             style={{ left: `${slot.left}%`, top: `${slot.top}%` }}
           >
             <TacticalPosition
@@ -117,6 +150,13 @@ export function TacticalField({
             style={{ left: `${ball.left}%`, top: `${ball.top}%` }}
             aria-hidden="true"
           />
+        )}
+        {playback && (
+          <span className="fc-field-status" aria-hidden="true">
+            {phase === "repliegue"
+              ? "BLOQUE COMPACTO"
+              : "PASE · APOYO · MOVILIDAD"}
+          </span>
         )}
       </div>
     </div>

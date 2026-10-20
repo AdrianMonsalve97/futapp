@@ -90,7 +90,10 @@ export function LeagueResultsPanel({
                     className="club-text-link"
                     to={`${base}/partidos/${row.matchId}`}
                   >
-                    Partido del club <Icon name="arrowRight" size={13} />
+                    {admin && row.status === "programado"
+                      ? "Confirmar resultado para actualizar la tabla"
+                      : "Partido del club"}{" "}
+                    <Icon name="arrowRight" size={13} />
                   </Link>
                 ) : (
                   <span className="club-muted">Encuentro de la liga</span>

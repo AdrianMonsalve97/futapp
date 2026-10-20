@@ -1,23 +1,75 @@
-import type { PhaseFormations } from './tactical-phases';
-import type { LineupSlot, Position } from './entities';
-import type { TeamFormat } from './formats';
-import type { LeagueContext } from './tournament';
-export type TacticalStyle = 'equilibrado' | 'ofensivo' | 'defensivo';
-export interface CoachingSource { title: string; url: string; topic: string; }
-export type TacticalPlayCategory = 'salida' | 'asociacion' | 'finalizacion' | 'recuperacion';
+import type { PhaseFormations } from "./tactical-phases";
+import type { LineupSlot, Position } from "./entities";
+import type { TeamFormat } from "./formats";
+import type { LeagueContext } from "./tournament";
+export type TacticalStyle = "equilibrado" | "ofensivo" | "defensivo";
+export interface CoachingSource {
+  title: string;
+  url: string;
+  topic: string;
+}
+export type TacticalPlayCategory =
+  | "salida"
+  | "asociacion"
+  | "finalizacion"
+  | "recuperacion";
 export interface TacticalPlay {
   category: TacticalPlayCategory;
-  id: string; title: string; objective: string; phase: string;
-  route: number[]; steps: string[]; coaching: string; source: CoachingSource;
+  id: string;
+  title: string;
+  objective: string;
+  phase: string;
+  route: number[];
+  steps: string[];
+  coaching: string;
+  source: CoachingSource;
 }
 export interface TacticalPlan {
-  match: {id:number;opponent:string;format:TeamFormat;minutes:number}; style:TacticalStyle;
-  recommendation: {phaseFormations:PhaseFormations;formation:string;lineup:LineupSlot[];explanation:string;bench:{playerId:number;playerName:string;position:string;predictedRating:number}[];leagueContext?:LeagueContext};
-  formations:{key:string;score:number;avgRating:number;filled:number;naturalFit:number;slots:LineupSlot[]}[];
-  positions:{role:Position;available:number;primary:number;needed:number;avgRating:number}[];
-  plays:TacticalPlay[]; rotation:string; methodology:string;
+  mode: "match" | "training";
+  roster?: import("./squad").SquadIdentity[];
+  match: {
+    id: number | null;
+    opponent: string | null;
+    format: TeamFormat;
+    minutes: number;
+  };
+  style: TacticalStyle;
+  recommendation: {
+    phaseFormations: PhaseFormations;
+    formation: string;
+    lineup: LineupSlot[];
+    explanation: string;
+    bench: {
+      playerId: number;
+      playerName: string;
+      position: string;
+      predictedRating: number;
+    }[];
+    leagueContext?: LeagueContext;
+  };
+  formations: {
+    key: string;
+    score: number;
+    avgRating: number;
+    filled: number;
+    naturalFit: number;
+    slots: LineupSlot[];
+  }[];
+  positions: {
+    role: Position;
+    available: number;
+    primary: number;
+    needed: number;
+    avgRating: number;
+  }[];
+  plays: TacticalPlay[];
+  rotation: string;
+  methodology: string;
 }
 export interface CoachingResearch {
-  checkedAt:string;style:TacticalStyle;query:string;status:'consultado'|'parcial'|'no_disponible';
-  sources:(CoachingSource & {verified:boolean})[];
+  checkedAt: string;
+  style: TacticalStyle;
+  query: string;
+  status: "consultado" | "parcial" | "no_disponible";
+  sources: (CoachingSource & { verified: boolean })[];
 }

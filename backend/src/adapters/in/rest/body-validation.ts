@@ -128,7 +128,8 @@ export function validateBody(path: string, method: string, body: unknown): void 
   } }, ['name','leagueName','season','notes','status','rules']);
   if (path === '/ai/recommend-xi') return check(body, { matchId: integer(1), formation: nonempty(40) }, ['matchId']);
   if (path === '/ai/tactical-plan') return check(body, {matchId:integer(1),style:oneOf('equilibrado','ofensivo','defensivo'),formation:nonempty(40)},['matchId']);
-  if (path === '/ai/research') return check(body, {matchId:integer(1),style:oneOf('equilibrado','ofensivo','defensivo')},['matchId']);
+  if (path === '/ai/training-plan') return check(body, {matchId:integer(1),style:oneOf('equilibrado','ofensivo','defensivo'),formation:nonempty(40)},[]);
+  if (path === '/ai/research') return check(body, {style:oneOf('equilibrado','ofensivo','defensivo')},[]);
   if (path.endsWith('/attendance')) return check(body, { status: oneOf('confirmado', 'no_disponible', 'pendiente') }, ['status']);
   if (path.endsWith('/lineup/publish')) return check(body, {});
 }

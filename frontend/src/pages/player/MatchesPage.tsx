@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useCalendarRefresh } from "../../hooks/useCalendarRefresh";
 import { SectionNavigation } from "../../molecules/SectionNavigation";
 import { useFetch } from "../../hooks/useFetch";
 import { PageHeader } from "../../templates/PageHeader";
@@ -14,6 +15,7 @@ export function MatchesPage() {
   const [view, setView] = useState<"upcoming" | "played">("upcoming");
   const { data, loading, error, reload } =
     useFetch<MeMatchesResponse>("/api/me/matches");
+  useCalendarRefresh(reload);
 
   return (
     <>
@@ -66,7 +68,9 @@ export function MatchesPage() {
           {view === "played" && (
             <Card>
               <CardBody className="gap-3">
-                <CardTitle className="text-base">Partidos jugados</CardTitle>
+                <CardTitle className="text-base">
+                  Resultados del equipo
+                </CardTitle>
                 <MatchList
                   matches={data?.finished ?? []}
                   mode="player"

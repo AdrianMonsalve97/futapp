@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 export function useTacticalPlayback(sequence: string, length: number) {
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [loop, setLoop] = useState(false);
   const last = Math.max(0, length - 1);
   const current = Math.min(step, last);
   useEffect(() => {
@@ -18,13 +20,14 @@ export function useTacticalPlayback(sequence: string, length: number) {
     return () => document.removeEventListener("visibilitychange", pause);
   }, []);
   useEffect(() => {
-    if (!playing || current >= last) return;
+    if (!playing || (current >= last && !loop)) return;
     const timer = window.setTimeout(() => {
-      setStep(current + 1);
-      if (current + 1 >= last) setPlaying(false);
-    }, 1800);
+      if (current >= last) setStep(0);
+      else setStep(current + 1);
+      if (current + 1 >= last && !loop) setPlaying(false);
+    }, 1800 / speed);
     return () => window.clearTimeout(timer);
-  }, [playing, current, last, sequence]);
+  }, [playing, current, last, sequence, speed, loop]);
   const seek = (target: number) => {
     setPlaying(false);
     setStep(Math.max(0, Math.min(last, target)));
@@ -34,5 +37,14 @@ export function useTacticalPlayback(sequence: string, length: number) {
     if (!playing && current >= last) setStep(0);
     setPlaying((value) => !value);
   };
-  return { step: current, playing, seek, toggle };
+  return {
+    step: current,
+    playing,
+    seek,
+    toggle,
+    speed,
+    setSpeed,
+    loop,
+    setLoop,
+  };
 }

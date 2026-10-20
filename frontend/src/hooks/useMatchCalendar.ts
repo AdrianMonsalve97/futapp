@@ -2,9 +2,12 @@ import { useState } from "react";
 import { useFetch } from "./useFetch";
 import { api, errorMessage } from "../services/api";
 import type { Match } from "../types/api";
+import { matchCalendar } from "../utils/upcoming-fixtures";
+import { useCalendarRefresh } from "./useCalendarRefresh";
 
 export function useMatchCalendar() {
   const { data, loading, error, reload } = useFetch<Match[]>("/api/matches");
+  const now = useCalendarRefresh(reload);
   const [view, setView] = useState<"upcoming" | "played" | "archive">(
     "upcoming",
   );
@@ -22,12 +25,11 @@ export function useMatchCalendar() {
     }
   };
 
-  const matches = data ?? [];
-  const upcoming = matches.filter(
-    (item) => item.status === "programado" || item.status === "pospuesto",
-  );
-  const played = matches.filter((item) => item.status === "jugado");
-  const archive = matches.filter((item) => item.status === "cancelado");
+  const {
+    upcoming,
+    results: played,
+    cancelled: archive,
+  } = matchCalendar(data ?? [], now);
 
   return {
     loading,

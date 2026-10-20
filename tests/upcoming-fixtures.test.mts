@@ -29,7 +29,7 @@ test("the spotlight chooses the earliest confirmed future fixture across timezon
   assert(!remaining.some((match) => match.id === featured?.id));
   assert.deepEqual(
     remaining.map((match) => match.id),
-    [5, 3, 6, 1],
+    [3, 6, 1],
   );
   assert.deepEqual(matches, original);
 });
@@ -39,7 +39,7 @@ test("overdue, postponed, undated and empty calendars retain usable access witho
     fixture(1, "2026-10-12T18:00"),
     fixture(2, "2026-10-13T18:00"),
   ];
-  assert.equal(upcomingFixtures(overdue, now).featured?.id, 2);
+  assert.equal(upcomingFixtures(overdue, now).featured, null);
   assert.equal(
     upcomingFixtures(
       [fixture(3, "invalid"), fixture(4, "2026-10-10T18:00", "pospuesto")],

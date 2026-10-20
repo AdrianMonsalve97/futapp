@@ -1,8 +1,5 @@
-/** Tournament fixtures are entered in Colombia time (UTC−05), independently of the viewing device. */
-export function kickoffTime(value: string): number {
-  const local = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value);
-  return Date.parse(local ? `${value}-05:00` : value);
-}
+import { kickoffTime } from "../../../backend/src/domain/match-schedule";
+export { kickoffTime } from "../../../backend/src/domain/match-schedule";
 
 const kickoffFormatter = new Intl.DateTimeFormat("es-CO", {
   timeZone: "America/Bogota",

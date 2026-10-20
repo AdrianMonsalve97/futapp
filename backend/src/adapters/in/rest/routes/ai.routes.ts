@@ -43,10 +43,13 @@ export function aiRoutes(ai: AiPort): Router {
     const body = jsonBody<{matchId:number;style?:TacticalStyle;formation?:string}>(req);
     res.json((await ai.tacticalPlan(body.matchId,body.style,body.formation)));
   });
+  router.post('/ai/training-plan',requireAuth,requireRole('admin'),async (req,res) => {
+    const body = jsonBody<{matchId?:number;style?:TacticalStyle;formation?:string}>(req);
+    res.json(await ai.trainingPlan(body.matchId,body.style,body.formation));
+  });
   router.post('/ai/research',requireAuth,requireRole('admin'),async(req,res) => {
-    const body = jsonBody<{matchId:number;style?:TacticalStyle}>(req);
-    const plan = (await ai.tacticalPlan(body.matchId,body.style));
-    res.json(await researchCoaching(plan.style));
+    const body = jsonBody<{style?:TacticalStyle}>(req);
+    res.json(await researchCoaching(body.style ?? 'equilibrado'));
   });
 
   return router;

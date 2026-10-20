@@ -27,10 +27,8 @@ export function TacticalPlayboard({
 }) {
   const route = tacticalRoute(play.route, slots);
   const sequence = `${play.id}:${play.phase}:${route.map((slot) => `${slot.slotIndex}/${slot.playerId ?? "vacante"}`).join(",")}`;
-  const { step, playing, seek, toggle } = useTacticalPlayback(
-    sequence,
-    route.length,
-  );
+  const { step, playing, seek, toggle, speed, setSpeed, loop, setLoop } =
+    useTacticalPlayback(sequence, route.length);
   const phase = tacticalPlayPhase(play.phase, step);
   const systems = resolvePhaseFormations(
     formation,
@@ -50,7 +48,7 @@ export function TacticalPlayboard({
       <div className="fc-board-heading">
         <div>
           <p className="sport-eyebrow">
-            PLAY REPLAY · F{format} · {play.phase} · {activeSystem}
+            ENSAYO EN CANCHA · F{format} · {play.phase} · {activeSystem}
           </p>
           <h3>{play.title}</h3>
         </div>
@@ -66,6 +64,21 @@ export function TacticalPlayboard({
         playback={{ route: play.route, step }}
       />
       <div className="fc-play-controls">
+        <div className="fc-replay-scoreboard">
+          <span>
+            <i aria-hidden="true" />{" "}
+            {playing ? "JUGADA EN MOVIMIENTO" : "PIZARRA DEL ENTRENADOR"}
+          </span>
+          <strong>
+            {String(step + 1).padStart(2, "0")}{" "}
+            <small>/ {String(route.length).padStart(2, "0")}</small>
+          </strong>
+          <span>
+            {route[step + 1]
+              ? `${receiver?.label} → ${route[step + 1].label}`
+              : "FIN DE LA SECUENCIA"}
+          </span>
+        </div>
         <div className="fc-play-transport">
           <Button
             size="sm"
@@ -75,6 +88,25 @@ export function TacticalPlayboard({
           >
             Anterior
           </Button>
+          <label className="fc-replay-speed">
+            Ritmo
+            <select
+              value={speed}
+              onChange={(event) => setSpeed(Number(event.target.value))}
+            >
+              <option value={0.75}>0.75×</option>
+              <option value={1}>1×</option>
+              <option value={1.5}>1.5×</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            className="fc-support-toggle"
+            aria-pressed={loop}
+            onClick={() => setLoop(!loop)}
+          >
+            Repetir
+          </button>
           <span role="status">
             {route.length
               ? `Paso ${step + 1}/${route.length}`
@@ -124,7 +156,7 @@ export function TacticalPlayboard({
               <strong>{receiver.playerName ?? "Posición por cubrir"}</strong> ·{" "}
               {receiver.label} ·{" "}
               {receiver.playerId != null
-                ? "punto actual del recorrido"
+                ? "posesión del balón"
                 : "recorrido de práctica"}
             </>
           ) : (
@@ -132,8 +164,9 @@ export function TacticalPlayboard({
           )}
         </p>
         <p className="fc-play-note">
-          Ensayo esquemático. Las flechas muestran el recorrido; no cambian el
-          inicial publicado.
+          Balón dorado: pase · trazos verdes: desmarques y apoyos. Los
+          movimientos son de ensayo y respetan el espacio entre fichas; no
+          cambian el inicial publicado.
         </p>
       </div>
     </section>

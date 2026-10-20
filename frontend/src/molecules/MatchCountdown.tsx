@@ -1,6 +1,7 @@
 import { formatKickoffDate } from "../utils/match-clock";
 import type { Match } from "../types/api";
 import { useMatchCountdown } from "../hooks/useMatchCountdown";
+import { awaitingResult } from "../utils/upcoming-fixtures";
 
 export function MatchCountdown({ match }: { match: Match }) {
   const clock = useMatchCountdown(match.kickOff, match.status === "programado");
@@ -11,11 +12,13 @@ export function MatchCountdown({ match }: { match: Match }) {
         ? "Partido cancelado"
         : match.status === "jugado"
           ? "Partido finalizado"
-          : !clock
-            ? "Horario por confirmar"
-            : clock.reached
-              ? "Hora de inicio alcanzada"
-              : null;
+          : awaitingResult(match)
+            ? "Tiempo reglamentario cumplido · resultado por confirmar"
+            : !clock
+              ? "Horario por confirmar"
+              : clock.reached
+                ? "Hora de inicio alcanzada"
+                : null;
   return (
     <div className="match-countdown">
       {clock && match.status !== "pospuesto" && (

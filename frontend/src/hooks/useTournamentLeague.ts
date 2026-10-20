@@ -53,11 +53,13 @@ export function useTournamentLeague(tournamentId: number, clubName: string) {
     const refresh = () => {
       if (document.visibilityState === "visible") league.reload();
     };
-    const timer = window.setInterval(refresh, 60000);
+    const timer = window.setInterval(refresh, 30000);
     window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, [dirty, busy, editor, deleting, league.reload]);
 

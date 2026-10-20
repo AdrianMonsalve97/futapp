@@ -9,6 +9,7 @@ import { Spinner } from "../atoms/Spinner";
 import { formatKickoffDate } from "../utils/match-clock";
 import type { TacticalStyle } from "../types/tactics";
 import { CoachingPlanPanel } from "./CoachingPlanPanel";
+import { PlayerAssignmentDialog } from "./PlayerAssignmentDialog";
 const CoachingPlaysPanel = lazy(() =>
   import("./CoachingPlaysPanel").then((module) => ({
     default: module.CoachingPlaysPanel,
@@ -43,15 +44,34 @@ export function CoachingWorkspace() {
         ]}
       />
       {collective && (
+        <SectionNavigation
+          label="Contexto del tablero"
+          value={state.mode}
+          onChange={state.chooseMode}
+          disabled={state.busy !== null}
+          items={[
+            { key: "training", label: "Ensayo libre · todo el plantel" },
+            { key: "match", label: "Convocatoria oficial" },
+          ]}
+        />
+      )}
+      {collective && (
         <div className="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] items-end">
-          <FormField label="Partido">
+          <FormField
+            label={
+              state.mode === "training" ? "Formato de referencia" : "Partido"
+            }
+          >
             <Select
-              value={state.selectedId ?? ""}
+              value={state.selectedId ?? (state.mode === "training" ? "0" : "")}
               disabled={state.busy !== null || state.matchesLoading}
               onChange={(event) =>
                 state.chooseMatch(Number(event.target.value))
               }
             >
+              {state.mode === "training" && (
+                <option value="0">Entrenamiento del club · sin partido</option>
+              )}
               <option value="" disabled>
                 {state.matchesLoading
                   ? "Cargando calendario…"
@@ -81,7 +101,11 @@ export function CoachingWorkspace() {
           <Button
             variant="outline"
             onClick={state.refresh}
-            disabled={!state.selected || state.loading || state.busy !== null}
+            disabled={
+              (state.mode === "match" && !state.selected) ||
+              state.loading ||
+              state.busy !== null
+            }
           >
             Recalcular propuesta
           </Button>
@@ -94,12 +118,15 @@ export function CoachingWorkspace() {
           <Spinner />
         </div>
       )}
-      {collective && !state.matchesLoading && !state.selected && (
-        <Alert tone="info">
-          Programa un encuentro para preparar el plan colectivo. El enfoque
-          individual está disponible aunque todavía no haya partido.
-        </Alert>
-      )}
+      {collective &&
+        state.mode === "match" &&
+        !state.matchesLoading &&
+        !state.selected && (
+          <Alert tone="info">
+            Programa un encuentro para preparar el plan colectivo. El enfoque
+            individual está disponible aunque todavía no haya partido.
+          </Alert>
+        )}
       <Suspense
         fallback={
           <div className="py-10 text-center">
@@ -114,6 +141,12 @@ export function CoachingWorkspace() {
             editable={state.editable}
             onApply={state.apply}
             onFormation={state.setFormation}
+            onSlotSelect={
+              state.mode === "training" ? state.training.open : undefined
+            }
+            onPhaseFormationChange={
+              state.mode === "training" ? state.training.setPhase : undefined
+            }
           />
         )}
         {state.section === "plays" && state.plan && (
@@ -151,6 +184,19 @@ export function CoachingWorkspace() {
           </>
         )}
       </Suspense>
+      {state.mode === "training" && state.plan && state.training.slot && (
+        <PlayerAssignmentDialog
+          training
+          slot={state.training.slot}
+          slots={state.plan.recommendation.lineup}
+          players={state.training.players}
+          selectedId={state.training.playerId}
+          onSelect={state.training.setPlayerId}
+          onAssign={state.training.assign}
+          onClose={state.training.close}
+          loading={false}
+        />
+      )}
     </div>
   );
 }

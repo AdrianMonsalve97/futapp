@@ -30,7 +30,7 @@ import { deriveInscriptionStatus, emptyStatsSummary, summarizeStats } from './sh
 
 import { validatePassword } from '../../domain/password-policy';
 import type { RefereeService } from './referee-service';
-const UPCOMING = new Set(['programado', 'pospuesto']);
+import { matchCalendar } from '../../domain/match-schedule';
 
 export class MeService implements MePort {
   constructor(
@@ -156,14 +156,8 @@ export class MeService implements MePort {
   async getMatches(userId: number): Promise<{ upcoming: MatchView[]; finished: MatchView[] }> {
     const player = (await this.requirePlayer(userId));
     const views = (await Promise.all((await this.matches.list()).map(async (match) => (await this.toMatchView(match, player.id)))));
-    return {
-      upcoming: views
-        .filter((m) => UPCOMING.has(m.status))
-        .sort((a, b) => a.kickOff.localeCompare(b.kickOff)),
-      finished: views
-        .filter((m) => !UPCOMING.has(m.status))
-        .sort((a, b) => b.kickOff.localeCompare(a.kickOff)),
-    };
+    const calendar = matchCalendar(views);
+    return { upcoming: calendar.upcoming, finished: [...calendar.results, ...calendar.cancelled] };
   }
 
   async getStats(userId: number): Promise<{ summary: ReturnType<typeof summarizeStats>; matches: MatchStat[] }> {

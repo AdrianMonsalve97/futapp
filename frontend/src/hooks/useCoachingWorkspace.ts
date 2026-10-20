@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useFetch } from "./useFetch";
 import { api, errorMessage } from "../services/api";
 import { upcomingFixtures } from "../utils/upcoming-fixtures";
+import { useTrainingDraft } from "./useTrainingDraft";
 import type { AiInsights, Match, ModelInfo } from "../types/api";
 import type {
   TacticalPlan,
@@ -17,6 +18,7 @@ const styleNames = {
   defensivo: "Defensivo",
 };
 export function useCoachingWorkspace() {
+  const [mode, setMode] = useState<"training" | "match">("training");
   const [section, setSectionState] = useState<CoachingSection>("plan");
   const collective = section === "plan" || section === "plays";
   const matches = useFetch<Match[]>(collective ? "/api/matches" : null),
@@ -41,21 +43,24 @@ export function useCoachingWorkspace() {
   const activeStyle =
     style ?? selected?.tournamentRules?.tacticalStyle ?? "equilibrado";
   useEffect(() => {
-    if (!selectedId || !collective) return;
+    if ((!selectedId && mode === "match") || !collective) return;
     let current = true;
     setLoading(true);
     setPlan(null);
     setResearch(null);
     setError(null);
     setNotice(null);
-    api<TacticalPlan>("/api/ai/tactical-plan", {
-      method: "POST",
-      json: {
-        matchId: selectedId,
-        style: activeStyle,
-        ...(formation ? { formation } : {}),
+    api<TacticalPlan>(
+      mode === "training" ? "/api/ai/training-plan" : "/api/ai/tactical-plan",
+      {
+        method: "POST",
+        json: {
+          ...(selectedId ? { matchId: selectedId } : {}),
+          style: activeStyle,
+          ...(formation ? { formation } : {}),
+        },
       },
-    })
+    )
       .then((data) => {
         if (current) setPlan(data);
       })
@@ -68,12 +73,14 @@ export function useCoachingWorkspace() {
     return () => {
       current = false;
     };
-  }, [selectedId, activeStyle, formation, refresh, collective]);
+  }, [selectedId, activeStyle, formation, refresh, collective, mode]);
   const editable =
-    selected?.status === "programado" || selected?.status === "pospuesto";
+    mode === "match" &&
+    (selected?.status === "programado" || selected?.status === "pospuesto");
   const apply = async () => {
     if (
       !plan ||
+      plan.match.id === null ||
       !editable ||
       busy !== null ||
       plan.match.id !== selectedId ||
@@ -119,12 +126,11 @@ export function useCoachingWorkspace() {
     if (!plan || busy !== null) return;
     setBusy("research");
     setError(null);
-    const requested = plan.match.id,
-      requestedStyle = plan.style;
+    const requestedStyle = plan.style;
     try {
       const result = await api<CoachingResearch>("/api/ai/research", {
         method: "POST",
-        json: { matchId: requested, style: requestedStyle },
+        json: { style: requestedStyle },
       });
       setResearch(result);
     } catch (err) {
@@ -136,6 +142,7 @@ export function useCoachingWorkspace() {
   const savePlay = async (play: TacticalPlay) => {
     if (
       !plan ||
+      plan.match.id === null ||
       !editable ||
       busy !== null ||
       plan.match.id !== selectedId ||
@@ -191,12 +198,22 @@ export function useCoachingWorkspace() {
   };
   const activePlay = plan?.plays.find((p) => p.id === playId) ?? plan?.plays[0];
   const current =
-    plan?.match.id === selectedId &&
+    plan?.match.id === (selectedId ?? null) &&
+    plan?.mode === mode &&
     plan?.style === activeStyle &&
     (!formation || plan.recommendation.formation === formation)
       ? plan
       : null;
+  const training = useTrainingDraft(current, setPlan);
   return {
+    training,
+    mode,
+    chooseMode: (value: "training" | "match") => {
+      if (busy !== null) return;
+      setMode(value);
+      setFormation("");
+      setPlan(null);
+    },
     section,
     setSection: (value: CoachingSection) => {
       if (busy !== null) return;
